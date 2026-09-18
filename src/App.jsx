@@ -52,12 +52,49 @@ function MainApp() {
 
   if (isAppLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F7F8F4] text-slate-900">
-        <div className="w-20 h-20 mb-6 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
-          <img src="/jdca-logo.png" alt="JDCA Logo" className="w-12 h-12 object-contain filter invert" />
-        </div>
-        <h2 className="text-xl font-black uppercase tracking-widest text-slate-800">JDCA</h2>
-        <p className="text-sm font-semibold text-slate-400 mt-2">Loading Live Data...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 flex flex-col items-center justify-center px-4 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[30rem] h-[30rem] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none" />
+        
+        <motion.div
+          animate={{ 
+            scale: [1, 1.1, 1],
+            rotateY: [0, 180, 360]
+          }}
+          transition={{ 
+            duration: 2, 
+            ease: "easeInOut",
+            repeat: Infinity 
+          }}
+          className="mb-8 relative"
+        >
+          <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-40 rounded-full animate-pulse" />
+          <img
+            src="/jdca-logo.png"
+            alt="JDCA Official Emblem"
+            className="w-32 h-32 sm:w-40 sm:h-40 object-contain drop-shadow-[0_0_20px_rgba(36,87,214,0.6)] relative z-10"
+          />
+        </motion.div>
+        
+        <motion.h2 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-white text-xl sm:text-2xl font-black tracking-widest uppercase mb-3"
+        >
+          Loading JDCA
+        </motion.h2>
+        
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="text-blue-300 text-sm font-medium flex items-center gap-2 bg-blue-900/40 px-4 py-2 rounded-full border border-blue-500/30"
+        >
+          <div className="w-4 h-4 rounded-full border-2 border-t-transparent border-blue-400 animate-spin" />
+          Fetching Live Data...
+        </motion.div>
       </div>
     );
   }
