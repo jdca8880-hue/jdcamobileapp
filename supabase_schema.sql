@@ -1361,6 +1361,7 @@ for insert with check (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
 );
 
+drop policy if exists innings_scorer_update on innings;
 create policy innings_scorer_update on innings
 for update using (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
@@ -1376,6 +1377,7 @@ for insert with check (
   and created_by = auth.uid()
 );
 
+drop policy if exists deliveries_scorer_update on deliveries;
 create policy deliveries_scorer_update on deliveries
 for update using (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
@@ -1503,10 +1505,12 @@ create table if not exists push_subscriptions (
 alter table push_subscriptions enable row level security;
 
 -- Anyone can insert a subscription (users accepting push prompt)
+drop policy if exists push_subscriptions_insert on push_subscriptions;
 create policy push_subscriptions_insert on push_subscriptions
 for insert with check (true);
 
 -- But only admin/system can read them
+drop policy if exists push_subscriptions_read on push_subscriptions;
 create policy push_subscriptions_read on push_subscriptions
 for select using (current_app_role() in ('SUPER_ADMIN', 'DISTRICT_ADMIN'));
 
