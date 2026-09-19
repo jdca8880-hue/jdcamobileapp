@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CricketProvider, useCricket } from './context/CricketContext';
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import Header   from './components/Header';
 import BottomNav from './components/BottomNav';
 import DrawerMenu from './components/DrawerMenu';
@@ -166,6 +166,7 @@ function MainApp() {
 }
 
 export default function App() {
+  // Trigger HMR
   return (
     <BrowserRouter>
       <CricketProvider>

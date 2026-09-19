@@ -4,11 +4,20 @@ import Dexie from 'dexie';
 export const db = new Dexie('JDCAScoringAppDB');
 
 db.version(1).stores({
+  matches: 'id, tournament, date, status',
+  players: 'id, teamId, name, role',
+  sync_queue: '++id, action, timestamp'
+});
+
+db.version(2).stores({
   // Matches table: primary key is 'id'
   matches: 'id, tournament, date, status',
   
   // Players table: primary key is 'id'
   players: 'id, teamId, name, role',
+
+  // Teams table: primary key is 'id'
+  teams: 'id, name, district_id',
 
   // Sync Queue: auto-incrementing ID for tracking offline actions
   // action: e.g., 'SCORE_BALL', 'UPDATE_MATCH'

@@ -117,6 +117,9 @@ export function CricketProvider({ children }) {
   // Matches State
   const [matches, setMatches] = useState([]);
   const [activeMatchId, setActiveMatchId] = useState(null);
+  
+  // Teams State
+  const [teams, setTeams] = useState([]);
 
   // Offline-First & Realtime Data Sync
   useEffect(() => {
@@ -162,7 +165,6 @@ export function CricketProvider({ children }) {
           });
         }
 
-        // 1. Load from Dexie (Offline First)
         let localMatches = await db.matches.toArray();
         
         // --- MIGRATION: Purge old mock data from local cache ---
@@ -176,8 +178,8 @@ export function CricketProvider({ children }) {
         if (localMatches.length === 0) {
           console.log('[CricketContext] No local matches, fetching from Supabase...');
           if (supabase) {
-            const { data, error } = await supabase.from('matches').select('*');
-            if (!error && data) {
+            const { data, error } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)');
+            if (!error && data && data.length > 0) {
               await db.matches.bulkAdd(data);
               localMatches = data;
             }
@@ -185,6 +187,18 @@ export function CricketProvider({ children }) {
         }
         setMatches(localMatches);
         if (localMatches.length > 0) setActiveMatchId(localMatches[0].id);
+
+        // Fetch Teams
+        let localTeams = await db.teams.toArray();
+        if (localTeams.length === 0 && supabase) {
+          console.log('[CricketContext] No local teams, fetching from Supabase...');
+          const { data, error } = await supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)');
+          if (!error && data) {
+            await db.teams.bulkAdd(data);
+            localTeams = data;
+          }
+        }
+        setTeams(localTeams);
 
         let localPlayers = await db.players.toArray();
         if (localPlayers.length === 0 && supabase) {
@@ -249,11 +263,11 @@ export function CricketProvider({ children }) {
 
   // Match Setup State
   const [matchSetup, setMatchSetup] = useState({
-    teamA: 'Royal Challengers',
-    teamB: 'Super Kings',
-    teamAShort: 'RC',
-    teamBShort: 'CS',
-    tossWinner: 'Royal Challengers',
+    teamA: 'Team A',
+    teamB: 'Team B',
+    teamAShort: 'TA',
+    teamBShort: 'TB',
+    tossWinner: 'Team A',
     electedTo: 'Bat',
     totalOvers: 20,
     widePenalty: 1,
@@ -264,73 +278,56 @@ export function CricketProvider({ children }) {
       tvUmpire: '',
       referee: ''
     },
-    playingXI: [
-      { id: 'p1', name: 'V. Kohli', role: 'Batter', isCaptain: true },
-      { id: 'p2', name: 'F. du Plessis', role: 'Batter', isCaptain: false },
-      { id: 'p3', name: 'G. Maxwell', role: 'All-Rounder', isCaptain: false },
-      { id: 'p4', name: 'R. Patidar', role: 'Batter', isCaptain: false },
-      { id: 'p5', name: 'D. Karthik', role: 'Wicket Keeper', isCaptain: false },
-      { id: 'p6', name: 'C. Green', role: 'All-Rounder', isCaptain: false },
-      { id: 'p7', name: 'M. Lomror', role: 'All-Rounder', isCaptain: false },
-      { id: 'p8', name: 'K. Sharma', role: 'Bowler', isCaptain: false },
-      { id: 'p9', name: 'M. Siraj', role: 'Bowler', isCaptain: false },
-      { id: 'p10', name: 'L. Ferguson', role: 'Bowler', isCaptain: false },
-      { id: 'p11', name: 'Y. Dayal', role: 'Bowler', isCaptain: false },
-    ]
+    playingXI: []
   });
 
   // Live Scoring Engine State
   const [innings, setInnings] = useState(1); // 1 or 2
   const [matchFormat, setMatchFormat] = useState('T20');
   const [totalMatchOvers, setTotalMatchOvers] = useState(20);
-  const [runs, setRuns] = useState(142);
-  const [wickets, setWickets] = useState(4);
-  const [balls, setBalls] = useState(94); // 15.4 overs = 15*6 + 4 = 94 balls
-  const [currentOverBalls, setCurrentOverBalls] = useState([
-    { type: 'run', value: 1, label: '1' },
-    { type: 'run', value: 4, label: '4' },
-    { type: 'run', value: 0, label: '0' },
-    { type: 'wicket', value: 'W', label: 'W', player: 'K. Rahul' }
-  ]);
+  const [runs, setRuns] = useState(0);
+  const [wickets, setWickets] = useState(0);
+  const [balls, setBalls] = useState(0);
+  const [currentOverBalls, setCurrentOverBalls] = useState([]);
   const [extras, setExtras] = useState({
-    wides: 6,
-    noBalls: 2,
-    legByes: 3,
-    byes: 1,
+    wides: 0,
+    noBalls: 0,
+    legByes: 0,
+    byes: 0,
     penalty: 0
   });
 
   // Current Batters & Bowler on Pitch
   const [striker, setStriker] = useState({
-    id: 's1',
-    name: 'V. Kohli',
-    runs: 64,
-    balls: 42,
-    fours: 5,
-    sixes: 2,
-    strikeRate: '152.4'
+    id: '',
+    name: 'Striker',
+    runs: 0,
+    balls: 0,
+    fours: 0,
+    sixes: 0,
+    strikeRate: '0.0'
   });
 
   const [nonStriker, setNonStriker] = useState({
-    id: 's2',
-    name: 'S. Yadav',
-    runs: 12,
-    balls: 8,
-    fours: 1,
+    id: '',
+    name: 'Non-Striker',
+    runs: 0,
+    balls: 0,
+    fours: 0,
     sixes: 0,
-    strikeRate: '150.0'
+    strikeRate: '0.0'
   });
 
   const [currentBowler, setCurrentBowler] = useState({
-    id: 'bw1',
-    name: 'P. Cummins',
-    overs: 3.4,
-    ballsBowled: 22,
+    id: '',
+    name: 'Bowler',
+    overs: 0,
+    ballsBowled: 0,
     maidens: 0,
-    runs: 28,
-    wickets: 1,
-    economy: '7.64',
-    wk: 'A. Carey'
+    runs: 0,
+    wickets: 0,
+    economy: '0.00',
+    wk: ''
   });
 
   // Ball Direction / Shot Sector & State Machine Attributes
@@ -754,6 +751,8 @@ export function CricketProvider({ children }) {
         shortlistedIds,
         toggleShortlist,
         registerPlayer,
+        teams,
+        setTeams,
         matches,
         activeMatchId,
         setActiveMatchId,

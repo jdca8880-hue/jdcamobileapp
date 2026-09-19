@@ -59,6 +59,7 @@ export default function AdministrationScreen() {
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'Scorer',
     district: 'Jabalpur',
     canView: true,
@@ -66,6 +67,25 @@ export default function AdministrationScreen() {
     canEdit: false,
     canDelete: false
   });
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$';
+    let p = '';
+    for (let i = 0; i < 8; i++) {
+      p += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setNewUser(prev => ({ ...prev, password: p }));
+  };
+
+  const resetUserPassword = (userId) => {
+    alert(`Password reset link / new temporary password generated for User ID: ${userId}`);
+  };
+
+  const revokeUserAccess = (userId) => {
+    if(window.confirm('Are you sure you want to revoke access for this user?')) {
+      setRegisteredUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'Revoked' } : u));
+    }
+  };
 
   const handleCreateUser = (e) => {
     e.preventDefault();
@@ -75,8 +95,10 @@ export default function AdministrationScreen() {
       id: `usr_${Date.now()}`,
       name: newUser.name,
       email: newUser.email,
+      password: newUser.password,
       role: newUser.role,
       district: newUser.district,
+      status: 'Active',
       permissions: {
         canView: newUser.canView,
         canAdd: newUser.canAdd,
@@ -162,6 +184,7 @@ export default function AdministrationScreen() {
                     <th>Can Edit</th>
                     <th>Can Delete</th>
                     <th style={{ textAlign: 'right' }}>Status</th>
+                    <th style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -218,7 +241,23 @@ export default function AdministrationScreen() {
                           )}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <span className="badge badge-live text-xs">Active</span>
+                          {usr.status === 'Revoked' ? (
+                            <span className="badge bg-red-100 text-red-700 border-red-200 text-xs">Revoked</span>
+                          ) : (
+                            <span className="badge badge-live text-xs">Active</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => resetUserPassword(usr.id)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Reset Password">
+                              <Lock size={14} />
+                            </button>
+                            {usr.status !== 'Revoked' && (
+                              <button onClick={() => revokeUserAccess(usr.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Revoke Access">
+                                <AlertTriangle size={14} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -469,6 +508,21 @@ export default function AdministrationScreen() {
                   placeholder="official@jdca.com"
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  className="jdca-input"
+                />
+              </div>
+
+              <div>
+                <label className="jdca-label flex items-center justify-between">
+                  <span>Initial Password</span>
+                  <button type="button" onClick={generatePassword} className="text-blue-600 font-bold hover:underline">Generate</button>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter or generate password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                   className="jdca-input"
                 />
               </div>

@@ -47,7 +47,7 @@ export default function ScoringScreen() {
   const playingXI = matchSetup?.playingXI || [];
 
   const batters = useMemo(() => playingXI.filter(p => p?.name && p.name !== striker?.name && p.name !== nonStriker?.name), [playingXI, striker?.name, nonStriker?.name]);
-  const lastBalls = deliveryLog.length ? deliveryLog.slice(-6) : currentOverBalls.map((b, i) => ({ ...b, id: `mock-${i}`, runs: Number(b.value) || 0, wicket: b.type === 'wicket', extra: b.type === 'extra' }));
+  const lastBalls = deliveryLog.length ? deliveryLog.slice(-6) : currentOverBalls.map((b, i) => ({ ...b, id: `temp-${i}`, runs: Number(b.value) || 0, wicket: b.type === 'wicket', extra: b.type === 'extra' }));
   const isOverComplete = matchStatus === 'OVER_COMPLETE';
 
   useEffect(() => {

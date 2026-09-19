@@ -7,11 +7,11 @@ export const MatchCard = ({ match, onClick }) => {
   const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
   const isCompleted = match.status === 'COMPLETED' || match.status === 'FINISHED';
 
-  // Fallback data for visual richness
-  const dateStr = match.date || 'Today, 09:30 AM';
-  const topPerformer = match.topPerformer || { name: 'A. Sharma', score: '74(45) & 2/14' };
-  const teamAName = match.teamA?.name || match.teamA || 'JABALPUR';
-  const teamBName = match.teamB?.name || match.teamB || 'MANDLA';
+  // Fetch dynamic data if available
+  const dateStr = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : 'Date TBD';
+  const topPerformer = match.topPerformer || { name: 'TBD', score: '-' };
+  const teamAName = match.home_team?.name || match.teamA?.name || match.teamA || 'Home Team';
+  const teamBName = match.away_team?.name || match.teamB?.name || match.teamB || 'Away Team';
 
   // Image placeholders
   const bannerImage = match.bannerImage || "/imageformatchescard.png";
@@ -61,7 +61,7 @@ export const MatchCard = ({ match, onClick }) => {
           {/* Winner on top if completed */}
           {isCompleted && (
             <div className="mb-4 text-xs font-bold text-slate-800 bg-slate-100/80 px-3 py-2 rounded-lg border border-slate-200 flex items-center gap-2">
-              <span className="text-lg leading-none">🏆</span> {match.result || `${teamAName} won by 6 wickets`}
+              <span className="text-lg leading-none">🏆</span> {match.result_text || match.result || 'Result pending'}
             </div>
           )}
           
@@ -78,7 +78,7 @@ export const MatchCard = ({ match, onClick }) => {
               </div>
               {(isLive || isCompleted) && (
                 <div className="text-lg font-black text-slate-900">
-                  {match.teamA?.score || (isLive ? '142/4' : '186/4')}
+                  {match.teamA?.score || '0/0'}
                 </div>
               )}
             </div>
@@ -94,7 +94,7 @@ export const MatchCard = ({ match, onClick }) => {
               </div>
               {(isLive || isCompleted) && (
                 <div className="text-lg font-black text-slate-900">
-                  {match.teamB?.score || (isLive ? '—' : '184/8')}
+                  {match.teamB?.score || (isLive ? 'Yet to bat' : '0/0')}
                 </div>
               )}
             </div>
@@ -129,10 +129,10 @@ export const MatchCard = ({ match, onClick }) => {
                       <span className="text-xs">🏏</span>
                       <div className="flex flex-col">
                         <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Batter</span>
-                        <span className="text-xs font-bold text-slate-800">{match.topBatter?.name || 'V. Singh'}</span>
+                        <span className="text-xs font-bold text-slate-800">{match.topBatter?.name || 'TBD'}</span>
                       </div>
                     </div>
-                    <span className="text-xs font-black text-slate-700">{match.topBatter?.score || '85 (42)'}</span>
+                    <span className="text-xs font-black text-slate-700">{match.topBatter?.score || '-'}</span>
                   </div>
 
                   <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
@@ -140,10 +140,10 @@ export const MatchCard = ({ match, onClick }) => {
                       <span className="text-xs">🎯</span>
                       <div className="flex flex-col">
                         <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Bowler</span>
-                        <span className="text-xs font-bold text-slate-800">{match.topBowler?.name || 'R. Kumar'}</span>
+                        <span className="text-xs font-bold text-slate-800">{match.topBowler?.name || 'TBD'}</span>
                       </div>
                     </div>
-                    <span className="text-xs font-black text-slate-700">{match.topBowler?.score || '4/21'}</span>
+                    <span className="text-xs font-black text-slate-700">{match.topBowler?.score || '-'}</span>
                   </div>
                 </div>
               </div>

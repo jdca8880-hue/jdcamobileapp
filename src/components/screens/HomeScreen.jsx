@@ -180,7 +180,7 @@ export default function HomeScreen() {
                 <ChevronRight size={13} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-blue-600" />
               </div>
               <div className="text-xl sm:text-3xl font-black text-slate-900 mt-1.5 sm:mt-2 tabular-nums">
-                {players.length > 0 ? players.length : 840}
+                {players.length}
               </div>
               <div className="text-xs sm:text-xs text-blue-600 font-medium mt-0.5 flex items-center gap-1 truncate">
                 <TrendingUp size={11} />
@@ -202,7 +202,7 @@ export default function HomeScreen() {
                 <ChevronRight size={13} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-amber-600" />
               </div>
               <div className="text-xl sm:text-3xl font-black text-slate-900 mt-1.5 sm:mt-2 tabular-nums">
-                {tournaments.length || 3}
+                {tournaments.length}
               </div>
               <div className="text-xs sm:text-xs text-amber-600 font-medium mt-0.5 flex items-center gap-1 truncate">
                 <Flame size={11} />

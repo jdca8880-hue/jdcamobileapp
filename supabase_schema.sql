@@ -1,25 +1,3 @@
--- ============================================================
--- JDCA PRODUCTION DATABASE SCHEMA v2.0
--- Supabase / PostgreSQL
--- ============================================================
--- Purpose:
---   Production-grade schema for JDCA cricket administration,
---   player registration/selection, tournaments, live scoring,
---   derived performance and auditability.
---
--- Design principles:
---   1. deliveries are the source of truth for match statistics.
---   2. React never calculates authoritative historical statistics.
---   3. Database constraints protect cricket data integrity.
---   4. RLS protects role/district boundaries.
---   5. RPCs/triggers are used for cross-row validation.
---   6. Statistics are exposed through views and can later be cached.
---
--- IMPORTANT:
---   Run first in a staging Supabase project or after a database backup.
---   This is a fresh production schema. It intentionally does NOT
---   migrate/drop an existing database.
--- ============================================================
 
 begin;
 
@@ -374,6 +352,7 @@ create table if not exists matches (
   winner_team_id uuid references teams(id) on delete set null,
   result_margin varchar(120),
   result_text text,
+  man_of_the_match_id uuid references players(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint match_different_teams check(home_team_id <> away_team_id),

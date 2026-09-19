@@ -25,87 +25,7 @@ export const TEAM_CATEGORIES = [
   { id: 'senior_women', name: 'Senior', level: 6, gender: 'Women' },
 ];
 
-export const MOCK_CURRENT_USER = {
-  id: 'selector_1',
-  name: 'Rajesh Sharma',
-  role: 'SELECTOR',
-  // Maximum age level this selector can view
-  authorizedLevel: 4, // Can see U19, U17, U15, U13
-  // If empty, can see all districts. If populated, restricted to these.
-  authorizedDistricts: [], 
-};
 
-export function getAuthorizedCategories(user, gender = 'Men') {
-  if (user.role === 'ADMIN') return TEAM_CATEGORIES.filter(c => c.gender === gender);
-  return TEAM_CATEGORIES.filter(c => c.gender === gender && c.level <= user.authorizedLevel);
-}
-
-export const INITIAL_OFFICIAL_TEAMS = [
-  {
-    id: 'team_2026_u19_men',
-    season: '2026',
-    category: 'U19',
-    gender: 'Men',
-    name: "JDCA U19 MEN 2026",
-    targetSize: 15,
-    status: 'Selection in Progress',
-    selectedPlayerIds: ['vikram-singh', 'priya-u19-seoni', 'rahul-chhindwara'],
-    shortlistedPlayerIds: ['ravi-kumar', 'deepak-u19-mandla'],
-    roles: {
-      captainId: 'priya-u19-seoni',
-      viceCaptainId: 'vikram-singh',
-      wicketkeeperId: 'priya-u19-seoni',
-    },
-  },
-  {
-    id: 'team_2026_u17_men',
-    season: '2026',
-    category: 'U17',
-    gender: 'Men',
-    name: "JDCA U17 MEN 2026",
-    targetSize: 15,
-    status: 'In Progress',
-    selectedPlayerIds: [],
-    shortlistedPlayerIds: [],
-    roles: { captainId: '', viceCaptainId: '', wicketkeeperId: '' },
-  },
-  {
-    id: 'team_2026_u15_men',
-    season: '2026',
-    category: 'U15',
-    gender: 'Men',
-    name: "JDCA U15 MEN 2026",
-    targetSize: 15,
-    status: 'Draft',
-    selectedPlayerIds: [],
-    shortlistedPlayerIds: [],
-    roles: { captainId: '', viceCaptainId: '', wicketkeeperId: '' },
-  },
-  {
-    id: 'team_2026_u13_men',
-    season: '2026',
-    category: 'U13',
-    gender: 'Men',
-    name: "JDCA U13 MEN 2026",
-    targetSize: 15,
-    status: 'Draft',
-    selectedPlayerIds: [],
-    shortlistedPlayerIds: [],
-    roles: { captainId: '', viceCaptainId: '', wicketkeeperId: '' },
-  },
-  {
-    id: 'team_2026_u19_women',
-    season: '2026',
-    category: 'U19',
-    gender: 'Women',
-    name: "JDCA U19 WOMEN 2026",
-    targetSize: 15,
-    status: 'Draft',
-    selectedPlayerIds: [],
-    shortlistedPlayerIds: [],
-    roles: { captainId: '', viceCaptainId: '', wicketkeeperId: '' },
-  }
-];
 
 export const BATTING_STYLE_OPTIONS = ['Right-Hand Bat', 'Left-Hand Bat'];
 export const BOWLING_STYLE_OPTIONS = [
@@ -167,7 +87,7 @@ export function normalizeSelectionPlayer(p) {
     }
   }
 
-  const matchHistory = p.matchHistory && p.matchHistory.length > 0 ? p.matchHistory : generateDefaultMatchHistory(p.id, standardRole);
+  const matchHistory = p.matchHistory || [];
 
   // Derive all performance statistics exclusively from matchHistory
   let careerRuns = 0;
@@ -235,14 +155,11 @@ export function normalizeSelectionPlayer(p) {
   const bestBowling = bestBowlingW >= 0 ? `${bestBowlingW}/${bestBowlingR}` : '-';
   const totalDismissals = totalCatches + totalStumpings + totalRunOuts;
 
-  const selectionHistory = [
-    { process: 'District Inter-Zonal', category: category, season: '2025', status: 'Selected', date: '15 Sep 2025' },
-    { process: 'JDCA Open Trials', category: category, season: '2025', status: 'Candidate', date: '01 Sep 2025' },
-  ];
+  const selectionHistory = p.selectionHistory || [];
 
   const evalAvg = p.evaluations ? 
     ((p.evaluations.batting + p.evaluations.bowling + p.evaluations.fielding + p.evaluations.fitness + p.evaluations.temperament) / 5).toFixed(1) 
-    : '8.0';
+    : '0.0';
 
   let recentFormString = '';
   if (standardRole === 'Bowler') {
@@ -295,52 +212,7 @@ export function normalizeSelectionPlayer(p) {
   };
 }
 
-function generateDefaultMatchHistory(id, role) {
-  const isBatter = role === 'Batter' || role === 'All-Rounder';
-  const isBowler = role === 'Bowler' || role === 'All-Rounder';
-  const isWK = role === 'Wicket Keeper';
-  
-  const opponents = ['Katni', 'Seoni', 'Chhindwara', 'Mandla', 'Balaghat'];
-  const results = ['Won', 'Lost', 'Won', 'Won', 'Lost'];
-  const dates = ['18 Aug 2026', '12 Aug 2026', '04 Aug 2026', '28 Jul 2026', '19 Jul 2026'];
 
-  return dates.map((date, idx) => {
-    const rawRuns = isBatter ? [84, 12, 55, 41, 73][idx] : [12, 4, 18, 0, 15][idx];
-    const rawWickets = isBowler ? [3, 4, 2, 1, 3][idx] : 0;
-    const balls = Math.max(10, Math.floor(rawRuns * 0.85));
-    const notOut = idx === 0 && rawRuns > 50;
-
-    const bowlingOvers = isBowler ? 4.0 : 0.0;
-    const bowlingRuns = isBowler ? 18 + idx * 4 : 0;
-
-    return {
-      id: `mh-${id}-${idx}`,
-      tournament: 'JDCA Inter-District',
-      date,
-      opponent: opponents[idx],
-      result: results[idx],
-      venue: 'Jabalpur Stadium',
-      batting: {
-        runs: rawRuns,
-        balls,
-        fours: Math.floor(rawRuns / 10),
-        sixes: Math.floor(rawRuns / 25),
-        notOut,
-      },
-      bowling: {
-        overs: bowlingOvers,
-        maidens: rawWickets >= 3 ? 1 : 0,
-        runs: bowlingRuns,
-        wickets: rawWickets,
-      },
-      fielding: {
-        catches: isWK ? 2 : (idx % 2 === 0 ? 1 : 0),
-        stumpings: isWK && idx === 1 ? 1 : 0,
-        runOuts: idx === 2 ? 1 : 0,
-      }
-    };
-  });
-}
 
 export function getAvailableDistricts(players) {
   const set = new Set();

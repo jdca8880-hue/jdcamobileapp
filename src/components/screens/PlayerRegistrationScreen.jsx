@@ -19,7 +19,8 @@ export default function PlayerRegistrationScreen() {
   const [bowlingStyle, setBowlingStyle] = useState('None (Pure Batter)');
   const [district, setDistrict] = useState('Jabalpur');
   const [category, setCategory] = useState('Senior');
-  const [age, setAge] = useState(20);
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('Men');
   const [avatar, setAvatar] = useState('https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80');
   const [formErrors, setFormErrors] = useState({});
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
@@ -66,7 +67,7 @@ export default function PlayerRegistrationScreen() {
     setFormErrors({});
 
     const formData = {
-      name, role, battingStyle, bowlingStyle, district, category, age: Number(age), avatar
+      name, role, battingStyle, bowlingStyle, district, category, dob, gender, avatar
     };
 
     const validation = PlayerRegistrationSchema.safeParse(formData);
@@ -147,12 +148,21 @@ export default function PlayerRegistrationScreen() {
                   className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.name ? 'border-[#F05A47]' : 'border-transparent'}`}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Age (Years) *</label>
-                <input 
-                  type="number" min="10" max="60" required value={age} onChange={e => setAge(e.target.value)}
-                  className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.age ? 'border-[#F05A47]' : 'border-transparent'}`}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Date of Birth *</label>
+                  <input 
+                    type="date" required value={dob} onChange={e => setDob(e.target.value)}
+                    className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.dob ? 'border-[#F05A47]' : 'border-transparent'}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Gender *</label>
+                  <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>

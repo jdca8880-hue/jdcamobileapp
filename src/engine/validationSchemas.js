@@ -68,7 +68,7 @@ export const PlayerRegistrationSchema = z.object({
     .trim()
     .min(2, { message: 'Player name must be at least 2 characters' })
     .max(50, { message: 'Player name cannot exceed 50 characters' }),
-  role: z.enum(['Batter', 'Bowler', 'All-Rounder', 'Wicket-Keeper Batter'], {
+  role: z.enum(['Batter', 'Bowler', 'All-Rounder', 'Wicket Keeper'], {
     errorMap: () => ({ message: 'Please select a valid role' }),
   }),
   battingStyle: z.enum(['Right-Hand Bat', 'Left-Hand Bat'], {
@@ -76,14 +76,11 @@ export const PlayerRegistrationSchema = z.object({
   }),
   bowlingStyle: z.string().min(2, { message: 'Bowling style is required' }),
   district: z.string().min(2, { message: 'District name is required' }),
-  category: z.enum(['Under-13', 'Under-14', 'Under-16', 'Under-19', 'Senior'], {
-    errorMap: () => ({ message: 'Please select an age category' }),
-  }),
-  age: z
-    .number({ invalid_type_error: 'Age must be a number' })
-    .int()
-    .min(8, { message: 'Age must be at least 8 years' })
-    .max(50, { message: 'Age must be 50 or below' }),
+  category: z.string().min(2),
+  gender: z.enum(['Men', 'Women']),
+  dob: z.string().refine((date) => {
+    return new Date(date).getTime() > 0;
+  }, { message: 'Invalid Date of Birth' }),
   avatar: z.string().url().or(z.string().min(1)),
 });
 

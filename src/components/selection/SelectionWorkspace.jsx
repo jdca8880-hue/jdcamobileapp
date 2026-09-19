@@ -23,8 +23,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { 
-  normalizeSelectionPlayer, 
-  INITIAL_OFFICIAL_TEAMS,
+  normalizeSelectionPlayer,
   getAvailableDistricts
 } from './selectionData';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
@@ -52,8 +51,19 @@ export default function SelectionWorkspace() {
   const { players: rawPlayers, navigateTo, setSelectedPlayer: setContextPlayer } = useCricket();
 
   // Master State
-  const [teams, setTeams] = useState(INITIAL_OFFICIAL_TEAMS);
-  const [activeTeamId, setActiveTeamId] = useState(INITIAL_OFFICIAL_TEAMS[0].id);
+  const [teams, setTeams] = useState(CATEGORY_OPTIONS.map(opt => ({
+    id: opt.id,
+    season: '2026',
+    category: opt.category,
+    gender: opt.gender,
+    name: opt.name,
+    targetSize: 15,
+    status: 'Draft',
+    selectedPlayerIds: [],
+    shortlistedPlayerIds: [],
+    roles: { captainId: '', viceCaptainId: '', wicketkeeperId: '' }
+  })));
+  const [activeTeamId, setActiveTeamId] = useState(CATEGORY_OPTIONS[0].id);
 
   // Tabs: 'all' | 'batters' | 'bowlers' | 'allRounders' | 'wicketKeepers' | 'selected'
   const [activeTab, setActiveTab] = useState('all');

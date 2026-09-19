@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useCricket } from '../../context/CricketContext';
 import { PageHeader } from '../ui/PageHeader';
 import StatCard from '../ui/StatCard';
-import { JDCA_OFFICIAL_TEAMS, JDCA_DISTRICT_TEAMS } from '../../data/teamsData';
+import TeamManagerModal from '../ui/TeamManagerModal';
 
 const ROLE_COLORS = {
   'Batter': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', tag: 'bg-amber-500' },
@@ -47,7 +47,7 @@ const CATEGORIES = [
 ];
 
 export default function TeamsScreen() {
-  const { navigateTo, setSelectedPlayer, players: contextPlayers = [] } = useCricket();
+  const { navigateTo, setSelectedPlayer, players: contextPlayers = [], teams: contextTeams = [], userRole } = useCricket();
 
   const [activeTab, setActiveTab] = useState('All Categories');
   const [viewScope, setViewScope] = useState('representative'); // 'representative' | 'districts'
@@ -56,10 +56,67 @@ export default function TeamsScreen() {
   const [activeRosterTeam, setActiveRosterTeam] = useState(null);
   const [printSuccessToast, setPrintSuccessToast] = useState(false);
   const [showOverviewStats, setShowOverviewStats] = useState(false);
+  const [isTeamManagerOpen, setIsTeamManagerOpen] = useState(false);
+  const isAdmin = userRole === 'Admin' || userRole === 'SuperAdmin';
+
+  // Map Supabase teams to UI expected format
+  const mappedTeams = useMemo(() => {
+    // Distribute context players among teams for demonstration
+    const availablePlayers = [...contextPlayers];
+    
+    return contextTeams.map((team, index) => {
+      // Pick up to 15 players for this team from contextPlayers, trying to match gender/category if possible, or just slice
+      // For a real app, this should join with team_players.
+      const teamPlayers = availablePlayers.filter(p => p.gender === team.gender || !p.gender).slice(0, 15);
+      
+      const squad = teamPlayers.map(p => ({
+        id: p.id,
+        name: p.full_name || p.name,
+        role: p.primary_role || p.role || 'Batter',
+        district: p.district || team.district?.name || 'TBD',
+        avatar: p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.name)}&background=random`
+      }));
+
+      // Calculate composition
+      const composition = { batters: 0, bowlers: 0, allRounders: 0, wicketKeepers: 0 };
+      squad.forEach(p => {
+        if (p.role.includes('Batter')) composition.batters++;
+        else if (p.role.includes('Bowler')) composition.bowlers++;
+        else if (p.role.includes('All-Rounder')) composition.allRounders++;
+        else if (p.role.includes('Wicket')) composition.wicketKeepers++;
+      });
+
+      return {
+        id: team.id,
+        name: team.name,
+        short: team.short_name || team.name.substring(0, 3).toUpperCase(),
+        category: team.age_category?.name || 'Category TBD',
+        gender: team.gender || 'All',
+        season: team.season || 'TBD',
+        level: 'Official Match Team',
+        status: team.is_active ? 'Active' : 'Inactive',
+        homeVenue: 'Venue TBD',
+        district: team.district?.name || 'TBD',
+        captain: squad.length > 0 ? squad[0].name : 'TBD',
+        viceCaptain: squad.length > 1 ? squad[1].name : 'TBD',
+        wicketKeeper: squad.find(p => p.role.includes('Wicket'))?.name || 'TBD',
+        headCoach: 'Head Coach',
+        leadSelector: 'Lead Selector',
+        squadSize: 15,
+        composition,
+        squad,
+        trophies: 0,
+        activePlayers: squad.length,
+        homeGround: 'Venue TBD',
+        standing: 'TBD',
+        primaryColor: '#3b82f6'
+      };
+    });
+  }, [contextTeams, contextPlayers]);
 
   // Filter Representative Teams
   const filteredOfficialTeams = useMemo(() => {
-    return JDCA_OFFICIAL_TEAMS.filter(team => {
+    return mappedTeams.filter(team => {
       // Category filter
       if (activeTab === 'Senior Men' && (team.category !== 'Senior' || team.gender !== 'Men')) return false;
       if (activeTab === 'Senior Women' && (team.category !== 'Senior' || team.gender !== 'Women')) return false;
@@ -89,7 +146,7 @@ export default function TeamsScreen() {
 
   // Filter District Teams
   const filteredDistrictTeams = useMemo(() => {
-    return JDCA_DISTRICT_TEAMS.filter(team => {
+    return mappedTeams.filter(team => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -103,8 +160,8 @@ export default function TeamsScreen() {
 
   // Aggregate metrics
   const totalPlayersCount = useMemo(() => {
-    return JDCA_OFFICIAL_TEAMS.reduce((acc, t) => acc + (t.squad?.length || 0), 0);
-  }, []);
+    return mappedTeams.reduce((acc, t) => acc + (t.squad?.length || 0), 0);
+  }, [mappedTeams]);
 
   const handlePlayerClick = (player) => {
     // Find player in context or construct player object
@@ -149,10 +206,20 @@ export default function TeamsScreen() {
         subtitle="Jabalpur District Cricket Association · Season 2026 Directory of Teams"
         actions={
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsTeamManagerOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5 text-blue-200" />
+                <span>Create Team</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigateTo('selection')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition cursor-pointer"
             >
               <Shield className="w-3.5 h-3.5 text-blue-400" />
               <span>Team Selection</span>
@@ -185,7 +252,7 @@ export default function TeamsScreen() {
       <div className={`${showOverviewStats ? 'grid' : 'hidden'} sm:grid grid-cols-2 sm:grid-cols-4 gap-3.5 animate-in fade-in slide-in-from-top-1 duration-150`}>
         <StatCard
           label="Representative Teams"
-          value={JDCA_OFFICIAL_TEAMS.length}
+          value={mappedTeams.length}
           subtext="Official Category Teams"
           icon={Shield}
           tone="primary"
@@ -226,7 +293,7 @@ export default function TeamsScreen() {
             }`}
           >
             <Shield className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="truncate">Representative ({JDCA_OFFICIAL_TEAMS.length})</span>
+            <span className="truncate">Representative ({mappedTeams.length})</span>
           </button>
           <button
             type="button"
@@ -238,7 +305,7 @@ export default function TeamsScreen() {
             }`}
           >
             <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span className="truncate">Districts ({JDCA_DISTRICT_TEAMS.length})</span>
+            <span className="truncate">Districts ({mappedTeams.length})</span>
           </button>
         </div>
 
@@ -753,6 +820,24 @@ export default function TeamsScreen() {
           </div>
         )}
       </AnimatePresence>
+
+      {isAdmin && (
+        <TeamManagerModal 
+          isOpen={isTeamManagerOpen}
+          onClose={() => setIsTeamManagerOpen(false)}
+          onSave={async (data) => {
+            try {
+              const { api } = await import('../../lib/api');
+              await api.createTeam(data);
+              alert('Team created successfully!');
+              window.location.reload(); // Quickest way to refresh for now
+            } catch (err) {
+              console.error('Failed to create team:', err);
+              alert('Error creating team: ' + err.message);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

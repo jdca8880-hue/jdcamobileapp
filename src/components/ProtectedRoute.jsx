@@ -4,7 +4,7 @@ import { useCricket } from '../context/CricketContext';
 
 const PLAYER_ROUTES = [
   '/home', '/matches', '/match-overview', '/match-detail', '/scorecard', '/player-profile',
-  '/teams', '/tournaments', '/news'
+  '/teams', '/tournaments', '/news', '/players'
 ];
 
 const SCORER_ROUTES = [
@@ -30,6 +30,8 @@ export const ROLE_PERMISSIONS = {
   Selector: SELECTOR_ROUTES,
   Scorer: SCORER_ROUTES,
   Player: PLAYER_ROUTES,
+  VIEWER: PLAYER_ROUTES,
+  Viewer: PLAYER_ROUTES,
 };
 
 // ─── Role → Default Landing Page After Login ──────────────────────────────
@@ -39,6 +41,8 @@ export const ROLE_HOME = {
   Scorer:     '/home',
   Selector:   '/home',
   Player:     '/home',
+  VIEWER:     '/home',
+  Viewer:     '/home',
 };
 
 // ─── Helper: does a role have access to a given path? ────────────────────
