@@ -61,6 +61,7 @@ export default function SelectionScreen() {
     activeSelectionTeam,
     setActiveSelectionTeam,
     selectorPermissions,
+    finalizeSelectionProcess,
     navigateTo 
   } = useCricket();
 
@@ -69,15 +70,18 @@ export default function SelectionScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSavedToast, setShowSavedToast] = useState(false);
 
-  const currentTeam = activeSelectionTeam || representativeTeams[3] || {
-    id: 'jdca-u19-m-2026',
-    name: 'JDCA U19 Men 2026',
-    ageCategory: 'Under 19',
-    gender: 'Men',
-    season: '2026',
-    targetSquadSize: 16,
-    ageRankLevel: 4
-  };
+  const currentTeam = activeSelectionTeam || representativeTeams[0];
+  
+  if (!currentTeam) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-cobalt border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <h3 className="text-slate-600 font-bold">Loading Selection Processes...</h3>
+        </div>
+      </div>
+    );
+  }
 
   // Filter players according to authorized age rank and district permissions
   const filteredPlayers = players.filter((player) => {
@@ -147,9 +151,14 @@ export default function SelectionScreen() {
     if (navigateTo) navigateTo('player-profile');
   };
 
-  const handleSaveSquad = () => {
-    setShowSavedToast(true);
-    setTimeout(() => setShowSavedToast(false), 3000);
+  const handleSaveSquad = async () => {
+    try {
+      await finalizeSelectionProcess(currentTeam.id);
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 3000);
+    } catch (e) {
+      alert("Failed to lock squad. You might not have the correct permissions.");
+    }
   };
 
   const handleOpenComparison = (player1) => {
@@ -178,10 +187,13 @@ export default function SelectionScreen() {
             <button
               type="button"
               onClick={handleSaveSquad}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-cobalt px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-cobalt-700 transition cursor-pointer"
+              disabled={currentTeam.status === 'FINALIZED'}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-cobalt px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-cobalt-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
-              <span>Finalize {currentTeam.name} ({shortlistedIds.length}/{currentTeam.targetSquadSize})</span>
+              <span>
+                 {currentTeam.status === 'FINALIZED' ? 'Squad Locked' : `Finalize ${currentTeam.name} (${shortlistedIds.length}/${currentTeam.targetSquadSize})`}
+              </span>
             </button>
           </div>
         }
@@ -303,10 +315,11 @@ export default function SelectionScreen() {
             <button
               type="button"
               onClick={handleSaveSquad}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 cursor-pointer"
+              disabled={currentTeam.status === 'FINALIZED'}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>Confirm & Lock Squad</span>
+              <span>{currentTeam.status === 'FINALIZED' ? 'LOCKED' : 'Confirm & Lock Squad'}</span>
             </button>
           </div>
 
@@ -499,8 +512,9 @@ export default function SelectionScreen() {
 
                     <button
                       type="button"
+                      disabled={currentTeam.status === 'FINALIZED'}
                       onClick={() => toggleShortlist(player.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                         isShortlisted
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
                           : 'bg-slate-900 text-white hover:bg-cobalt shadow-xs'

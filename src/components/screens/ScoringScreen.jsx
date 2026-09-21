@@ -10,6 +10,7 @@ import { FREE_HIT_ALLOWED_DISMISSALS } from '../../engine/validationSchemas';
 import { motion } from 'motion/react';
 import Modal from '../ui/Modal';
 import { supabase } from '../../lib/supabase';
+import { syncService } from '../../services/SyncService';
 
 const DISMISSALS = ['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket', 'Other'];
 const QUICK_RUNS = [0, 1, 2, 3, 4, 6];
@@ -39,6 +40,14 @@ export default function ScoringScreen() {
   const [changeWkOpen, setChangeWkOpen] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
+
+  useEffect(() => {
+    const unsubscribe = syncService.subscribe((state) => {
+      setSyncState(state);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
   const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'Jabalpur';
@@ -58,15 +67,22 @@ export default function ScoringScreen() {
     recordRuns(value);
     if (!scoringFirstRunDone) markScoringFirstRunDone?.();
 
-    if (value === 6) {
-      supabase.functions.invoke('send-push', {
-        body: {
-          title: 'SIX! What a shot!',
-          body: `${striker.name} just smashed a massive six! Score is now ${runs + 6}/${wickets}`,
-          url: `/matches`
-        }
-      });
-    }
+    // Send push notification to update score silently, but vibrate for 4s and 6s
+    const isBoundary = value === 4 || value === 6;
+    let title = isBoundary ? (value === 6 ? 'SIX! What a shot!' : 'FOUR!') : 'Live Score Update';
+    let bodyText = isBoundary 
+      ? `${striker.name} hit a ${value}! ${teamAName} is ${runs + value}/${wickets}`
+      : `${teamAName} is ${runs + value}/${wickets} (Last: ${value} run${value !== 1 ? 's' : ''})`;
+
+    supabase.functions.invoke('send-push', {
+      body: {
+        title,
+        body: bodyText,
+        url: `/matches`,
+        tag: `match-${activeMatchId || 'jdca'}`,
+        renotify: isBoundary
+      }
+    });
   };
 
   const submitWicket = () => {
@@ -86,7 +102,9 @@ export default function ScoringScreen() {
       body: {
         title: 'WICKET!',
         body: `${outName} is out ${selectedDismissal}! ${teamAName} vs ${teamBName} (${runs}/${wickets + 1})`,
-        url: `/matches`
+        url: `/matches`,
+        tag: `match-${activeMatchId || 'jdca'}`,
+        renotify: true
       }
     });
 
@@ -150,6 +168,19 @@ export default function ScoringScreen() {
                 <span className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />
                 LIVE SCORING
               </span>
+              {/* Sync Indicator */}
+              <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-full shadow-sm">
+                {syncState.status === 'ONLINE' ? (
+                   <span className="w-2 h-2 rounded-full bg-jade" />
+                ) : syncState.status === 'SYNCING' ? (
+                   <RefreshCw size={10} className="text-cobalt animate-spin" />
+                ) : (
+                   <WifiOff size={10} className="text-coral" />
+                )}
+                {syncState.pendingCount > 0 && (
+                   <span className="text-[10px] font-bold text-slate-500">{syncState.pendingCount}</span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
                <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18}/></button>

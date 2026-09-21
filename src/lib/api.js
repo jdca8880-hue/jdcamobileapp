@@ -29,7 +29,7 @@ export const api = {
         season: tournamentData.season || '2026',
         format: tournamentData.format || 'T20',
         age_category_id: defaults.age_category_id,
-        gender: 'MEN', // Defaulting to MEN as schema requires it
+        gender: tournamentData.gender || 'Men',
         start_date: tournamentData.startDate || null,
         end_date: tournamentData.endDate || null,
         status: tournamentData.status || 'UPCOMING'
@@ -39,6 +39,36 @@ export const api = {
 
     if (error) throw error;
     return data;
+  },
+
+  async updateTournament(id, tournamentData) {
+    const { data, error } = await supabase
+      .from('tournaments')
+      .update({
+        name: tournamentData.name,
+        season: tournamentData.season,
+        format: tournamentData.format,
+        gender: tournamentData.gender,
+        start_date: tournamentData.startDate || null,
+        end_date: tournamentData.endDate || null,
+        status: tournamentData.status
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteTournament(id) {
+    const { error } = await supabase
+      .from('tournaments')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
   },
 
   async createTeam(teamData) {
@@ -56,7 +86,7 @@ export const api = {
         season: teamData.season || '2026',
         district_id: defaults.district_id,
         age_category_id: defaults.age_category_id,
-        gender: teamData.gender === 'Women' ? 'WOMEN' : 'MEN',
+        gender: teamData.gender === 'Women' ? 'Women' : 'Men',
         is_active: true
       })
       .select()
@@ -97,5 +127,320 @@ export const api = {
 
     if (error) throw error;
     return data;
+  },
+
+  async createDetailedMatches(tournamentId, format, matchesArray) {
+    if (!matchesArray || matchesArray.length === 0) return [];
+    
+    const matchesToInsert = matchesArray.map(m => ({
+      tournament_id: tournamentId,
+      home_team_id: m.homeTeamId,
+      away_team_id: m.awayTeamId,
+      scheduled_at: m.date ? new Date(m.date).toISOString() : new Date().toISOString(),
+      status: 'SCHEDULED',
+      match_format: format,
+      max_overs: format === 'T20' ? 20 : (format === 'T10' ? 10 : 50),
+      venue_name: m.venueName || null,
+      umpire_name: m.umpireName || null,
+      scorer_name: m.scorerName || null,
+      ball_type: m.ballType || null
+    }));
+
+    const { data, error } = await supabase
+      .from('matches')
+      .insert(matchesToInsert)
+      .select();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // ==========================================
+  // SELECTION WORKFLOW
+  // ==========================================
+
+  async getSelectionProcesses() {
+    const { data, error } = await supabase
+      .from('selection_processes')
+      .select('*, age_category:age_category_id(*), district:district_id(*)');
+    if (error) throw error;
+    return data;
+  },
+
+  async getSelectionCandidates(processId) {
+    if (!processId) return [];
+    const { data, error } = await supabase
+      .from('selection_candidates')
+      .select('player_id')
+      .eq('selection_process_id', processId);
+    if (error) throw error;
+    return data.map(c => c.player_id);
+  },
+
+  async toggleCandidate(processId, playerId, isAdding) {
+    if (isAdding) {
+      const { error } = await supabase
+        .from('selection_candidates')
+        .insert({
+          selection_process_id: processId,
+          player_id: playerId,
+          status: 'ELIGIBLE'
+        });
+      if (error && error.code !== '23505') throw error; // Ignore if already exists
+    } else {
+      const { error } = await supabase
+        .from('selection_candidates')
+        .delete()
+        .match({
+          selection_process_id: processId,
+          player_id: playerId
+        });
+      if (error) throw error;
+    }
+  },
+
+  async finalizeSquad(processId, selectedPlayerIds) {
+    // 1. Update selection decisions
+    const decisions = selectedPlayerIds.map(playerId => ({
+      selection_process_id: processId,
+      player_id: playerId,
+      decision: 'SELECTED'
+    }));
+
+    if (decisions.length > 0) {
+      const { error: insertError } = await supabase
+        .from('selection_decisions')
+        .insert(decisions);
+      if (insertError) throw insertError;
+    }
+
+    // 2. Mark process as FINALIZED
+    const { error: updateError } = await supabase
+      .from('selection_processes')
+      .update({ status: 'FINALIZED' })
+      .eq('id', processId);
+    
+    if (updateError) throw updateError;
+    return true;
+  },
+
+  // ==========================================
+  // MATCH REPORTS & SCORECARDS
+  // ==========================================
+
+  async getMatchScorecard(matchId) {
+    if (!matchId) return null;
+
+    // 1. Fetch match and teams
+    const { data: matchData, error: matchError } = await supabase
+      .from('matches')
+      .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
+      .eq('id', matchId)
+      .single();
+
+    if (matchError || !matchData) return null;
+
+    // 2. Fetch innings
+    const { data: inningsData } = await supabase
+      .from('innings')
+      .select('*')
+      .eq('match_id', matchId)
+      .order('innings_number', { ascending: true });
+
+    // 3. Fetch deliveries with players
+    const { data: deliveriesData } = await supabase
+      .from('deliveries')
+      .select('*, striker:striker_id(name), bowler:bowler_id(name)')
+      .eq('match_id', matchId);
+
+    const innings = inningsData || [];
+    const deliveries = deliveriesData || [];
+
+    // Helper: Compute stats for an innings
+    const computeInningsStats = (inningId) => {
+      const balls = deliveries.filter(d => d.innings_id === inningId);
+      let runs = 0;
+      let wickets = 0;
+      let extras = 0;
+      let legalBalls = 0;
+      
+      const batters = {};
+      const bowlers = {};
+
+      balls.forEach(d => {
+        runs += d.runs_total;
+        if (d.wicket_type !== 'NONE') wickets += 1;
+        if (d.extra_type !== 'NONE' && d.extra_type !== 'BYES' && d.extra_type !== 'LEG_BYES') {
+          // Wides/No-balls don't count as legal
+        } else {
+          legalBalls += 1;
+        }
+        
+        if (d.extra_type !== 'NONE') extras += d.runs_extras;
+
+        // Batter Stats
+        if (d.striker_id) {
+          if (!batters[d.striker_id]) {
+            batters[d.striker_id] = { id: d.striker_id, name: d.striker?.name || 'Unknown', runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: 'not out' };
+          }
+          if (d.extra_type === 'NONE' || d.extra_type === 'NO_BALL' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
+            batters[d.striker_id].balls += 1;
+          }
+          if (d.extra_type === 'NONE' || d.extra_type === 'NO_BALL') {
+             batters[d.striker_id].runs += d.runs_off_bat;
+             if (d.runs_off_bat === 4) batters[d.striker_id].fours += 1;
+             if (d.runs_off_bat === 6) batters[d.striker_id].sixes += 1;
+          }
+          if (d.wicket_type !== 'NONE' && d.dismissed_player_id === d.striker_id) {
+            batters[d.striker_id].dismissal = d.wicket_type.toLowerCase().replace('_', ' ');
+          }
+        }
+
+        // Bowler Stats
+        if (d.bowler_id) {
+          if (!bowlers[d.bowler_id]) {
+            bowlers[d.bowler_id] = { id: d.bowler_id, name: d.bowler?.name || 'Unknown', balls: 0, runs: 0, wickets: 0, maidens: 0 };
+          }
+          if (d.extra_type === 'NONE' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
+            bowlers[d.bowler_id].balls += 1;
+          }
+          if (d.extra_type !== 'BYES' && d.extra_type !== 'LEG_BYES') {
+            bowlers[d.bowler_id].runs += d.runs_total;
+          }
+          if (d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT') {
+            bowlers[d.bowler_id].wickets += 1;
+          }
+        }
+      });
+
+      const batArr = Object.values(batters).map(b => ({
+        ...b,
+        strikeRate: b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'
+      }));
+
+      const bowlArr = Object.values(bowlers).map(b => ({
+        ...b,
+        overs: `${Math.floor(b.balls / 6)}.${b.balls % 6}`,
+        economy: b.balls > 0 ? ((b.runs / b.balls) * 6).toFixed(1) : '0.0'
+      }));
+
+      const oversStr = `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`;
+      return { runs, wickets, extras, overs: oversStr, batting: batArr, bowling: bowlArr };
+    };
+
+    const stats1 = innings.length > 0 ? computeInningsStats(innings[0].id) : { runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] };
+    const stats2 = innings.length > 1 ? computeInningsStats(innings[1].id) : { runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] };
+
+    // Find Top Performers across both innings
+    const allBatters = [...stats1.batting, ...stats2.batting].sort((a, b) => b.runs - a.runs);
+    const allBowlers = [...stats1.bowling, ...stats2.bowling].sort((a, b) => b.wickets - a.wickets || a.runs - b.runs);
+
+    const topBatter = allBatters[0] ? { name: allBatters[0].name, stat: `${allBatters[0].runs} (${allBatters[0].balls})` } : null;
+    const topBowler = allBowlers[0] ? { name: allBowlers[0].name, stat: `${allBowlers[0].wickets}/${allBowlers[0].runs}` } : null;
+
+    return {
+      id: matchData.id,
+      tournament: matchData.tournament_id,
+      venue: matchData.venue_name || 'JDCA Ground',
+      date: matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Unknown Date',
+      resultText: matchData.result_text || matchData.status,
+      teamA: {
+        name: matchData.home_team?.name || 'Home Team',
+        score: innings.length > 0 ? `${stats1.runs}/${stats1.wickets}` : '',
+        overs: innings.length > 0 ? `(${stats1.overs} ov)` : '',
+        extras: stats1.extras
+      },
+      teamB: {
+        name: matchData.away_team?.name || 'Away Team',
+        score: innings.length > 1 ? `${stats2.runs}/${stats2.wickets}` : '',
+        overs: innings.length > 1 ? `(${stats2.overs} ov)` : '',
+        extras: stats2.extras
+      },
+      scorecard: {
+        teamA: { batting: stats1.batting, bowling: stats2.bowling },
+        teamB: { batting: stats2.batting, bowling: stats1.bowling }
+      },
+      topBatter,
+      topBowler
+    };
+  },
+
+  /**
+   * Fetches or creates the Supabase innings record for a match and innings number.
+   * Guarantees returning a real innings object with its valid UUID.
+   */
+  async getOrCreateInnings(matchId, inningsNumber = 1) {
+    if (!matchId || !supabase) return null;
+
+    // 1. Check if innings already exists
+    const { data: existing, error: fetchErr } = await supabase
+      .from('innings')
+      .select('*')
+      .eq('match_id', matchId)
+      .eq('innings_number', Number(inningsNumber) || 1)
+      .maybeSingle();
+
+    if (!fetchErr && existing) {
+      return existing;
+    }
+
+    // 2. Fetch match to determine home/away teams
+    const { data: match, error: matchErr } = await supabase
+      .from('matches')
+      .select('id, home_team_id, away_team_id, max_overs, toss_winner_id, toss_decision')
+      .eq('id', matchId)
+      .single();
+
+    if (matchErr || !match || !match.home_team_id || !match.away_team_id) {
+      console.warn('[api] Cannot create innings: match details missing or teams not set', matchErr);
+      return null;
+    }
+
+    // Determine batting and bowling team
+    let battingTeamId = match.home_team_id;
+    let bowlingTeamId = match.away_team_id;
+
+    if (match.toss_winner_id) {
+      const tossWinnerBats = match.toss_decision === 'BAT';
+      const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+      const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+      battingTeamId = homeBatsFirst ? match.home_team_id : match.away_team_id;
+      bowlingTeamId = homeBatsFirst ? match.away_team_id : match.home_team_id;
+    }
+
+    if (Number(inningsNumber) === 2) {
+      const temp = battingTeamId;
+      battingTeamId = bowlingTeamId;
+      bowlingTeamId = temp;
+    }
+
+    const { data: newInnings, error: insertErr } = await supabase
+      .from('innings')
+      .insert({
+        match_id: matchId,
+        innings_number: Number(inningsNumber) || 1,
+        batting_team_id: battingTeamId,
+        bowling_team_id: bowlingTeamId,
+        overs_limit: match.max_overs || 20,
+        status: 'IN_PROGRESS'
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      // In case another client created it simultaneously
+      const { data: retry } = await supabase
+        .from('innings')
+        .select('*')
+        .eq('match_id', matchId)
+        .eq('innings_number', Number(inningsNumber) || 1)
+        .maybeSingle();
+      if (retry) return retry;
+
+      console.error('[api] Failed to create innings record:', insertErr);
+      return null;
+    }
+
+    return newInnings;
   }
 };

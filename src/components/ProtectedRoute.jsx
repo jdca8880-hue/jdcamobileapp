@@ -25,24 +25,20 @@ const ADMIN_ROUTES = [
 
 // ─── Role → Allowed Routes ─────────────────────────────────────────────────
 export const ROLE_PERMISSIONS = {
-  SuperAdmin: '*', // full access
-  Admin: ADMIN_ROUTES,
-  Selector: SELECTOR_ROUTES,
-  Scorer: SCORER_ROUTES,
-  Player: PLAYER_ROUTES,
+  SUPER_ADMIN: '*', // full access
+  DISTRICT_ADMIN: ADMIN_ROUTES,
+  SELECTOR: SELECTOR_ROUTES,
+  SCORER: SCORER_ROUTES,
   VIEWER: PLAYER_ROUTES,
-  Viewer: PLAYER_ROUTES,
 };
 
 // ─── Role → Default Landing Page After Login ──────────────────────────────
 export const ROLE_HOME = {
-  SuperAdmin: '/home',
-  Admin:      '/home',
-  Scorer:     '/home',
-  Selector:   '/home',
-  Player:     '/home',
-  VIEWER:     '/home',
-  Viewer:     '/home',
+  SUPER_ADMIN: '/home',
+  DISTRICT_ADMIN: '/home',
+  SELECTOR: '/home',
+  SCORER: '/home',
+  VIEWER: '/home',
 };
 
 // ─── Helper: does a role have access to a given path? ────────────────────

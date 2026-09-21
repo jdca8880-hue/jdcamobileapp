@@ -10,19 +10,36 @@ db.version(1).stores({
 });
 
 db.version(2).stores({
-  // Matches table: primary key is 'id'
   matches: 'id, tournament, date, status',
-  
-  // Players table: primary key is 'id'
   players: 'id, teamId, name, role',
-
-  // Teams table: primary key is 'id'
   teams: 'id, name, district_id',
+  sync_queue: '++id, action, timestamp'
+});
 
-  // Sync Queue: auto-incrementing ID for tracking offline actions
-  // action: e.g., 'SCORE_BALL', 'UPDATE_MATCH'
-  // payload: the data to send to Supabase
-  // timestamp: when the action occurred
+db.version(3).stores({
+  matches: 'id, tournament, date, status',
+  players: 'id, teamId, name, role',
+  teams: 'id, name, district_id',
+  tournaments: 'id, name, status',
+  sync_queue: '++id, action, timestamp'
+});
+
+db.version(4).stores({
+  matches: 'id, tournament, date, status',
+  players: 'id, teamId, name, role',
+  teams: 'id, name, district_id',
+  tournaments: 'id, name, status',
+  deliveries: 'id, match_id, innings_id, over_number, ball_number',
+  sync_queue: '++id, action, timestamp'
+});
+
+db.version(5).stores({
+  matches: 'id, tournament, date, status',
+  players: 'id, teamId, name, role',
+  teams: 'id, name, district_id',
+  tournaments: 'id, name, status',
+  deliveries: 'id, match_id, innings_id, over_number, ball_number',
+  innings: 'id, match_id, innings_number',
   sync_queue: '++id, action, timestamp'
 });
 

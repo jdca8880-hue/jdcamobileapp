@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Trophy, ChevronDown, ChevronUp, ChevronRight, Plus } from 'lucide-react';
+import { Trophy, ChevronDown, ChevronUp, ChevronRight, Plus, Edit2, Trash2 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { MatchCard } from '../ui/MatchCard';
 import TournamentManagerModal from '../ui/TournamentManagerModal';
+import { api } from '../../lib/api';
 
 const TOURNAMENT_THEMES = [
   {
@@ -243,30 +244,25 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail }
 };
 
 export default function TournamentsScreen() {
-  const { matches = [], pointsTable = [], navigateTo, setActiveMatchId, userRole } = useCricket();
+  const { matches = [], tournaments = [], pointsTable = [], teams = [], navigateTo, setActiveMatchId, userRole } = useCricket();
   const [activeTab, setActiveTab] = useState('Matches'); // 'Matches' | 'Standings'
   const [expandedTournament, setExpandedTournament] = useState(null);
   const [expandedMatchId, setExpandedMatchId] = useState(null);
   
   // Tournament Manager state
   const [isManagerOpen, setIsManagerOpen] = useState(false);
+  const [editingTournament, setEditingTournament] = useState(null);
   const isAdmin = userRole === 'Admin' || userRole === 'SuperAdmin';
   
-  // Group matches by tournament
-  const tournaments = useMemo(() => {
-    const map = new Map();
-    matches.forEach(m => {
-      const name = m.tournament || m.tournament_id || 'JDCA Official Fixtures';
-      if (!map.has(name)) map.set(name, []);
-      map.get(name).push(m);
-    });
-    return [...map.entries()];
-  }, [matches]);
+  // Fallback group matches by tournament ID in case they don't match a tournament
+  const getTournamentMatches = (tId) => {
+    return matches.filter(m => m.tournament_id === tId || m.tournament === tId);
+  };
 
   // Set the first tournament as expanded by default when tournaments load
   useEffect(() => {
     if (tournaments.length > 0 && !expandedTournament) {
-      setExpandedTournament(tournaments[0][0]);
+      setExpandedTournament(tournaments[0].id);
     }
   }, [tournaments]);
 
@@ -289,9 +285,9 @@ export default function TournamentsScreen() {
     navigateTo('match-detail');
   };
 
-  const handleGenerateSchedule = async (tournamentName) => {
+  const handleGenerateSchedule = async (tournamentId) => {
     // Collect unique teams from existing matches
-    const tourneyMatches = matches.filter(m => (m.tournament || m.tournament_id || 'JDCA Official Fixtures') === tournamentName);
+    const tourneyMatches = getTournamentMatches(tournamentId);
     const uniqueTeamsMap = new Map();
     tourneyMatches.forEach(m => {
       const teamA = m.teamA || m.home_team || 'JBP';
@@ -308,10 +304,9 @@ export default function TournamentsScreen() {
       return;
     }
 
-    if (!window.confirm(`Generate Round-Robin schedule for ${teamsList.length} teams in ${tournamentName}?`)) return;
+    if (!window.confirm(`Generate Round-Robin schedule for ${teamsList.length} teams in this tournament?`)) return;
 
     const newMatches = [];
-    let matchCounter = 1;
     let baseDate = new Date();
     baseDate.setDate(baseDate.getDate() + 1);
 
@@ -333,12 +328,7 @@ export default function TournamentsScreen() {
     if (newMatches.length > 0) {
       try {
         const { api } = await import('../../lib/api');
-        // Find tournament ID
-        const tObj = tourneyMatches.find(m => m.tournament_id);
-        const tId = tObj ? tObj.tournament_id : (await api.getDefaults()).age_category_id; // Using age_category_id purely as a fallback uuid to avoid crash for now if no tournaments exist
-        
-        // We will just pass the unique teams to generateSchedule
-        await api.generateSchedule(tId, teamsList);
+        await api.generateSchedule(tournamentId, teamsList);
         alert(`Matches generated. Please refresh to see them.`);
         window.location.reload();
       } catch (err) {
@@ -350,6 +340,35 @@ export default function TournamentsScreen() {
     }
   };
 
+  const handleEditTournament = (e, tournament) => {
+    e.stopPropagation();
+    setEditingTournament({
+      id: tournament.id,
+      name: tournament.name,
+      season: tournament.season,
+      format: tournament.format,
+      gender: tournament.gender,
+      startDate: tournament.start_date || '',
+      endDate: tournament.end_date || '',
+      status: tournament.status,
+      customMatches: []
+    });
+    setIsManagerOpen(true);
+  };
+
+  const handleDeleteTournament = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this tournament? All associated matches will also be deleted.')) return;
+    try {
+      const { api } = await import('../../lib/api');
+      await api.deleteTournament(id);
+      alert('Tournament deleted.');
+      window.location.reload();
+    } catch (err) {
+      alert('Failed to delete: ' + err.message);
+    }
+  };
+
   return (
     <div className="pb-[100px] bg-slate-50 min-h-screen">
       <div className="pt-6 px-4 pb-4 bg-white/95 backdrop-blur-md sticky top-0 z-30 border-b border-gray-200 shadow-2xs">
@@ -357,7 +376,10 @@ export default function TournamentsScreen() {
           <h1 className="text-[28px] font-black text-[#101827] tracking-tight leading-none">Tournaments</h1>
           {isAdmin && (
             <button 
-              onClick={() => setIsManagerOpen(true)}
+              onClick={() => {
+                setEditingTournament(null);
+                setIsManagerOpen(true);
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-[14px] font-bold shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Plus size={16} /> <span className="hidden sm:inline">Create</span>
@@ -385,27 +407,44 @@ export default function TournamentsScreen() {
       </div>
 
       <div className="px-4 pt-6 space-y-6">
-        {tournaments.map(([name, ms], i) => {
+        {tournaments.length === 0 && (
+          <div className="text-center p-8 bg-white rounded-2xl shadow-sm">
+             <Trophy size={48} className="mx-auto text-slate-300 mb-4" />
+             <h3 className="text-lg font-bold text-slate-900">No Tournaments Found</h3>
+             <p className="text-slate-500 text-sm mt-1">Check back later or create a new tournament.</p>
+          </div>
+        )}
+        
+        {tournaments.map((tournament, i) => {
+          const ms = getTournamentMatches(tournament.id);
           const completed = ms.filter(m => ['COMPLETED', 'FINISHED'].includes(m.status)).length;
-          const progress = Math.round((completed / ms.length) * 100) || 0;
+          const progress = ms.length > 0 ? Math.round((completed / ms.length) * 100) : 0;
           const theme = TOURNAMENT_THEMES[i % TOURNAMENT_THEMES.length];
-          const isExpanded = expandedTournament === name;
+          const isExpanded = expandedTournament === tournament.id;
 
           return (
-            <div key={name} className={`bg-white rounded-[22px] shadow-sm border ${theme.cardBorder} overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-blue-500/10' : 'hover:shadow-md'}`}>
+            <div key={tournament.id} className={`bg-white rounded-[22px] shadow-sm border ${theme.cardBorder} overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-blue-500/10' : 'hover:shadow-md'}`}>
               <div 
-                onClick={() => toggleTournament(name)}
-                className={`${theme.header} p-5 sm:p-6 relative overflow-hidden cursor-pointer hover:bg-slate-50/50 transition-colors`}
+                onClick={() => toggleTournament(tournament.id)}
+                className={`${theme.header} p-5 sm:p-6 relative overflow-hidden cursor-pointer hover:bg-slate-50/50 transition-colors group`}
               >
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-3">
                     <div className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black tracking-widest uppercase border ${theme.badge}`}>
-                      Season 2026 • Official JDCA
+                      Season {tournament.season} • Official JDCA
                     </div>
-                    {isExpanded ? <ChevronUp className="text-slate-400" size={18} /> : <ChevronDown className="text-slate-400" size={18} />}
+                    <div className="flex items-center gap-3">
+                      {isAdmin && (
+                        <div className="hidden group-hover:flex items-center gap-1 mr-2">
+                           <button onClick={(e) => handleEditTournament(e, tournament)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Edit2 size={16}/></button>
+                           <button onClick={(e) => handleDeleteTournament(e, tournament.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={16}/></button>
+                        </div>
+                      )}
+                      {isExpanded ? <ChevronUp className="text-slate-400" size={18} /> : <ChevronDown className="text-slate-400" size={18} />}
+                    </div>
                   </div>
                   
-                  <h2 className={`text-[20px] sm:text-[22px] font-black leading-tight mb-4 tracking-tight ${theme.textMain} pr-6`}>{name}</h2>
+                  <h2 className={`text-[20px] sm:text-[22px] font-black leading-tight mb-4 tracking-tight ${theme.textMain} pr-6`}>{tournament.name}</h2>
                   
                   <div className="flex items-center gap-4 text-[12px] font-medium">
                     <div className={`${theme.statBg} px-3 py-2 rounded-xl border flex-1`}>
@@ -435,7 +474,7 @@ export default function TournamentsScreen() {
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579]">League Stage</h3>
                         <div className="flex gap-2 items-center">
-                           {isAdmin && <button onClick={() => handleGenerateSchedule(name)} className="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded transition-colors cursor-pointer">Auto Generate</button>}
+                           {isAdmin && <button onClick={() => handleGenerateSchedule(tournament.id)} className="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded transition-colors cursor-pointer">Auto Generate</button>}
                            <span className="text-xs font-semibold text-slate-400">{ms.length} Fixtures</span>
                         </div>
                       </div>
@@ -465,16 +504,28 @@ export default function TournamentsScreen() {
       {isAdmin && (
         <TournamentManagerModal 
           isOpen={isManagerOpen}
-          onClose={() => setIsManagerOpen(false)}
+          teams={teams}
+          initialData={editingTournament}
+          onClose={() => {
+            setIsManagerOpen(false);
+            setEditingTournament(null);
+          }}
           onSave={async (data) => {
             try {
-              const { api } = await import('../../lib/api');
-              const newTournament = await api.createTournament(data);
-              alert('Tournament created successfully!');
+              if (editingTournament) {
+                await api.updateTournament(editingTournament.id, data);
+                alert('Tournament updated successfully!');
+              } else {
+                const newTournament = await api.createTournament(data);
+                if (data.customMatches && data.customMatches.length > 0) {
+                  await api.createDetailedMatches(newTournament.id, newTournament.format, data.customMatches);
+                }
+                alert('Tournament created successfully!');
+              }
               window.location.reload(); // Quickest way to refresh for now
             } catch (err) {
-              console.error('Failed to create tournament:', err);
-              alert('Error creating tournament: ' + err.message);
+              console.error('Failed to save tournament:', err);
+              alert('Error saving tournament: ' + err.message);
             }
           }}
         />

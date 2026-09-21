@@ -77,7 +77,7 @@ export default function Header() {
             <ArrowLeft size={17} />
           </button>
         ) : (
-          <img src="/jdca-logo.png" alt="JDCA Logo" className="w-7 h-7 object-contain flex-shrink-0" />
+          <img src="/jdca-logo.png" onError={(e) => e.target.src = 'https://via.placeholder.com/44?text=JDCA'} alt="JDCA Logo" className="w-7 h-7 object-contain flex-shrink-0" />
         )}
         <h1 className="font-semibold text-slate-900 text-base tracking-tight truncate max-w-[200px] sm:max-w-xs">
           {info.title}

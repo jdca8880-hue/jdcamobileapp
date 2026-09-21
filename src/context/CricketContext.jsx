@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import {
   processDelivery,
   formatOvers,
@@ -11,6 +12,8 @@ import {
   MATCH_STATES,
 } from '../engine/cricketStateMachine';
 import { INITIAL_SCORECARD, FIELD_DIRECTIONS } from '../data/constants';
+import { syncService } from '../services/SyncService';
+import { queueOfflineAction } from '../lib/db';
 
 const CricketContext = createContext();
 
@@ -51,7 +54,7 @@ export function CricketProvider({ children }) {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
-  const [userRole, setUserRole] = useState('Admin'); // SuperAdmin, Admin, Scorer, Selector, Player
+  const [userRole, setUserRole] = useState('VIEWER'); // SUPER_ADMIN, DISTRICT_ADMIN, SCORER, SELECTOR, VIEWER
 
   // Dark Mode Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -73,35 +76,11 @@ export function CricketProvider({ children }) {
   }, [isDarkMode]);
 
   // Registered Users (Super Admin access)
-  const [registeredUsers, setRegisteredUsers] = useState([
-    { id: 'usr_001', name: 'Rohan (Super Admin)', email: 'superadmin@jdca.com', password: 'password123', role: 'SuperAdmin' },
-    { id: 'usr_002', name: 'Admin User', email: 'admin@jdca.com', password: 'password123', role: 'Admin' },
-    { id: 'usr_003', name: 'Scorer One', email: 'scorer@jdca.com', password: 'password123', role: 'Scorer' },
-    { id: 'usr_004', name: 'Selector Lead', email: 'selector@jdca.com', password: 'password123', role: 'Selector' },
-    { id: 'usr_005', name: 'Player Virat', email: 'player@jdca.com', password: 'password123', role: 'Player' }
-  ]);
+  const [registeredUsers, setRegisteredUsers] = useState([]);
 
   // Selection Context State & Representative Teams
-  const [representativeTeams, setRepresentativeTeams] = useState([
-    { id: 'jdca-u13-m-2026', name: 'JDCA U13 Men 2026', ageCategory: 'Under 13', gender: 'Men', season: '2026', targetSquadSize: 16, ageRankLevel: 1 },
-    { id: 'jdca-u15-m-2026', name: 'JDCA U15 Men 2026', ageCategory: 'Under 15', gender: 'Men', season: '2026', targetSquadSize: 16, ageRankLevel: 2 },
-    { id: 'jdca-u17-m-2026', name: 'JDCA U17 Men 2026', ageCategory: 'Under 17', gender: 'Men', season: '2026', targetSquadSize: 16, ageRankLevel: 3 },
-    { id: 'jdca-u19-m-2026', name: 'JDCA U19 Men 2026', ageCategory: 'Under 19', gender: 'Men', season: '2026', targetSquadSize: 16, ageRankLevel: 4 },
-    { id: 'jdca-u23-m-2026', name: 'JDCA U23 Men 2026', ageCategory: 'Under 23', gender: 'Men', season: '2026', targetSquadSize: 16, ageRankLevel: 5 },
-    { id: 'jdca-senior-m-2026', name: 'JDCA Senior Men 2026', ageCategory: 'Senior', gender: 'Men', season: '2026', targetSquadSize: 16, ageRankLevel: 6 },
-    { id: 'jdca-u19-w-2026', name: 'JDCA U19 Women 2026', ageCategory: 'Under 19', gender: 'Women', season: '2026', targetSquadSize: 16, ageRankLevel: 4 },
-    { id: 'jdca-senior-w-2026', name: 'JDCA Senior Women 2026', ageCategory: 'Senior', gender: 'Women', season: '2026', targetSquadSize: 16, ageRankLevel: 6 },
-  ]);
-
-  const [activeSelectionTeam, setActiveSelectionTeam] = useState({
-    id: 'jdca-u19-m-2026',
-    name: 'JDCA U19 Men 2026',
-    ageCategory: 'Under 19',
-    gender: 'Men',
-    season: '2026',
-    targetSquadSize: 16,
-    ageRankLevel: 4
-  });
+  const [representativeTeams, setRepresentativeTeams] = useState([]);
+  const [activeSelectionTeam, setActiveSelectionTeam] = useState(null);
 
   // Selector Permission Scopes (Age Category Level & Allowed Districts)
   const [selectorPermissions, setSelectorPermissions] = useState({
@@ -120,6 +99,9 @@ export function CricketProvider({ children }) {
   
   // Teams State
   const [teams, setTeams] = useState([]);
+
+  // Tournaments State
+  const [tournaments, setTournaments] = useState([]);
 
   // Offline-First & Realtime Data Sync
   useEffect(() => {
@@ -160,7 +142,7 @@ export function CricketProvider({ children }) {
             } else {
               setIsAuthenticated(false);
               setUserEmail('');
-              setUserRole('Player');
+              setUserRole('VIEWER');
             }
           });
         }
@@ -200,6 +182,25 @@ export function CricketProvider({ children }) {
         }
         setTeams(localTeams);
 
+        // Fetch Tournaments
+        let localTournaments = [];
+        try {
+          localTournaments = await db.tournaments.toArray();
+        } catch (e) {
+          console.log('[CricketContext] tournaments store not ready yet');
+        }
+        if (localTournaments.length === 0 && supabase) {
+          console.log('[CricketContext] No local tournaments, fetching from Supabase...');
+          const { data, error } = await supabase.from('tournaments').select('*');
+          if (!error && data) {
+            try {
+              await db.tournaments.bulkAdd(data);
+            } catch (e) {}
+            localTournaments = data;
+          }
+        }
+        setTournaments(localTournaments);
+
         let localPlayers = await db.players.toArray();
         if (localPlayers.length === 0 && supabase) {
           console.log('[CricketContext] No local players, fetching from Supabase...');
@@ -211,6 +212,25 @@ export function CricketProvider({ children }) {
         }
         setPlayers(localPlayers);
         if (localPlayers.length > 0) setSelectedPlayer(localPlayers[0]);
+
+        // Fetch Selection Processes
+        if (supabase) {
+          try {
+             const processes = await api.getSelectionProcesses();
+             const formattedProcesses = processes.map(p => ({
+               id: p.id,
+               name: p.name,
+               season: p.season,
+               ageCategory: p.age_category?.name || 'Unknown',
+               gender: p.gender,
+               targetSquadSize: p.target_squad_size,
+               ageRankLevel: 4, // Default fallback rank
+               status: p.status
+             }));
+             setRepresentativeTeams(formattedProcesses);
+             if (formattedProcesses.length > 0) setActiveSelectionTeam(formattedProcesses[0]);
+          } catch(e) { console.error('Failed to load selection processes', e); }
+        }
 
         setIsAppLoading(false);
 
@@ -261,6 +281,29 @@ export function CricketProvider({ children }) {
     };
   }, []);
 
+  const refreshAdminData = async () => {
+    if (!supabase) return;
+    try {
+      const { db } = await import('../lib/db.js');
+      
+      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*');
+      if (!tErr && tData) {
+        await db.tournaments.clear();
+        await db.tournaments.bulkAdd(tData);
+        setTournaments(tData);
+      }
+
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)');
+      if (!mErr && mData) {
+        await db.matches.clear();
+        await db.matches.bulkAdd(mData);
+        setMatches(mData);
+      }
+    } catch (err) {
+      console.error('[CricketContext] Error refreshing admin data:', err);
+    }
+  };
+
   // Match Setup State
   const [matchSetup, setMatchSetup] = useState({
     teamA: 'Team A',
@@ -283,6 +326,61 @@ export function CricketProvider({ children }) {
 
   // Live Scoring Engine State
   const [innings, setInnings] = useState(1); // 1 or 2
+  const [currentInningsId, setCurrentInningsId] = useState(null);
+
+  const resolveInningsId = async (matchId = activeMatchId, inningsNum = innings) => {
+    if (!matchId) return null;
+    const num = Number(inningsNum) || 1;
+
+    // 1. Check local Dexie cache first
+    try {
+      const { db } = await import('../lib/db.js');
+      if (db.innings) {
+        const cached = await db.innings.where({ match_id: matchId, innings_number: num }).first();
+        if (cached?.id) {
+          setCurrentInningsId(cached.id);
+          return cached.id;
+        }
+      }
+    } catch (e) {
+      console.warn('[CricketContext] Dexie cache check failed:', e);
+    }
+
+    // 2. Fetch or create via Supabase API
+    try {
+      const inn = await api.getOrCreateInnings(matchId, num);
+      if (inn?.id) {
+        setCurrentInningsId(inn.id);
+        // Cache to local Dexie
+        try {
+          const { db } = await import('../lib/db.js');
+          if (db.innings) {
+            await db.innings.put({
+              id: inn.id,
+              match_id: matchId,
+              innings_number: num,
+              batting_team_id: inn.batting_team_id,
+              bowling_team_id: inn.bowling_team_id,
+              overs_limit: inn.overs_limit,
+              status: inn.status
+            });
+          }
+        } catch (cacheErr) {}
+        return inn.id;
+      }
+    } catch (err) {
+      console.error('[CricketContext] Failed to resolve innings ID from API:', err);
+    }
+
+    return null;
+  };
+
+  useEffect(() => {
+    if (activeMatchId) {
+      resolveInningsId(activeMatchId, innings);
+    }
+  }, [activeMatchId, innings]);
+
   const [matchFormat, setMatchFormat] = useState('T20');
   const [totalMatchOvers, setTotalMatchOvers] = useState(20);
   const [runs, setRuns] = useState(0);
@@ -352,6 +450,19 @@ export function CricketProvider({ children }) {
 
   // Scorecard detailed tables
   const [scorecard, setScorecard] = useState(INITIAL_SCORECARD);
+
+  useEffect(() => {
+    async function loadCandidates() {
+      if (!activeSelectionTeam || !supabase) return;
+      try {
+        const candidateIds = await api.getSelectionCandidates(activeSelectionTeam.id);
+        setShortlistedIds(candidateIds);
+      } catch (e) {
+        console.error('Failed to load selection candidates', e);
+      }
+    }
+    loadCandidates();
+  }, [activeSelectionTeam]);
 
   // Auto-clear validation errors after 3 seconds
   useEffect(() => {
@@ -464,14 +575,23 @@ export function CricketProvider({ children }) {
     return true;
   };
 
-  const recordDeliveryEvent = (event) => {
+  const recordDeliveryEvent = async (event) => {
     const eventId = `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setDeliveryLog((prev) => [...prev, {
+    
+    // Ensure inningsId is always populated with the actual innings UUID
+    let resolvedInningsId = currentInningsId;
+    if (!resolvedInningsId && activeMatchId) {
+      resolvedInningsId = await resolveInningsId(activeMatchId, innings);
+    }
+
+    const payload = {
       id: eventId,
       timestamp: new Date().toISOString(),
       matchId: activeMatchId,
+      inningsId: resolvedInningsId || null,
       innings,
       over: formatOvers(balls),
+      balls,
       strikerId: striker.id,
       striker: striker.name,
       nonStrikerId: nonStriker.id,
@@ -479,7 +599,33 @@ export function CricketProvider({ children }) {
       bowlerId: currentBowler.id,
       bowler: currentBowler.name,
       ...event,
-    }]);
+    };
+
+    // Update local React state array
+    setDeliveryLog((prev) => [...prev, payload]);
+
+    try {
+      // 1. Save to local Dexie cache
+      const { db } = await import('../lib/db.js');
+      await db.deliveries.put({
+        id: payload.id,
+        match_id: payload.matchId,
+        innings_id: payload.inningsId,
+        over_number: Math.floor((payload.balls || 0) / 6),
+        ball_number: ((payload.balls || 0) % 6) + 1,
+        payload_blob: payload // Stash full payload for UI viewing if needed offline
+      });
+
+      // 2. Queue for Sync to Supabase
+      if (!payload.inningsId) {
+        console.warn(`[CricketContext] Innings ID missing for match ${activeMatchId}. Queuing delivery for retry.`);
+        await queueOfflineAction('RECORD_DELIVERY', payload);
+      } else {
+        await syncService.executeOrQueue('RECORD_DELIVERY', payload, queueOfflineAction);
+      }
+    } catch(err) {
+      console.error('[CricketContext] Failed to save/sync delivery:', err);
+    }
   };
 
   const markScoringFirstRunDone = () => {
@@ -676,12 +822,42 @@ export function CricketProvider({ children }) {
   };
 
   // Shortlist toggle for scouting
-  const toggleShortlist = (playerId) => {
+  const toggleShortlist = async (playerId) => {
+    if (!activeSelectionTeam) return;
+    const isAdding = !shortlistedIds.includes(playerId);
+    
+    // Optimistic UI update
     setShortlistedIds((prev) =>
-      prev.includes(playerId)
-        ? prev.filter((id) => id !== playerId)
-        : [...prev, playerId]
+      isAdding
+        ? [...prev, playerId]
+        : prev.filter((id) => id !== playerId)
     );
+
+    try {
+      await api.toggleCandidate(activeSelectionTeam.id, playerId, isAdding);
+    } catch (e) {
+      console.error('Failed to toggle candidate', e);
+      // Revert on failure
+      setShortlistedIds((prev) =>
+        !isAdding
+          ? [...prev, playerId]
+          : prev.filter((id) => id !== playerId)
+      );
+    }
+  };
+
+  const finalizeSelectionProcess = async (processId) => {
+    try {
+      await api.finalizeSquad(processId, shortlistedIds);
+      setRepresentativeTeams(prev => prev.map(t => t.id === processId ? { ...t, status: 'FINALIZED' } : t));
+      if (activeSelectionTeam && activeSelectionTeam.id === processId) {
+        setActiveSelectionTeam({ ...activeSelectionTeam, status: 'FINALIZED' });
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to finalize squad', e);
+      throw e;
+    }
   };
 
   // Register new player
@@ -749,10 +925,15 @@ export function CricketProvider({ children }) {
         selectedPlayer,
         setSelectedPlayer,
         shortlistedIds,
+        setShortlistedIds,
         toggleShortlist,
+        finalizeSelectionProcess,
         registerPlayer,
         teams,
         setTeams,
+        tournaments,
+        setTournaments,
+        refreshAdminData,
         matches,
         activeMatchId,
         setActiveMatchId,
@@ -760,6 +941,9 @@ export function CricketProvider({ children }) {
         setMatchSetup,
         innings,
         setInnings,
+        currentInningsId,
+        setCurrentInningsId,
+        resolveInningsId,
         matchFormat,
         totalMatchOvers,
         runs,
@@ -808,7 +992,6 @@ export function CricketProvider({ children }) {
         markScoringFirstRunDone,
         isAppLoading,
         officials: [],
-        tournaments: [],
         districtStats: [],
         selectionHistory: [],
         announcements: [],
