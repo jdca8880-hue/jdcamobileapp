@@ -4,6 +4,8 @@ import { supabase } from './supabase';
 export const useStandings = (matches) => {
   const [pointsTable, setPointsTable] = useState([]);
 
+  const matchIdsStr = matches ? matches.map(m => `${m.id}-${m.status}-${m.winner_team_id || ''}-${m.result_text || ''}`).sort().join(',') : '';
+
   useEffect(() => {
     let isMounted = true;
 
@@ -144,7 +146,7 @@ export const useStandings = (matches) => {
     fetchAndCalculate();
 
     return () => { isMounted = false; };
-  }, [matches]);
+  }, [matchIdsStr]); // Use serialized string to prevent infinite loops from array recreation
 
   return pointsTable;
 };
