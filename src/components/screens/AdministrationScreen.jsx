@@ -120,6 +120,42 @@ export default function AdministrationScreen() {
     }
   };
 
+  
+  const handlePermissionChange = async (userId, field, newValue) => {
+    try {
+      const user = registeredUsers.find(u => u.id === userId);
+      if (!user) return;
+      const updatedPermissions = {
+        can_view: user.can_view,
+        can_add: user.can_add,
+        can_edit: user.can_edit,
+        can_delete: user.can_delete,
+        [field]: newValue
+      };
+      // Optimistic update
+      setRegisteredUsers(prev => prev.map(u => u.id === userId ? { ...u, [field]: newValue } : u));
+      await api.updateUserPermissions(userId, updatedPermissions);
+    } catch (error) {
+      console.error('Failed to update permission:', error);
+      alert('Failed to update user permissions');
+      // Revert on error
+      const profiles = await api.getProfiles();
+      const mapped = profiles.map(p => ({
+        id: p.id,
+        name: p.full_name,
+        email: p.email || 'N/A',
+        role: p.role,
+        can_view: p.can_view,
+        can_add: p.can_add,
+        can_edit: p.can_edit,
+        can_delete: p.can_delete,
+        status: p.is_active ? 'Active' : 'Inactive',
+        district: p.district?.name || 'All Districts'
+      }));
+      setRegisteredUsers(mapped);
+    }
+  };
+
   const handleRoleChange = async (userId, newRole) => {
     try {
       await api.updateUserRole(userId, newRole);
@@ -245,45 +281,44 @@ export default function AdministrationScreen() {
                             <RoleBadge role={usr.role} />
                           )}
                         </td>
+                        
                         <td>
-                          <span className="inline-flex items-center text-xs font-semibold text-[#0FA968]">
-                            <Check size={14} className="mr-1" /> Yes
-                          </span>
-                        </td>
-                        <td>
-                          {isSuper || usr.role === 'DISTRICT_ADMIN' || usr.role === 'Admin' || usr.role === 'SCORER' || usr.role === 'Scorer' ? (
+                          {userRole === 'SUPER_ADMIN' ? (
+                            <input type="checkbox" checked={usr.can_view} onChange={(e) => handlePermissionChange(usr.id, 'can_view', e.target.checked)} />
+                          ) : (
                             <span className="inline-flex items-center text-xs font-semibold text-[#0FA968]">
-                              <Check size={14} className="mr-1" /> Yes
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center text-xs font-semibold text-slate-400">
-                              <X size={14} className="mr-1" /> No
+                              <Check size={14} className="mr-1" /> {usr.can_view ? 'Yes' : 'No'}
                             </span>
                           )}
                         </td>
                         <td>
-                          {isSuper || usr.role === 'DISTRICT_ADMIN' || usr.role === 'Admin' ? (
-                            <span className="inline-flex items-center text-xs font-semibold text-[#0FA968]">
-                              <Check size={14} className="mr-1" /> Yes
-                            </span>
+                          {userRole === 'SUPER_ADMIN' ? (
+                            <input type="checkbox" checked={usr.can_add} onChange={(e) => handlePermissionChange(usr.id, 'can_add', e.target.checked)} />
                           ) : (
-                            <span className="inline-flex items-center text-xs font-semibold text-slate-400">
-                              <X size={14} className="mr-1" /> No
+                            <span className={usr.can_add ? "inline-flex items-center text-xs font-semibold text-[#0FA968]" : "inline-flex items-center text-xs font-semibold text-slate-400"}>
+                              {usr.can_add ? <Check size={14} className="mr-1" /> : <X size={14} className="mr-1" />} {usr.can_add ? 'Yes' : 'No'}
                             </span>
                           )}
                         </td>
                         <td>
-                          {isSuper ? (
-                            <span className="inline-flex items-center text-xs font-semibold text-[#F05A47]">
-                              <Check size={14} className="mr-1" /> Yes
-                            </span>
+                          {userRole === 'SUPER_ADMIN' ? (
+                            <input type="checkbox" checked={usr.can_edit} onChange={(e) => handlePermissionChange(usr.id, 'can_edit', e.target.checked)} />
                           ) : (
-                            <span className="inline-flex items-center text-xs font-semibold text-slate-400">
-                              <X size={14} className="mr-1" /> No
+                            <span className={usr.can_edit ? "inline-flex items-center text-xs font-semibold text-[#0FA968]" : "inline-flex items-center text-xs font-semibold text-slate-400"}>
+                              {usr.can_edit ? <Check size={14} className="mr-1" /> : <X size={14} className="mr-1" />} {usr.can_edit ? 'Yes' : 'No'}
                             </span>
                           )}
                         </td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td>
+                          {userRole === 'SUPER_ADMIN' ? (
+                            <input type="checkbox" checked={usr.can_delete} onChange={(e) => handlePermissionChange(usr.id, 'can_delete', e.target.checked)} />
+                          ) : (
+                            <span className={usr.can_delete ? "inline-flex items-center text-xs font-semibold text-[#F05A47]" : "inline-flex items-center text-xs font-semibold text-slate-400"}>
+                              {usr.can_delete ? <Check size={14} className="mr-1" /> : <X size={14} className="mr-1" />} {usr.can_delete ? 'Yes' : 'No'}
+                            </span>
+                          )}
+                        </td>
+        <td style={{ textAlign: 'right' }}>
                           {usr.is_active === false ? (
                             <span className="badge bg-red-100 text-red-700 border-red-200 text-xs">Revoked</span>
                           ) : (

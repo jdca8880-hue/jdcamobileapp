@@ -497,6 +497,22 @@ export const api = {
     return data;
   },
 
+  async updateUserPermissions(userId, permissions) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ 
+        can_view: permissions.can_view, 
+        can_add: permissions.can_add, 
+        can_edit: permissions.can_edit, 
+        can_delete: permissions.can_delete 
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
   async updateUserRole(userId, newRole) {
     const { data, error } = await supabase
       .from('profiles')

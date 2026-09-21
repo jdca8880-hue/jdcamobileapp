@@ -102,6 +102,10 @@ export function CricketProvider({ children }) {
             name: p.full_name,
             email: p.email || 'N/A',
             role: p.role,
+              can_view: p.can_view,
+              can_add: p.can_add,
+              can_edit: p.can_edit,
+              can_delete: p.can_delete,
             status: p.is_active ? 'Active' : 'Inactive',
             district: p.district?.name || 'All Districts'
           }));
