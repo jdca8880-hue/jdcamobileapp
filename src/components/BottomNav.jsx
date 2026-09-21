@@ -58,18 +58,25 @@ export default function BottomNav() {
 
   // Return all tabs for mobile display
   const getNavItems = () => {
-    const items = [
+    const allItems = [
       { id: 'home', label: 'Home', icon: Home, route: 'home' },
-      { id: 'teams', label: 'Teams', icon: Shield, route: 'teams' },
-      { id: 'selection', label: 'Selection', icon: LayoutGrid, route: 'selection' },
       { id: 'matches', label: 'Matches', icon: Calendar, route: 'matches' },
       { id: 'scoring', label: 'Score', icon: Radio, route: 'scoring', liveIndicator: true },
+      { id: 'selection', label: 'Selection', icon: LayoutGrid, route: 'selection' },
       { id: 'players', label: 'Players', icon: Users, route: 'players' },
-      { id: 'administration', label: 'Admin', icon: Settings, route: 'administration' }
+      { id: 'teams', label: 'Teams', icon: Shield, route: 'teams' },
+      { id: 'administration', label: 'Admin', icon: Settings, route: 'administration' },
+      { id: 'more', label: 'More', icon: MoreHorizontal, route: '#' }
     ];
 
-    return items.filter(item => {
-      if (userRole === 'SuperAdmin' && item.id === 'scoring') return false;
+    return allItems.filter(item => {
+      if (item.id === 'more' || item.id === 'home') return true;
+      if (item.id === 'administration') return ['SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(userRole);
+      if (item.id === 'selection') return ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SELECTOR'].includes(userRole);
+      if (item.id === 'scoring') return ['DISTRICT_ADMIN', 'SCORER'].includes(userRole);
+      if (item.id === 'matches') return ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER', 'VIEWER'].includes(userRole);
+      if (item.id === 'players') return ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SELECTOR', 'VIEWER'].includes(userRole);
+      if (item.id === 'teams') return true;
       return true;
     });
   };
