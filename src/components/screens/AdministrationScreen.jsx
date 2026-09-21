@@ -218,7 +218,7 @@ export default function AdministrationScreen() {
                 </thead>
                 <tbody>
                   {registeredUsers.map((usr) => {
-                    const isSuper = usr.role === 'SuperAdmin' || usr.role === 'Super Admin';
+                    const isSuper = usr.role === 'SUPER_ADMIN' || usr.role === 'SuperAdmin' || usr.role === 'Super Admin';
                     return (
                       <tr key={usr.id} className="hover:bg-slate-50">
                         <td>
@@ -251,7 +251,7 @@ export default function AdministrationScreen() {
                           </span>
                         </td>
                         <td>
-                          {isSuper || usr.role === 'Admin' || usr.role === 'Scorer' ? (
+                          {isSuper || usr.role === 'DISTRICT_ADMIN' || usr.role === 'Admin' || usr.role === 'SCORER' || usr.role === 'Scorer' ? (
                             <span className="inline-flex items-center text-xs font-semibold text-[#0FA968]">
                               <Check size={14} className="mr-1" /> Yes
                             </span>
@@ -262,7 +262,7 @@ export default function AdministrationScreen() {
                           )}
                         </td>
                         <td>
-                          {isSuper || usr.role === 'Admin' ? (
+                          {isSuper || usr.role === 'DISTRICT_ADMIN' || usr.role === 'Admin' ? (
                             <span className="inline-flex items-center text-xs font-semibold text-[#0FA968]">
                               <Check size={14} className="mr-1" /> Yes
                             </span>

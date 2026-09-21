@@ -157,7 +157,7 @@ export function CricketProvider({ children }) {
             setUserEmail(session.user.email);
             setIsAuthenticated(true);
             // Fetch role from profiles
-            const { data: profile } = await supabase
+            const { data: profile, error: profileErr } = await supabase
               .from('profiles')
               .select('role, is_active')
               .eq('id', session.user.id)
@@ -175,7 +175,7 @@ export function CricketProvider({ children }) {
             if (session?.user) {
               setUserEmail(session.user.email);
               setIsAuthenticated(true);
-              const { data: profile } = await supabase
+              const { data: profile, error: profileErr } = await supabase
                 .from('profiles')
                 .select('role, is_active')
                 .eq('id', session.user.id)
