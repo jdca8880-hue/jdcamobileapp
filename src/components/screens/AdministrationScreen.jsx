@@ -54,6 +54,7 @@ const INITIAL_FORMATS = [
 export default function AdministrationScreen() {
   const { registeredUsers, setRegisteredUsers, userRole, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
   const [activeTab, setActiveTab] = useState('staff');
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
   
   const handleRoleChange = async (userId, newRole) => {
     try {
