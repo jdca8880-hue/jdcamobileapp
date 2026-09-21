@@ -92,7 +92,7 @@ export default function AdministrationScreen() {
       
       if (data.user) {
         // The trigger creates the profile. Update the role instantly with the main client's auth session.
-        await api.updateUserRole(data.user.id, newRole);
+        try { await api.updateUserRole(data.user.id, newRole); } catch (updateError) { console.warn("Failed to instantly set role, possibly missing Postgres trigger", updateError); }
         
         // Refresh registered users locally
         const profiles = await api.getProfiles();
@@ -547,7 +547,7 @@ export default function AdministrationScreen() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Temporary Password</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
                   <input
                     type="password"
                     required
