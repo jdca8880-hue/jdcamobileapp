@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCricket } from '../../context/CricketContext';
-import { Megaphone, Bell, Calendar, ChevronRight } from 'lucide-react';
+import { Megaphone, Bell, Calendar, ChevronRight, Plus, X, Loader2 } from 'lucide-react';
+import { api } from '../../lib/api';
 
 const ANNOUNCEMENT_THEMES = {
   Alert: 'bg-rose-50 text-rose-900 border-rose-200 tag-bg-rose-100 tag-text-rose-700',
@@ -10,8 +11,11 @@ const ANNOUNCEMENT_THEMES = {
 };
 
 export default function NewsScreen() {
-  const { announcements = [] } = useCricket();
+  const { announcements = [], setAnnouncements, userPermissions } = useCricket();
   const [activeTab, setActiveTab] = useState('All');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [newNotice, setNewNotice] = useState({ title: '', body: '', type: 'Update' });
 
   const tabs = ['All', 'Alert', 'Circular', 'Trial', 'Update'];
 
@@ -22,10 +26,20 @@ export default function NewsScreen() {
   return (
     <div className="pb-[100px] bg-slate-50 min-h-screen">
       <div className="pt-6 px-4 pb-4 bg-white/95 backdrop-blur-md sticky top-0 z-30 border-b border-gray-200 shadow-2xs">
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2 mb-4">
-          <Megaphone className="text-rose-600" size={24} />
-          News & Notices
-        </h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <Megaphone className="text-rose-600" size={24} />
+            News & Notices
+          </h1>
+          {userPermissions?.can_add && (
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow hover:bg-blue-700 transition"
+            >
+              <Plus size={16} /> Add Notice
+            </button>
+          )}
+        </div>
         
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {tabs.map(tab => (
@@ -86,6 +100,87 @@ export default function NewsScreen() {
           })
         )}
       </div>
+
+      {/* Add Notice Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-slate-50">
+              <h2 className="text-[18px] font-black text-slate-900">Post New Notice</h2>
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200 text-slate-400 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setIsSaving(true);
+              try {
+                const dateOpts = { month: 'short', day: 'numeric', year: 'numeric' };
+                const formattedDate = new Date().toLocaleDateString('en-US', dateOpts);
+                const saved = await api.createAnnouncement({ ...newNotice, date: formattedDate });
+                setAnnouncements(prev => [saved, ...prev]);
+                setIsAddModalOpen(false);
+                setNewNotice({ title: '', body: '', type: 'Update' });
+              } catch(err) {
+                console.error(err);
+                alert("Failed to post notice.");
+              } finally {
+                setIsSaving(false);
+              }
+            }} className="p-6 space-y-4">
+              
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-slate-700 uppercase">Notice Title</label>
+                <input 
+                  type="text" 
+                  value={newNotice.title}
+                  onChange={e => setNewNotice({...newNotice, title: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-slate-700 uppercase">Notice Type</label>
+                <select 
+                  value={newNotice.type}
+                  onChange={e => setNewNotice({...newNotice, type: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="Update">Update</option>
+                  <option value="Alert">Alert</option>
+                  <option value="Circular">Circular</option>
+                  <option value="Trial">Trial</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-slate-700 uppercase">Message Details</label>
+                <textarea 
+                  value={newNotice.body}
+                  onChange={e => setNewNotice({...newNotice, body: e.target.value})}
+                  rows={4}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isSaving}
+                className="w-full py-3.5 rounded-xl text-[14px] font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSaving && <Loader2 size={16} className="animate-spin" />}
+                {isSaving ? 'Posting...' : 'Post Notice'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,35 @@
 import { supabase } from './supabase';
 
 export const api = {
+  // ANNOUNCEMENTS
+  // ==========================================
+  async getAnnouncements() {
+    try {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error && error.code !== '42P01') throw error;
+      return data || [];
+    } catch(e) {
+      console.warn("Announcements table might not exist yet", e);
+      return [];
+    }
+  },
+  async createAnnouncement(announcementData) {
+    const { data, error } = await supabase
+      .from('announcements')
+      .insert([{ ...announcementData }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  async deleteAnnouncement(id) {
+    const { error } = await supabase.from('announcements').delete().eq('id', id);
+    if (error) throw error;
+  },
+
   /**
    * Fetches the first available age category and district to use as defaults
    * since the current UI doesn't always specify them but the schema requires them.
@@ -445,8 +474,76 @@ export const api = {
   },
 
   // ==========================================
-  // PLAYERS
+  // PLAYERS & SEASON MIGRATION
   // ==========================================
+  
+  async getAgeCategories() {
+    const { data, error } = await supabase
+      .from('age_categories')
+      .select('*')
+      .order('rank_level', { ascending: true });
+    if (error) throw error;
+    return data;
+  },
+
+  async getPlayersBySeason(season) {
+    const { data, error } = await supabase
+      .from('player_registrations')
+      .select(`
+        id,
+        season,
+        age_category:age_category_id(id, name, short_name, max_age_months),
+        district:district_id(id, name),
+        player:player_id (
+          id,
+          full_name,
+          date_of_birth,
+          gender,
+          primary_role,
+          batting_style,
+          bowling_style,
+          is_active
+        )
+      `)
+      .eq('season', season);
+      
+    if (error) throw error;
+    
+    // Flatten structure for easier use in UI
+    return data.map(reg => ({
+      registration_id: reg.id,
+      player_id: reg.player.id,
+      name: reg.player.full_name,
+      dob: reg.player.date_of_birth,
+      gender: reg.player.gender,
+      district_id: reg.district?.id,
+      district_name: reg.district?.name,
+      current_age_category_id: reg.age_category?.id,
+      current_age_category_name: reg.age_category?.short_name,
+      is_active: reg.player.is_active
+    }));
+  },
+
+  async bulkMigratePlayers(targetSeason, registrations) {
+    // registrations is an array of { player_id, district_id, age_category_id }
+    const mapped = registrations.map(r => ({
+      player_id: r.player_id,
+      district_id: r.district_id,
+      age_category_id: r.age_category_id,
+      season: targetSeason,
+      status: 'APPROVED'
+    }));
+
+    // Use upsert or standard insert? Prevent duplicate constraint error using Postgres ON CONFLICT if we had a unique constraint on (player_id, season). 
+    // Wait, let's just insert. We will filter duplicates in UI.
+    const { data, error } = await supabase
+      .from('player_registrations')
+      .insert(mapped);
+
+    if (error) throw error;
+    return data;
+  },
+
   async registerPlayer(playerData) {
     // Map form fields to schema
     const p = {
@@ -526,14 +623,15 @@ export const api = {
   },
 
   async updateUserStatus(userId, isActive) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ is_active: isActive })
-      .eq('id', userId)
-      .select()
-      .single();
-      
+    const { error } = await supabase.from('profiles').update({ is_active: isActive }).eq('id', userId);
     if (error) throw error;
-    return data;
+  },
+
+  async resetUserPassword(userId, newPassword) {
+    const { error } = await supabase.rpc('admin_reset_password', { 
+      target_user_id: userId, 
+      new_password: newPassword 
+    });
+    if (error) throw error;
   }
 };

@@ -156,9 +156,11 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                     onChange={handleChange}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   >
-                    <option value="2025">2025</option>
-                    <option value="2026">2026</option>
-                    <option value="2027">2027</option>
+                    {
+                      Array.from({ length: 21 }, (_, i) => 2020 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))
+                    }
                   </select>
                 </div>
               </div>

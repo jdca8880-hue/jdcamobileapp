@@ -8,10 +8,11 @@ import { useCricket } from '../../context/CricketContext';
 import { PageHeader, TabBar } from '../ui/PageHeader';
 import { RoleBadge } from '../ui/Badge';
 import { api } from '../../lib/api';
+import SeasonMigrationTab from './SeasonMigrationTab';
 
 const TABS = [
   { id: 'staff',      label: 'Staff & Users' },
-  
+  { id: 'migration',  label: 'Season Migration' },
   { id: 'system',     label: 'System & Settings' },
 ];
 
@@ -51,7 +52,6 @@ const INITIAL_FORMATS = [
   { name: '40-Over Tournament', overs: 40, ballsPerOver: 6, powerplayOvers: 8, maxBowlerOvers: 8 },
   { name: 'Test / Days Match', overs: 'Multi-Day', ballsPerOver: 6, powerplayOvers: '-', maxBowlerOvers: 'Unlimited' },
 ];
-
 export default function AdministrationScreen() {
   const { registeredUsers, setRegisteredUsers, userRole, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
   const [activeTab, setActiveTab] = useState('staff');
@@ -64,6 +64,13 @@ export default function AdministrationScreen() {
   const [newRole, setNewRole] = useState('VIEWER');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetTargetUser, setResetTargetUser] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -186,6 +193,32 @@ export default function AdministrationScreen() {
     }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setResetError('');
+    setResetSuccess(false);
+    if (!resetPassword || resetPassword.length < 6) {
+      setResetError('Password must be at least 6 characters long.');
+      return;
+    }
+    
+    setIsResetting(true);
+    try {
+      await api.resetUserPassword(resetTargetUser.id, resetPassword);
+      setResetSuccess(true);
+      setResetPassword('');
+      setTimeout(() => {
+        setShowResetPasswordModal(false);
+        setResetSuccess(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Password reset failed:', err);
+      setResetError(err.message || 'Failed to reset password. Did you run the SQL migration script?');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="fade-in-up" style={{ padding: '24px 20px 100px', maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader
@@ -210,7 +243,7 @@ export default function AdministrationScreen() {
         <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
       </div>
 
-      {/* â”€â”€ TAB 1: STAFF & USERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── TAB 1: STAFF & USERS ─────────────────────────────────────────── */}
       {activeTab === 'staff' && (
         <div className="space-y-5">
           {/* Permission Clarity Banner */}
@@ -327,7 +360,17 @@ export default function AdministrationScreen() {
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => alert('Password reset is managed via Supabase Auth emails in production.')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Reset Password">
+                            <button 
+                              onClick={() => {
+                                setResetTargetUser({ id: usr.id, name: usr.name });
+                                setShowResetPasswordModal(true);
+                                setResetError('');
+                                setResetSuccess(false);
+                                setResetPassword('');
+                              }} 
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" 
+                              title="Reset Password"
+                            >
                               <Lock size={14} />
                             </button>
                             <button onClick={() => revokeUserAccess(usr.id, usr.is_active)} className={`p-1.5 rounded ${usr.is_active === false ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'}`} title={usr.is_active === false ? "Restore Access" : "Revoke Access"}>
@@ -345,8 +388,12 @@ export default function AdministrationScreen() {
         </div>
       )}
 
-      {/* â”€â”€ TAB 2: JDCA MANAGEMENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {/* â”€â”€ TAB 3: SYSTEM & SETTINGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── TAB 2: JDCA MANAGEMENT / MIGRATION ────────────────────────────────────── */}
+      {activeTab === 'migration' && (
+        <SeasonMigrationTab userRole={userRole} />
+      )}
+
+      {/* ── TAB 3: SYSTEM & SETTINGS ────────────────────────────────────── */}
       {activeTab === 'system' && (
         <div className="space-y-5">
           <div className="jdca-card p-5">
@@ -487,6 +534,75 @@ export default function AdministrationScreen() {
                 >
                   {isCreatingUser && <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
                   {isCreatingUser ? 'Creating...' : 'Create User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── RESET PASSWORD MODAL ────────────────────────────────────── */}
+      {showResetPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-800/80">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-900 text-base">Reset Password</h3>
+              <button
+                onClick={() => setShowResetPasswordModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-4">
+              Enter a new password for <strong>{resetTargetUser?.name}</strong>.
+            </p>
+
+            {resetError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex gap-2 items-start">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <p>{resetError}</p>
+              </div>
+            )}
+
+            {resetSuccess && (
+              <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex gap-2 items-start">
+                <Check size={16} className="mt-0.5 shrink-0" />
+                <p>Password successfully reset!</p>
+              </div>
+            )}
+
+            <form onSubmit={handleResetPassword}>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">New Password</label>
+                  <input
+                    type="text"
+                    required
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="Enter new password"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowResetPasswordModal(false)}
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResetting || resetSuccess}
+                  className="px-4 py-2 text-sm font-semibold bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 transition flex items-center gap-2"
+                >
+                  {isResetting ? 'Resetting...' : 'Reset Password'}
                 </button>
               </div>
             </form>

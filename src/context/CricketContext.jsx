@@ -56,6 +56,7 @@ export function CricketProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState('VIEWER'); // SUPER_ADMIN, DISTRICT_ADMIN, SCORER, SELECTOR, VIEWER
+  const [userPermissions, setUserPermissions] = useState({ can_add: false, can_edit: false, can_delete: false });
 
   // Dark Mode Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -142,6 +143,7 @@ export function CricketProvider({ children }) {
 
   // Tournaments State
   const [tournaments, setTournaments] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
   // Offline-First & Realtime Data Sync
   useEffect(() => {
@@ -163,7 +165,7 @@ export function CricketProvider({ children }) {
             // Fetch role from profiles
             const { data: profile, error: profileErr } = await supabase
               .from('profiles')
-              .select('role, is_active')
+              .select('role, is_active, can_add, can_edit, can_delete')
               .eq('id', session.user.id)
               .single();
             if (profile) {
@@ -171,6 +173,11 @@ export function CricketProvider({ children }) {
                 await supabase.auth.signOut();
               } else {
                 setUserRole(profile.role);
+                setUserPermissions({
+                  can_add: profile.can_add,
+                  can_edit: profile.can_edit,
+                  can_delete: profile.can_delete
+                });
               }
             }
           }
@@ -181,7 +188,7 @@ export function CricketProvider({ children }) {
               setIsAuthenticated(true);
               const { data: profile, error: profileErr } = await supabase
                 .from('profiles')
-                .select('role, is_active')
+                .select('role, is_active, can_add, can_edit, can_delete')
                 .eq('id', session.user.id)
                 .single();
               if (profile) {
@@ -189,12 +196,18 @@ export function CricketProvider({ children }) {
                   await supabase.auth.signOut();
                 } else {
                   setUserRole(profile.role);
+                  setUserPermissions({
+                    can_add: profile.can_add,
+                    can_edit: profile.can_edit,
+                    can_delete: profile.can_delete
+                  });
                 }
               }
             } else {
               setIsAuthenticated(false);
               setUserEmail('');
               setUserRole('VIEWER');
+              setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
             }
           });
         }
@@ -282,6 +295,11 @@ export function CricketProvider({ children }) {
              setRepresentativeTeams(formattedProcesses);
              if (formattedProcesses.length > 0) setActiveSelectionTeam(formattedProcesses[0]);
           } catch(e) { console.error('Failed to load selection processes', e); }
+
+          try {
+            const anns = await api.getAnnouncements();
+            setAnnouncements(anns);
+          } catch(e) { console.error('Failed to load announcements', e); }
         }
 
         setIsAppLoading(false);
@@ -979,6 +997,7 @@ export function CricketProvider({ children }) {
         userEmail,
         setUserEmail,
         userRole,
+        userPermissions,
         setUserRole,
         isDarkMode,
         setIsDarkMode,
@@ -1060,7 +1079,8 @@ export function CricketProvider({ children }) {
         officials: [],
         districtStats: [],
         selectionHistory: [],
-        announcements: [],
+        announcements,
+        setAnnouncements,
         pointsTable: [],
         representativeTeams,
         setRepresentativeTeams,
