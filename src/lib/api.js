@@ -93,11 +93,119 @@ export const api = {
   async deleteTournament(id) {
     const { error } = await supabase
       .from('tournaments')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
 
     if (error) throw error;
     return true;
+  },
+
+  async deleteMatch(id) {
+    const { error } = await supabase
+      .from('matches')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  },
+
+  async deletePlayer(id) {
+    const { error } = await supabase
+      .from('players')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  },
+
+  // ==========================================
+  // RECYCLE BIN (SOFT DELETES)
+  // ==========================================
+  async getRecycleBinItems() {
+    // We run these in parallel
+    const [tRes, mRes, pRes] = await Promise.all([
+      supabase.from('tournaments').select('id, name, deleted_at').not('deleted_at', 'is', null),
+      supabase.from('matches').select('id, match_format, scheduled_at, deleted_at, home_team:home_team_id(name), away_team:away_team_id(name)').not('deleted_at', 'is', null),
+      supabase.from('players').select('id, full_name, deleted_at').not('deleted_at', 'is', null)
+    ]);
+
+    const items = [];
+    if (tRes.data) {
+      tRes.data.forEach(t => items.push({ id: t.id, type: 'TOURNAMENT', name: t.name, deleted_at: t.deleted_at }));
+    }
+    if (mRes.data) {
+      mRes.data.forEach(m => items.push({ 
+        id: m.id, 
+        type: 'MATCH', 
+        name: `${m.home_team?.name} vs ${m.away_team?.name} (${m.match_format})`, 
+        deleted_at: m.deleted_at 
+      }));
+    }
+    if (pRes.data) {
+      pRes.data.forEach(p => items.push({ id: p.id, type: 'PLAYER', name: p.full_name, deleted_at: p.deleted_at }));
+    }
+    
+    // Sort by deleted_at descending
+    return items.sort((a, b) => new Date(b.deleted_at) - new Date(a.deleted_at));
+  },
+
+  async restoreItem(type, id) {
+    let table = '';
+    if (type === 'TOURNAMENT') table = 'tournaments';
+    else if (type === 'MATCH') table = 'matches';
+    else if (type === 'PLAYER') table = 'players';
+    else throw new Error("Invalid type");
+
+    const { error } = await supabase.from(table).update({ deleted_at: null }).eq('id', id);
+    if (error) throw error;
+    return true;
+  },
+
+  async hardDeleteItem(type, id) {
+    let table = '';
+    if (type === 'TOURNAMENT') table = 'tournaments';
+    else if (type === 'MATCH') table = 'matches';
+    else if (type === 'PLAYER') table = 'players';
+    else throw new Error("Invalid type");
+
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  },
+
+  // ==========================================
+  // SELECTOR ACCESS MANAGEMENT
+  // ==========================================
+  async getSelectorAccess(selectorId) {
+    const [ageRes, distRes] = await Promise.all([
+      supabase.from('selector_age_access').select('max_age_category_id').eq('selector_id', selectorId).maybeSingle(),
+      supabase.from('selector_district_access').select('district_id').eq('selector_id', selectorId)
+    ]);
+    return {
+      max_age_category_id: ageRes.data?.max_age_category_id || null,
+      district_ids: distRes.data ? distRes.data.map(d => d.district_id) : []
+    };
+  },
+
+  async updateSelectorAccess(selectorId, maxAgeCategoryId, districtIds) {
+    // Upsert age access
+    if (maxAgeCategoryId) {
+      await supabase.from('selector_age_access').upsert({
+        selector_id: selectorId,
+        max_age_category_id: maxAgeCategoryId
+      });
+    } else {
+      await supabase.from('selector_age_access').delete().eq('selector_id', selectorId);
+    }
+
+    // Replace district access
+    await supabase.from('selector_district_access').delete().eq('selector_id', selectorId);
+    if (districtIds && districtIds.length > 0) {
+      const distInserts = districtIds.map(dId => ({ selector_id: selectorId, district_id: dId }));
+      await supabase.from('selector_district_access').insert(distInserts);
+    }
   },
 
   async createTeam(teamData) {

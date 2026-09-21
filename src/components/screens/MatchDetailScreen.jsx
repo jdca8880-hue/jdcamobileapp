@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText, Trash2 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import MatchScorecard from '../ui/MatchScorecard';
 import MatchMediaReport from '../ui/MatchMediaReport';
@@ -20,8 +20,25 @@ const MatchTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function MatchDetailScreen() {
-  const { matches = [], activeMatchId, navigateTo, goBack } = useCricket();
+  const { matches = [], activeMatchId, navigateTo, goBack, userRole } = useCricket();
   const [activeTab, setActiveTab] = useState('info');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this match? It will be moved to the Recycle Bin.")) return;
+    setIsDeleting(true);
+    try {
+      const { api } = await import('../../lib/api');
+      await api.deleteMatch(match.id);
+      alert('Match deleted successfully.');
+      goBack();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete match.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const match = matches.find(m => m.id === activeMatchId) || matches[0];
   if (!match) return null;
@@ -46,6 +63,17 @@ export default function MatchDetailScreen() {
         >
           <ArrowLeft size={20} strokeWidth={2.5} />
         </button>
+
+        {userRole === 'SUPER_ADMIN' && (
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-rose-500/20 text-rose-300 hover:bg-rose-500/40 hover:text-white transition-colors cursor-pointer disabled:opacity-50 border border-rose-500/30"
+            title="Delete Match"
+          >
+            <Trash2 size={16} strokeWidth={2.5} />
+          </button>
+        )}
 
         <div className="text-center mt-6">
           <div className="text-xs font-bold tracking-widest uppercase text-white/60 mb-3">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  ArrowLeft, Star, MapPin, Award, Activity, TrendingUp, Sliders, Calendar, ShieldCheck, CheckCircle2
+  ArrowLeft, Star, MapPin, Award, Activity, TrendingUp, Sliders, Calendar, ShieldCheck, CheckCircle2, Trash2
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 
@@ -21,8 +21,9 @@ const ProfileTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function PlayerProfileScreen() {
-  const { selectedPlayer, goBack, shortlistedIds, toggleShortlist } = useCricket();
+  const { selectedPlayer, goBack, shortlistedIds, toggleShortlist, userRole } = useCricket();
   const [activeTab, setActiveTab] = useState('Overview');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const player = selectedPlayer || {
     id: 'rohan-sharma',
@@ -55,6 +56,22 @@ export default function PlayerProfileScreen() {
     { id: 'Selection', label: 'History' },
   ];
 
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this player? They will be moved to the Recycle Bin.")) return;
+    setIsDeleting(true);
+    try {
+      const { api } = await import('../../lib/api');
+      await api.deletePlayer(player.id);
+      alert('Player deleted successfully.');
+      goBack();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete player.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="pb-20 bg-[#f8fafc] min-h-screen">
       {/* Header Area */}
@@ -79,6 +96,17 @@ export default function PlayerProfileScreen() {
           >
             <Star size={18} fill={isShortlisted ? '#d97706' : 'none'} />
           </button>
+
+          {userRole === 'SUPER_ADMIN' && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="absolute top-0 right-11 w-9 h-9 flex items-center justify-center rounded-lg border bg-white border-rose-200 text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50"
+              title="Delete Player"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
 
           <div className="flex flex-col items-center mt-2 text-center">
             <img

@@ -225,7 +225,7 @@ export function CricketProvider({ children }) {
         if (localMatches.length === 0) {
           console.log('[CricketContext] No local matches, fetching from Supabase...');
           if (supabase) {
-            const { data, error } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)');
+            const { data, error } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null);
             if (!error && data && data.length > 0) {
               await db.matches.bulkAdd(data);
               localMatches = data;
@@ -256,7 +256,7 @@ export function CricketProvider({ children }) {
         }
         if (localTournaments.length === 0 && supabase) {
           console.log('[CricketContext] No local tournaments, fetching from Supabase...');
-          const { data, error } = await supabase.from('tournaments').select('*');
+          const { data, error } = await supabase.from('tournaments').select('*').is('deleted_at', null);
           if (!error && data) {
             try {
               await db.tournaments.bulkAdd(data);
@@ -269,7 +269,7 @@ export function CricketProvider({ children }) {
         let localPlayers = await db.players.toArray();
         if (localPlayers.length === 0 && supabase) {
           console.log('[CricketContext] No local players, fetching from Supabase...');
-          const { data, error } = await supabase.from('players').select('*');
+          const { data, error } = await supabase.from('players').select('*').is('deleted_at', null);
           if (!error && data) {
             await db.players.bulkAdd(data);
             localPlayers = data;
@@ -356,14 +356,14 @@ export function CricketProvider({ children }) {
     try {
       const { db } = await import('../lib/db.js');
       
-      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*');
+      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*').is('deleted_at', null);
       if (!tErr && tData) {
         await db.tournaments.clear();
         await db.tournaments.bulkAdd(tData);
         setTournaments(tData);
       }
 
-      const { data: mData, error: mErr } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)');
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null);
       if (!mErr && mData) {
         await db.matches.clear();
         await db.matches.bulkAdd(mData);

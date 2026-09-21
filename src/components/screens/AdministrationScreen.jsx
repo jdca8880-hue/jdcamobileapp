@@ -9,11 +9,14 @@ import { PageHeader, TabBar } from '../ui/PageHeader';
 import { RoleBadge } from '../ui/Badge';
 import { api } from '../../lib/api';
 import SeasonMigrationTab from './SeasonMigrationTab';
+import RecycleBinTab from './RecycleBinTab';
+import SelectorAssignmentModal from './SelectorAssignmentModal';
 
 const TABS = [
   { id: 'staff',      label: 'Staff & Users' },
   { id: 'migration',  label: 'Season Migration' },
   { id: 'system',     label: 'System & Settings' },
+  { id: 'recycle',    label: 'Recycle Bin' }
 ];
 
 const ROLES = [
@@ -71,6 +74,7 @@ export default function AdministrationScreen() {
   const [isResetting, setIsResetting] = useState(false);
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [selectorUserToAssign, setSelectorUserToAssign] = useState(null);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -298,21 +302,31 @@ export default function AdministrationScreen() {
                           {usr.email}
                         </td>
                         <td>
-                          {userRole === 'SUPER_ADMIN' ? (
-                            <select 
-                              value={usr.role} 
-                              onChange={(e) => handleRoleChange(usr.id, e.target.value)}
-                              className="text-xs border border-slate-200 rounded p-1"
-                            >
-                              <option value="SUPER_ADMIN">Super Admin</option>
-                              <option value="DISTRICT_ADMIN">District Admin</option>
-                              <option value="SELECTOR">Selector</option>
-                              <option value="SCORER">Scorer</option>
-                              <option value="VIEWER">Viewer</option>
-                            </select>
-                          ) : (
-                            <RoleBadge role={usr.role} />
-                          )}
+                          <div className="flex items-center gap-2">
+                            {userRole === 'SUPER_ADMIN' ? (
+                              <select 
+                                value={usr.role} 
+                                onChange={(e) => handleRoleChange(usr.id, e.target.value)}
+                                className="text-xs border border-slate-200 rounded p-1"
+                              >
+                                <option value="SUPER_ADMIN">Super Admin</option>
+                                <option value="DISTRICT_ADMIN">District Admin</option>
+                                <option value="SELECTOR">Selector</option>
+                                <option value="SCORER">Scorer</option>
+                                <option value="VIEWER">Viewer</option>
+                              </select>
+                            ) : (
+                              <RoleBadge role={usr.role} />
+                            )}
+                            {usr.role === 'SELECTOR' && userRole === 'SUPER_ADMIN' && (
+                              <button 
+                                onClick={() => setSelectorUserToAssign(usr)}
+                                className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold hover:bg-indigo-100"
+                              >
+                                Assign Groups
+                              </button>
+                            )}
+                          </div>
                         </td>
                         
                         <td>
@@ -391,6 +405,11 @@ export default function AdministrationScreen() {
       {/* ── TAB 2: JDCA MANAGEMENT / MIGRATION ────────────────────────────────────── */}
       {activeTab === 'migration' && (
         <SeasonMigrationTab userRole={userRole} />
+      )}
+
+      {/* ── RECYCLE BIN ─────────────────────────────────────────── */}
+      {activeTab === 'recycle' && (
+        <RecycleBinTab userRole={userRole} />
       )}
 
       {/* ── TAB 3: SYSTEM & SETTINGS ────────────────────────────────────── */}
@@ -608,6 +627,13 @@ export default function AdministrationScreen() {
             </form>
           </div>
         </div>
+      )}
+
+      {selectorUserToAssign && (
+        <SelectorAssignmentModal 
+          user={selectorUserToAssign} 
+          onClose={() => setSelectorUserToAssign(null)} 
+        />
       )}
     </div>
   );
