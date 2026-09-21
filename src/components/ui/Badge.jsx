@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * JDCA Badge — semantic status / category indicator
+ * JDCA Badge - semantic status / category indicator
  * variant: 'live' | 'upcoming' | 'completed' | 'cancelled' | 'mango' | 'cobalt' | 'jade' | 'coral'
  */
 export function Badge({ variant = 'completed', children, dot = false, className = '' }) {
@@ -25,19 +25,23 @@ export function Badge({ variant = 'completed', children, dot = false, className 
 }
 
 /**
- * JDCA RoleBadge — user role display
+ * JDCA RoleBadge - user role display
  */
 export function RoleBadge({ role }) {
   const config = {
+    SUPER_ADMIN:     { label: 'Super Admin',      bg: '#fef0ee', color: '#b83428', border: '#fcd9d5' },
+    DISTRICT_ADMIN:  { label: 'District Admin',   bg: '#eef2fd', color: '#1b41a8', border: '#d5e0fa' },
+    SCORER:          { label: 'Scorer',           bg: '#fef9ea', color: '#b88920', border: '#fdf0c2' },
+    SELECTOR:        { label: 'Selection Staff',  bg: '#e8f8ef', color: '#0a7d4e', border: '#c2edda' },
+    VIEWER:          { label: 'Viewer',           bg: '#f1f3f5', color: '#596579', border: '#dde1e8' },
+    
+    // Legacy fallback just in case
     SuperAdmin:      { label: 'Super Admin',      bg: '#fef0ee', color: '#b83428', border: '#fcd9d5' },
     Admin:           { label: 'Admin',            bg: '#eef2fd', color: '#1b41a8', border: '#d5e0fa' },
     'District Admin':{ label: 'District Admin',   bg: '#eef2fd', color: '#1b41a8', border: '#d5e0fa' },
-    'Tournament Admin':{ label: 'Tournament Admin',bg:'#e8f8ef', color: '#0a7d4e', border: '#c2edda' },
-    Scorer:          { label: 'Scorer',           bg: '#fef9ea', color: '#b88920', border: '#fdf0c2' },
-    Selector:        { label: 'Selection Staff',  bg: '#f1f3f5', color: '#596579', border: '#dde1e8' },
     Player:          { label: 'Player',           bg: '#f1f3f5', color: '#596579', border: '#dde1e8' },
   };
-  const c = config[role] || config['Player'];
+  const c = config[role] || config['VIEWER'];
   return (
     <span
       className="badge"
@@ -49,7 +53,7 @@ export function RoleBadge({ role }) {
 }
 
 /**
- * JDCA MatchStatusBadge — for match cards
+ * JDCA MatchStatusBadge - for match cards
  */
 export function MatchStatusBadge({ status }) {
   if (status === 'LIVE' || status === 'IN_PROGRESS') {
