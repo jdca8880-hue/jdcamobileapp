@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import {
   Users, Shield, Settings, MapPin, Trophy, Calendar, Plus,
   Check, X, Edit, Bell, Lock, UserCheck, AlertTriangle
@@ -56,6 +57,69 @@ export default function AdministrationScreen() {
   const [activeTab, setActiveTab] = useState('staff');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   
+  // Add User State
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newFullName, setNewFullName] = useState('');
+  const [newRole, setNewRole] = useState('VIEWER');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [createError, setCreateError] = useState('');
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!newEmail || !newPassword || !newFullName) return;
+    setIsCreatingUser(true);
+    setCreateError('');
+    try {
+      // Use a temporary client so it doesn't log the admin out!
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+      
+      const { data, error } = await tempSupabase.auth.signUp({
+        email: newEmail,
+        password: newPassword,
+        options: {
+          data: {
+            full_name: newFullName
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.user) {
+        // The trigger creates the profile. Update the role instantly with the main client's auth session.
+        await api.updateUserRole(data.user.id, newRole);
+        
+        // Refresh registered users locally
+        const profiles = await api.getProfiles();
+        const mapped = profiles.map(p => ({
+          id: p.id,
+          name: p.full_name,
+          email: p.email || 'N/A',
+          role: p.role,
+          status: p.is_active ? 'Active' : 'Inactive',
+          district: p.district?.name || 'All Districts'
+        }));
+        setRegisteredUsers(mapped);
+        
+        setShowAddUserModal(false);
+        setNewEmail('');
+        setNewPassword('');
+        setNewFullName('');
+        setNewRole('VIEWER');
+      }
+    } catch (err) {
+      console.error(err);
+      setCreateError(err.message || 'Failed to create user');
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
   const handleRoleChange = async (userId, newRole) => {
     try {
       await api.updateUserRole(userId, newRole);
@@ -451,29 +515,83 @@ export default function AdministrationScreen() {
               </button>
             </div>
 
-            <div className="p-4 bg-amber-50 text-amber-800 rounded-lg text-sm mb-4 flex gap-3">
-              <AlertTriangle className="shrink-0 text-amber-600" size={20} />
-              <div>
-                <p className="font-semibold mb-1">Notice: New User Accounts</p>
-                <p className="opacity-90">
-                  Because this is a secure client application, you cannot directly create login passwords for other users. 
-                  Please instruct the staff member to <strong>Sign Up</strong> for an account using their email. 
-                  <br/><br/>
-                  Once they sign up, they will appear in the <strong>Registered Users</strong> tab with Viewer access, 
-                  where you can upgrade their role.
-                </p>
+            {createError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex gap-2 items-start">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <p>{createError}</p>
               </div>
-            </div>
+            )}
 
-            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowAddUserModal(false)}
-                className="btn-primary text-xs"
-              >
-                Understood
-              </button>
-            </div>
+            <form onSubmit={handleCreateUser}>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newFullName}
+                    onChange={(e) => setNewFullName(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="e.g. Rahul Dravid"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="e.g. rahul@jdca.org"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Temporary Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="At least 6 characters"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Initial Role</label>
+                  <select
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="VIEWER">Viewer (Read Only)</option>
+                    <option value="SCORER">Scorer</option>
+                    <option value="SELECTOR">Selector</option>
+                    <option value="DISTRICT_ADMIN">District Admin</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddUserModal(false)}
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingUser}
+                  className="btn-primary text-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isCreatingUser && <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+                  {isCreatingUser ? 'Creating...' : 'Create User'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
