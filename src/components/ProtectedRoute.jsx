@@ -4,7 +4,7 @@ import { useCricket } from '../context/CricketContext';
 
 const PLAYER_ROUTES = [
   '/home', '/matches', '/match-overview', '/match-detail', '/scorecard', '/player-profile',
-  '/teams', '/tournaments', '/news', '/players'
+  '/teams', '/tournaments', '/news', '/players', '/selection', '/scoring'
 ];
 
 const SCORER_ROUTES = [

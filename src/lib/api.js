@@ -442,5 +442,82 @@ export const api = {
     }
 
     return newInnings;
+  },
+
+  // ==========================================
+  // PLAYERS
+  // ==========================================
+  async registerPlayer(playerData) {
+    // Map form fields to schema
+    const p = {
+      full_name: playerData.name || 'New Player',
+      date_of_birth: playerData.dob || '2000-01-01',
+      gender: playerData.gender === 'Women' ? 'Women' : 'Men',
+      primary_role: playerData.role || 'Batter',
+      batting_style: playerData.battingStyle || 'Right-Hand Bat',
+      bowling_style: playerData.bowlingStyle || 'None (Pure Batter)',
+      avatar_url: playerData.avatar || null
+    };
+
+    const { data, error } = await supabase
+      .from('players')
+      .insert(p)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api] Failed to register player:', error);
+      throw error;
+    }
+    
+    // Also create registration mapping
+    const defaults = await this.getDefaults();
+    if (defaults.district_id) {
+       await supabase.from('player_registrations').insert({
+         player_id: data.id,
+         season: '2026',
+         district_id: defaults.district_id
+       });
+    }
+
+    return data;
+  },
+
+  // ==========================================
+  // USERS / ADMIN
+  // ==========================================
+  
+  async getProfiles() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, district:district_id(name)')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async updateUserRole(userId, newRole) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', userId)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  },
+
+  async updateUserStatus(userId, isActive) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ is_active: isActive })
+      .eq('id', userId)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
   }
 };

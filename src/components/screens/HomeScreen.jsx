@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users, Trophy, MapPin, Radio, Calendar, Plus,
   TrendingUp, Megaphone, ChevronRight, Activity,
   Award, Clipboard, Flame, Shield, Eye, Star,
   Zap, BarChart3, UserCheck, Sparkles
 } from 'lucide-react';
+import { useStandings } from '../../lib/standings';
 import { useCricket } from '../../context/CricketContext';
 import { motion } from 'motion/react';
 
@@ -52,7 +53,6 @@ export default function HomeScreen() {
     tournaments = [],
     districtStats = [],
     announcements = [],
-    pointsTable = [],
     navigateTo,
     setActiveMatchId,
     setSelectedPlayer,
@@ -65,8 +65,19 @@ export default function HomeScreen() {
   } = useCricket();
 
   const [activeTab, setActiveTab] = useState('overview'); // overview, live, districts, standings
-  const [selectedTournamentTab, setSelectedTournamentTab] = useState('t20');
+  const [selectedTournamentTab, setSelectedTournamentTab] = useState(null);
   const [districtFilter, setDistrictFilter] = useState('All');
+
+  // Update selected tournament tab if not set and tournaments are loaded
+  useEffect(() => {
+    if (!selectedTournamentTab && tournaments?.length > 0) {
+      setSelectedTournamentTab(tournaments[0].id);
+    }
+  }, [tournaments, selectedTournamentTab]);
+
+  const activeTournamentPointsTable = useStandings(
+    matches.filter(m => m.tournament_id === selectedTournamentTab || m.tournament === selectedTournamentTab)
+  );
 
   const liveMatches = matches.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
   const upcomingMatches = matches.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
@@ -91,7 +102,7 @@ export default function HomeScreen() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="pb-24 bg-[#F8FAFC] min-h-screen relative overflow-hidden"
+      className="pb-24 bg-[#F8FAFC] min-h-screen relative"
     >
       {/* Ambient Glow */}
       <div className="absolute top-40 -left-20 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px] pointer-events-none" />
@@ -625,37 +636,30 @@ export default function HomeScreen() {
                         <p className="text-xs text-slate-500">JDCA T20 Blast 2026</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => navigateTo('tournaments')}
-                      className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Full Table</span>
-                      <ChevronRight size={13} />
+                    <button onClick={() => setActiveTab('standings')} className="text-blue-600 text-[11px] font-bold hover:underline cursor-pointer">
+                      Full Table →
                     </button>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
+                  {/* Compact Table */}
+                  <div className="overflow-x-auto pb-1">
+                    <table className="w-full text-left min-w-[200px] text-[12px]">
                       <thead>
-                        <tr className="text-slate-400 font-semibold border-b border-slate-100">
-                          <th className="py-2 px-1">#</th>
+                        <tr className="border-b border-slate-100 text-slate-400">
+                          <th className="py-2 px-1 w-6">#</th>
                           <th className="py-2 px-1">Team</th>
-                          <th className="py-2 px-1 text-center">P</th>
-                          <th className="py-2 px-1 text-center">W</th>
                           <th className="py-2 px-1 text-center">Pts</th>
                           <th className="py-2 px-1 text-right">NRR</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {pointsTable.slice(0, 5).map((row, idx) => (
+                        {activeTournamentPointsTable.slice(0, 5).map((row, idx) => (
                           <tr key={idx} className="hover:bg-slate-50 transition-colors">
                             <td className="py-2.5 px-1 font-bold text-slate-600">{idx + 1}</td>
                             <td className="py-2.5 px-1 font-semibold text-slate-900 flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color || '#2457D6' }} />
                               <span className="truncate max-w-[120px]">{row.team}</span>
                             </td>
-                            <td className="py-2.5 px-1 text-center text-slate-600">{row.m}</td>
-                            <td className="py-2.5 px-1 text-center font-bold text-emerald-600">{row.w}</td>
                             <td className="py-2.5 px-1 text-center font-extrabold text-blue-700">{row.pts}</td>
                             <td className="py-2.5 px-1 text-right font-mono text-slate-600">{row.nrr}</td>
                           </tr>
@@ -821,7 +825,7 @@ export default function HomeScreen() {
               </div>
 
               {/* District Filter Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 py-1">
                 {['All', 'Jabalpur', 'Katni', 'Narsinghpur', 'Seoni', 'Mandla', 'Balaghat', 'Chhindwara', 'Dindori', 'Pandhurna'].map(d => (
                   <button
                     key={d}
@@ -901,33 +905,30 @@ export default function HomeScreen() {
         {/* ── TAB 4: STANDINGS ──────────────────────────────────────── */}
         {activeTab === 'standings' && (
           <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-2xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Official Tournament Points Standings</h2>
-                <p className="text-xs text-slate-500">Live net run rates and qualification race</p>
+                <p className="text-[12px] text-slate-500 mt-0.5">Select a tournament below to view the current points table.</p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedTournamentTab('t20')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    selectedTournamentTab === 't20'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  T20 Blast 2026
-                </button>
-                <button
-                  onClick={() => setSelectedTournamentTab('oneday')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    selectedTournamentTab === 'oneday'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  One Day Trophy
-                </button>
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 w-full sm:w-auto">
+                {tournaments.length === 0 ? (
+                  <span className="text-xs text-slate-400">No tournaments available</span>
+                ) : (
+                  tournaments.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedTournamentTab(t.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                        selectedTournamentTab === t.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -947,16 +948,23 @@ export default function HomeScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pointsTable.map((team, idx) => (
-                    <tr key={idx} className="hover:bg-blue-50/40 transition">
-                      <td className="py-3 px-3 font-bold text-slate-700">{idx + 1}</td>
-                      <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: team.color || '#2457D6' }} />
-                        <span>{team.team}</span>
+                  {activeTournamentPointsTable.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" className="py-8 text-center text-slate-400 text-sm">
+                        No standings available for this tournament yet.
                       </td>
-                      <td className="py-3 px-2 text-center text-slate-700">{team.m}</td>
-                      <td className="py-3 px-2 text-center font-bold text-emerald-600">{team.w}</td>
-                      <td className="py-3 px-2 text-center text-rose-600">{team.l}</td>
+                    </tr>
+                  ) : (
+                    activeTournamentPointsTable.map((team, idx) => (
+                      <tr key={idx} className="hover:bg-blue-50/40 transition">
+                        <td className="py-3 px-3 font-bold text-slate-700">{idx + 1}</td>
+                        <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: team.color || '#2457D6' }} />
+                          <span>{team.team}</span>
+                        </td>
+                        <td className="py-3 px-2 text-center text-slate-700">{team.m}</td>
+                        <td className="py-3 px-2 text-center font-bold text-emerald-600">{team.w}</td>
+                        <td className="py-3 px-2 text-center text-rose-600">{team.l}</td>
                       <td className="py-3 px-2 text-center text-slate-500">{team.t || team.nr || 0}</td>
                       <td className="py-3 px-2 text-center font-extrabold text-blue-700 text-sm">{team.pts}</td>
                       <td className="py-3 px-3 text-right font-mono text-slate-700">{team.nrr}</td>
@@ -975,7 +983,8 @@ export default function HomeScreen() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
                 </tbody>
               </table>
             </div>

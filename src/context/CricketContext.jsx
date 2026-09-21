@@ -43,6 +43,7 @@ export function CricketProvider({ children }) {
     'innings-break': 'matches',
     'tournaments': 'tournaments',
     'teams': 'teams',
+    'news': 'news',
     'administration': 'administration',
     'access-control': 'administration',
   };
@@ -77,6 +78,41 @@ export function CricketProvider({ children }) {
 
   // Registered Users (Super Admin access)
   const [registeredUsers, setRegisteredUsers] = useState([]);
+
+  // System Settings
+  const [systemSettings, setSystemSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem('jdca-system-settings');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { liveSync: true, freeHit: true, notifications: true, watermark: true };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('jdca-system-settings', JSON.stringify(systemSettings));
+  }, [systemSettings]);
+
+  useEffect(() => {
+    if (userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN') {
+      const fetchProfiles = async () => {
+        try {
+          const profiles = await api.getProfiles();
+          const mapped = profiles.map(p => ({
+            id: p.id,
+            name: p.full_name,
+            email: p.email || 'N/A',
+            role: p.role,
+            status: p.is_active ? 'Active' : 'Inactive',
+            district: p.district?.name || 'All Districts'
+          }));
+          setRegisteredUsers(mapped);
+        } catch (e) {
+          console.error('[CricketContext] Failed to load profiles', e);
+        }
+      };
+      fetchProfiles();
+    }
+  }, [userRole]);
 
   // Selection Context State & Representative Teams
   const [representativeTeams, setRepresentativeTeams] = useState([]);
@@ -123,10 +159,16 @@ export function CricketProvider({ children }) {
             // Fetch role from profiles
             const { data: profile } = await supabase
               .from('profiles')
-              .select('role')
+              .select('role, is_active')
               .eq('id', session.user.id)
               .single();
-            if (profile) setUserRole(profile.role);
+            if (profile) {
+              if (profile.is_active === false) {
+                await supabase.auth.signOut();
+              } else {
+                setUserRole(profile.role);
+              }
+            }
           }
           
           supabase.auth.onAuthStateChange(async (event, session) => {
@@ -135,10 +177,16 @@ export function CricketProvider({ children }) {
               setIsAuthenticated(true);
               const { data: profile } = await supabase
                 .from('profiles')
-                .select('role')
+                .select('role, is_active')
                 .eq('id', session.user.id)
                 .single();
-              if (profile) setUserRole(profile.role);
+              if (profile) {
+                if (profile.is_active === false) {
+                  await supabase.auth.signOut();
+                } else {
+                  setUserRole(profile.role);
+                }
+              }
             } else {
               setIsAuthenticated(false);
               setUserEmail('');
@@ -494,6 +542,7 @@ export function CricketProvider({ children }) {
       'selectors': '/selection',
       'administration': '/administration',
       'access-control': '/administration',
+      'news': '/news',
     };
     navigate(routeMap[screenName] || '/home');
   };
@@ -861,46 +910,57 @@ export function CricketProvider({ children }) {
   };
 
   // Register new player
-  const registerPlayer = (playerData) => {
-    const newPlayer = {
-      id: `player-${Date.now()}`,
-      name: playerData.name || 'New Player',
-      avatar: playerData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-      team: playerData.team || 'Local Club',
-      club: playerData.district || 'District XI',
-      role: playerData.role || 'Batter',
-      primaryRole: playerData.role || 'Top Order Batter',
-      battingStyle: playerData.battingStyle || 'Right-Hand Batter',
-      bowlingStyle: playerData.bowlingStyle || 'None (Pure Batter)',
-      age: playerData.age || 20,
-      isPro: false,
-      tags: [playerData.role || 'Batter', 'Registered'],
-      careerRuns: 0,
-      battingAvg: 0.0,
-      strikeRate: 0.0,
-      highScore: '0',
-      matches: 0,
-      innings: 0,
-      notOuts: 0,
-      fifties: 0,
-      hundreds: 0,
-      fours: 0,
-      sixes: 0,
-      last5Matches: [],
-      scoringAreas: {
-        offSide: 50,
-        legSide: 50,
-        behindSquare: 0,
-        fine: 0,
-      },
-      district: playerData.district || 'Indore District',
-      category: playerData.category || 'Senior',
-      inForm: false,
-    };
+  const registerPlayer = async (playerData) => {
+    try {
+      const p = await api.registerPlayer(playerData);
+      
+      const newPlayer = {
+        id: p.id,
+        name: p.full_name,
+        avatar: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        team: 'Local Club',
+        club: 'District XI',
+        role: p.primary_role,
+        primaryRole: p.primary_role,
+        battingStyle: p.batting_style,
+        bowlingStyle: p.bowling_style,
+        age: 20,
+        isPro: false,
+        tags: [p.primary_role, 'Registered'],
+        careerRuns: 0,
+        battingAvg: 0.0,
+        strikeRate: 0.0,
+        highScore: '0',
+        matches: 0,
+        innings: 0,
+        notOuts: 0,
+        fifties: 0,
+        hundreds: 0,
+        economy: 0.0,
+        wickets: 0,
+        bestBowling: '0/0',
+        fiveFours: 0,
+        catches: 0,
+        stumpings: 0,
+        scoringAreas: {
+          offSide: 50,
+          legSide: 50,
+          behindSquare: 0,
+          fine: 0,
+        },
+        district: playerData.district || 'Indore District',
+        category: playerData.category || 'Senior',
+        inForm: false,
+      };
 
-    setPlayers((prev) => [newPlayer, ...prev]);
-    setSelectedPlayer(newPlayer);
-    navigateTo('player-profile');
+      await db.players.put(newPlayer);
+      setPlayers((prev) => [newPlayer, ...prev]);
+      setSelectedPlayer(newPlayer);
+      navigateTo('player-profile');
+    } catch (e) {
+      console.error('Failed to register player:', e);
+      alert('Failed to register player. Please check network connection.');
+    }
   };
 
   return (
@@ -920,6 +980,8 @@ export function CricketProvider({ children }) {
         setIsDarkMode,
         registeredUsers,
         setRegisteredUsers,
+        systemSettings,
+        setSystemSettings,
         players,
         setPlayers,
         selectedPlayer,

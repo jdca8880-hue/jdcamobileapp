@@ -60,51 +60,10 @@ const TOURNAMENT_THEMES = [
     statBg: 'bg-slate-50 border-slate-100',
     statText: 'text-slate-800',
     statLabel: 'text-slate-500',
-  },
+  }
 ];
 
-// Helper to calculate standings from matches
-const calculatePointsTable = (matches) => {
-  const standings = new Map();
-
-  matches.forEach(m => {
-    const tA = m.teamA?.name || m.teamA || m.home_team?.name || 'JBP';
-    const tB = m.teamB?.name || m.teamB || m.away_team?.name || 'MDL';
-    if (!tA || !tB) return;
-
-    if (!standings.has(tA)) standings.set(tA, { team: tA, short: tA.slice(0, 3).toUpperCase(), m: 0, w: 0, l: 0, pts: 0, form: [], color: '#0FA968' });
-    if (!standings.has(tB)) standings.set(tB, { team: tB, short: tB.slice(0, 3).toUpperCase(), m: 0, w: 0, l: 0, pts: 0, form: [], color: '#2457D6' });
-
-    const sA = standings.get(tA);
-    const sB = standings.get(tB);
-
-    if (m.status === 'COMPLETED' || m.status === 'FINISHED') {
-      sA.m += 1;
-      sB.m += 1;
-      const resultText = m.result || '';
-      const winner = resultText.includes(tA) ? tA : (resultText.includes(tB) ? tB : null);
-      
-      if (winner === tA) {
-        sA.w += 1; sA.pts += 2; sA.form.push('W');
-        sB.l += 1; sB.form.push('L');
-      } else if (winner === tB) {
-        sB.w += 1; sB.pts += 2; sB.form.push('W');
-        sA.l += 1; sA.form.push('L');
-      } else {
-        // Tie or abandoned
-        sA.pts += 1; sB.pts += 1;
-        sA.form.push('D'); sB.form.push('D');
-      }
-    }
-  });
-
-  return Array.from(standings.values())
-    .map(t => ({
-      ...t,
-      nrr: ((t.w * 0.5) - (t.l * 0.4)).toFixed(2) // Fake NRR based on wins/losses
-    }))
-    .sort((a, b) => b.pts - a.pts || parseFloat(b.nrr) - parseFloat(a.nrr));
-};
+import { useStandings } from '../../lib/standings';
 
 // Points Table Component
 const PointsTableUI = ({ pointsTable }) => {
@@ -252,12 +211,16 @@ export default function TournamentsScreen() {
   // Tournament Manager state
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [editingTournament, setEditingTournament] = useState(null);
-  const isAdmin = userRole === 'Admin' || userRole === 'SuperAdmin';
+  const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || userRole === 'Admin' || userRole === 'SuperAdmin';
   
   // Fallback group matches by tournament ID in case they don't match a tournament
   const getTournamentMatches = (tId) => {
     return matches.filter(m => m.tournament_id === tId || m.tournament === tId);
   };
+
+  // We use the useStandings hook for the actively expanded tournament to calculate points
+  const activeTournamentMatches = expandedTournament ? getTournamentMatches(expandedTournament) : [];
+  const activeTournamentPointsTable = useStandings(activeTournamentMatches);
 
   // Set the first tournament as expanded by default when tournaments load
   useEffect(() => {
@@ -468,7 +431,7 @@ export default function TournamentsScreen() {
               {isExpanded && (
                 <div className="bg-white animate-in slide-in-from-top-2 duration-300">
                   {activeTab === 'Standings' ? (
-                    <PointsTableUI pointsTable={calculatePointsTable(ms)} />
+                    <PointsTableUI pointsTable={activeTournamentPointsTable} />
                   ) : (
                     <div className="p-4 sm:p-5">
                       <div className="flex items-center justify-between mb-4">

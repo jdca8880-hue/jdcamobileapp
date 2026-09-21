@@ -6,6 +6,7 @@ import {
 import { useCricket } from '../../context/CricketContext';
 import { PageHeader, TabBar } from '../ui/PageHeader';
 import { RoleBadge } from '../ui/Badge';
+import { api } from '../../lib/api';
 
 const TABS = [
   { id: 'staff',      label: 'Staff & Users' },
@@ -51,74 +52,37 @@ const INITIAL_FORMATS = [
 ];
 
 export default function AdministrationScreen() {
-  const { registeredUsers, setRegisteredUsers, userRole, isDarkMode, setIsDarkMode } = useCricket();
+  const { registeredUsers, setRegisteredUsers, userRole, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
   const [activeTab, setActiveTab] = useState('staff');
   
-  // Add User Modal State
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'Scorer',
-    district: 'Jabalpur',
-    canView: true,
-    canAdd: false,
-    canEdit: false,
-    canDelete: false
-  });
-
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$';
-    let p = '';
-    for (let i = 0; i < 8; i++) {
-      p += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setNewUser(prev => ({ ...prev, password: p }));
-  };
-
-  const resetUserPassword = (userId) => {
-    alert(`Password reset link / new temporary password generated for User ID: ${userId}`);
-  };
-
-  const revokeUserAccess = (userId) => {
-    if(window.confirm('Are you sure you want to revoke access for this user?')) {
-      setRegisteredUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'Revoked' } : u));
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      await api.updateUserRole(userId, newRole);
+      setRegisteredUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      alert('Failed to update user role');
     }
   };
 
-  const handleCreateUser = (e) => {
-    e.preventDefault();
-    if (!newUser.name || !newUser.email) return;
-
-    const userObj = {
-      id: `usr_${Date.now()}`,
-      name: newUser.name,
-      email: newUser.email,
-      password: newUser.password,
-      role: newUser.role,
-      district: newUser.district,
-      status: 'Active',
-      permissions: {
-        canView: newUser.canView,
-        canAdd: newUser.canAdd,
-        canEdit: newUser.canEdit,
-        canDelete: newUser.canDelete,
+  const revokeUserAccess = async (userId, currentStatus) => {
+    const newStatus = !currentStatus;
+    const action = newStatus ? 'activate' : 'revoke access for';
+    if(window.confirm(`Are you sure you want to ${action} this user?`)) {
+      try {
+        await api.updateUserStatus(userId, newStatus);
+        setRegisteredUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: newStatus } : u));
+      } catch (error) {
+        console.error('Failed to update user status:', error);
+        alert('Failed to update user status');
       }
-    };
+    }
+  };
 
-    setRegisteredUsers((prev) => [...prev, userObj]);
-    setShowAddUserModal(false);
-    setNewUser({
-      name: '',
-      email: '',
-      role: 'Scorer',
-      district: 'Jabalpur',
-      canView: true,
-      canAdd: false,
-      canEdit: false,
-      canDelete: false
-    });
+  const toggleSetting = (key) => {
+    if (setSystemSettings && systemSettings) {
+      setSystemSettings(prev => ({ ...prev, [key]: !prev[key] }));
+    }
   };
 
   return (
@@ -200,7 +164,21 @@ export default function AdministrationScreen() {
                           {usr.email}
                         </td>
                         <td>
-                          <RoleBadge role={usr.role} />
+                          {userRole === 'SUPER_ADMIN' ? (
+                            <select 
+                              value={usr.role} 
+                              onChange={(e) => handleRoleChange(usr.id, e.target.value)}
+                              className="text-xs border border-slate-200 rounded p-1"
+                            >
+                              <option value="SUPER_ADMIN">Super Admin</option>
+                              <option value="DISTRICT_ADMIN">District Admin</option>
+                              <option value="SELECTOR">Selector</option>
+                              <option value="SCORER">Scorer</option>
+                              <option value="VIEWER">Viewer</option>
+                            </select>
+                          ) : (
+                            <RoleBadge role={usr.role} />
+                          )}
                         </td>
                         <td>
                           <span className="inline-flex items-center text-xs font-semibold text-[#0FA968]">
@@ -241,7 +219,7 @@ export default function AdministrationScreen() {
                           )}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          {usr.status === 'Revoked' ? (
+                          {usr.is_active === false ? (
                             <span className="badge bg-red-100 text-red-700 border-red-200 text-xs">Revoked</span>
                           ) : (
                             <span className="badge badge-live text-xs">Active</span>
@@ -249,14 +227,12 @@ export default function AdministrationScreen() {
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => resetUserPassword(usr.id)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Reset Password">
+                            <button onClick={() => alert('Password reset is managed via Supabase Auth emails in production.')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Reset Password">
                               <Lock size={14} />
                             </button>
-                            {usr.status !== 'Revoked' && (
-                              <button onClick={() => revokeUserAccess(usr.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Revoke Access">
-                                <AlertTriangle size={14} />
-                              </button>
-                            )}
+                            <button onClick={() => revokeUserAccess(usr.id, usr.is_active)} className={`p-1.5 rounded ${usr.is_active === false ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'}`} title={usr.is_active === false ? "Restore Access" : "Revoke Access"}>
+                              {usr.is_active === false ? <Check size={14} /> : <AlertTriangle size={14} />}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -417,31 +393,18 @@ export default function AdministrationScreen() {
             <div className="space-y-4 divide-y divide-slate-100">
               <div className="flex items-center justify-between pt-3">
                 <div>
-                  <div className="font-semibold text-slate-900 dark:text-white text-sm">Dark Mode UI</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Toggle dark mode for the entire association dashboard</div>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={isDarkMode} 
-                  onChange={(e) => setIsDarkMode(e.target.checked)} 
-                  className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" 
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-3">
-                <div>
                   <div className="font-semibold text-slate-900 text-sm">Live Scoring Realtime Sync</div>
-                  <div className="text-xs text-slate-500">Broadcast ball-by-ball updates directly to public viewers</div>
+                  <div className="text-xs text-slate-500">Push ball-by-ball updates to all clients instantly via Supabase</div>
                 </div>
-                <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
+                <input type="checkbox" checked={systemSettings?.liveSync !== false} onChange={() => toggleSetting('liveSync')} className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
               </div>
 
               <div className="flex items-center justify-between pt-3">
                 <div>
-                  <div className="font-semibold text-slate-900 text-sm">Free Hit on No-Ball Enforced</div>
-                  <div className="text-xs text-slate-500">Automatic free-hit enforcement with run-out only dismissal rule</div>
+                  <div className="font-semibold text-slate-900 text-sm">Free Hit on No-Ball</div>
+                  <div className="text-xs text-slate-500">Apply standard ICC free-hit rule to limited overs matches</div>
                 </div>
-                <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
+                <input type="checkbox" checked={systemSettings?.freeHit !== false} onChange={() => toggleSetting('freeHit')} className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
               </div>
 
               <div className="flex items-center justify-between pt-3">
@@ -449,7 +412,7 @@ export default function AdministrationScreen() {
                   <div className="font-semibold text-slate-900 text-sm">Selection Committee Notifications</div>
                   <div className="text-xs text-slate-500">Send WhatsApp / SMS alerts to selectors when new trials are posted</div>
                 </div>
-                <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
+                <input type="checkbox" checked={systemSettings?.notifications !== false} onChange={() => toggleSetting('notifications')} className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
               </div>
 
               <div className="flex items-center justify-between pt-3">
@@ -457,7 +420,7 @@ export default function AdministrationScreen() {
                   <div className="font-semibold text-slate-900 text-sm">Official Association Branding Watermark</div>
                   <div className="text-xs text-slate-500">Embed JDCA seal and MPCA affiliation badge onto PDF scorecards</div>
                 </div>
-                <input type="checkbox" defaultChecked className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
+                <input type="checkbox" checked={systemSettings?.watermark !== false} onChange={() => toggleSetting('watermark')} className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
               </div>
             </div>
           </div>
@@ -473,7 +436,7 @@ export default function AdministrationScreen() {
         </div>
       )}
 
-      {/* â”€â”€ ADD USER MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── ADD USER MODAL ────────────────────────────────────── */}
       {showAddUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-800/80">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95">
@@ -487,134 +450,29 @@ export default function AdministrationScreen() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-3.5">
+            <div className="p-4 bg-amber-50 text-amber-800 rounded-lg text-sm mb-4 flex gap-3">
+              <AlertTriangle className="shrink-0 text-amber-600" size={20} />
               <div>
-                <label className="jdca-label">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Ramesh Chandra"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  className="jdca-input"
-                />
+                <p className="font-semibold mb-1">Notice: New User Accounts</p>
+                <p className="opacity-90">
+                  Because this is a secure client application, you cannot directly create login passwords for other users. 
+                  Please instruct the staff member to <strong>Sign Up</strong> for an account using their email. 
+                  <br/><br/>
+                  Once they sign up, they will appear in the <strong>Registered Users</strong> tab with Viewer access, 
+                  where you can upgrade their role.
+                </p>
               </div>
+            </div>
 
-              <div>
-                <label className="jdca-label">Email / Login ID</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="official@jdca.com"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  className="jdca-input"
-                />
-              </div>
-
-              <div>
-                <label className="jdca-label flex items-center justify-between">
-                  <span>Initial Password</span>
-                  <button type="button" onClick={generatePassword} className="text-blue-600 font-bold hover:underline">Generate</button>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter or generate password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="jdca-input"
-                />
-              </div>
-
-              <div>
-                <label className="jdca-label">District Responsibility</label>
-                <select
-                  value={newUser.district}
-                  onChange={(e) => setNewUser({ ...newUser, district: e.target.value })}
-                  className="jdca-select"
-                >
-                  {INITIAL_DISTRICTS.map((d) => (
-                    <option key={d.name} value={d.name}>
-                      {d.name} District
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="jdca-label">Assigned Role</label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  className="jdca-select"
-                >
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100">
-                <label className="jdca-label mb-2">Access Privileges (What can this user do?)</label>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newUser.canView}
-                      onChange={(e) => setNewUser({ ...newUser, canView: e.target.checked })}
-                      className="rounded text-[#2457D6]"
-                    />
-                    <span className="font-semibold text-slate-800">Can view</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newUser.canAdd}
-                      onChange={(e) => setNewUser({ ...newUser, canAdd: e.target.checked })}
-                      className="rounded text-[#2457D6]"
-                    />
-                    <span className="font-semibold text-slate-800">Can add</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newUser.canEdit}
-                      onChange={(e) => setNewUser({ ...newUser, canEdit: e.target.checked })}
-                      className="rounded text-[#2457D6]"
-                    />
-                    <span className="font-semibold text-slate-800">Can edit</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newUser.canDelete}
-                      onChange={(e) => setNewUser({ ...newUser, canDelete: e.target.checked })}
-                      className="rounded text-[#2457D6]"
-                    />
-                    <span className="font-semibold text-slate-800">Can delete</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddUserModal(false)}
-                  className="btn-secondary text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary text-xs"
-                >
-                  Save User
-                </button>
-              </div>
-            </form>
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowAddUserModal(false)}
+                className="btn-primary text-xs"
+              >
+                Understood
+              </button>
+            </div>
           </div>
         </div>
       )}
