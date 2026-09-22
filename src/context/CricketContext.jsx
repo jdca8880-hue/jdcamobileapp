@@ -13,7 +13,7 @@ import {
 } from '../engine/cricketStateMachine';
 import { INITIAL_SCORECARD, FIELD_DIRECTIONS } from '../data/constants';
 import { syncService } from '../services/SyncService';
-import { queueOfflineAction } from '../lib/db';
+import { db, queueOfflineAction } from '../lib/db';
 
 const CricketContext = createContext();
 
