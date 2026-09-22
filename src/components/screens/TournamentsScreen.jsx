@@ -398,7 +398,7 @@ export default function TournamentsScreen() {
                     </div>
                     <div className="flex items-center gap-3">
                       {isAdmin && (
-                        <div className="hidden group-hover:flex items-center gap-1 mr-2">
+                        <div className="flex items-center gap-1 mr-2">
                            <button onClick={(e) => handleEditTournament(e, tournament)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Edit2 size={16}/></button>
                            <button onClick={(e) => handleDeleteTournament(e, tournament.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={16}/></button>
                         </div>

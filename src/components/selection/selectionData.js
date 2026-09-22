@@ -56,7 +56,7 @@ export function normalizeSelectionPlayer(p) {
   else if (catStr.includes('19')) category = 'U19';
 
   let gender = p.gender || 'Men';
-  if (p.name.includes('Priya') || p.name.includes('Ananya') || p.name.includes('Pooja')) {
+  if (p.name && (p.name.includes('Priya') || p.name.includes('Ananya') || p.name.includes('Pooja'))) {
     gender = 'Women';
   }
 
