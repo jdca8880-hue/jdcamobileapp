@@ -62,7 +62,7 @@ export default function PlayerRegistrationScreen() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setFormErrors({});
 
@@ -81,9 +81,14 @@ export default function PlayerRegistrationScreen() {
       return;
     }
 
-    registerPlayer(validation.data);
-    setRegisteredSuccess(true);
-    setTimeout(() => { goBack(); }, 1500);
+    try {
+      await registerPlayer(validation.data);
+      setRegisteredSuccess(true);
+      setTimeout(() => { goBack(); }, 1500);
+    } catch (err) {
+      // Error is alerted by context, but we prevent success UI
+      console.error(err);
+    }
   };
 
   return (

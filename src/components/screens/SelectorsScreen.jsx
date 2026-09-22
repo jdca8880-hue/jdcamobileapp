@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Search, 
   MapPin, 
@@ -9,8 +9,8 @@ import { useCricket } from '../../context/CricketContext';
 
 export default function SelectorsScreen() {
   const { 
-    players, 
-    shortlistedIds, 
+    players = [], 
+    shortlistedIds = [], 
     toggleShortlist, 
     setSelectedPlayer, 
     navigateTo 
@@ -36,8 +36,8 @@ export default function SelectorsScreen() {
         ? true 
         : player.district === selectedDistrict;
 
-    const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          player.district.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (player.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (player.district || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesCategory && matchesDistrict && matchesSearch;
   });

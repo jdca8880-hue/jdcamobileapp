@@ -16,7 +16,7 @@ import { useCricket } from '../../context/CricketContext';
 export default function ScoutingHubScreen() {
   const { 
     players, 
-    shortlistedIds, 
+    shortlistedIds = [], 
     toggleShortlist, 
     setSelectedPlayer, 
     navigateTo 
@@ -40,18 +40,18 @@ export default function ScoutingHubScreen() {
         : player.category === selectedAgeCategory;
 
     const matchesRole = 
-      selectedRoleFilter === 'Top Batsmen' ? player.role.includes('Batter') :
-      selectedRoleFilter === 'Top Bowlers' ? player.role.includes('Bowler') :
-      player.role.includes('All-Rounder');
+      selectedRoleFilter === 'Top Batsmen' ? (player.role || '').includes('Batter') :
+      selectedRoleFilter === 'Top Bowlers' ? (player.role || '').includes('Bowler') :
+      (player.role || '').includes('All-Rounder');
 
     const matchesDistrict = 
       selectedDistrict === 'All Districts' 
         ? true 
         : player.district === selectedDistrict;
 
-    const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          player.battingStyle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          player.district.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (player.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (player.battingStyle || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (player.district || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesShortlist = showOnlyShortlisted ? shortlistedIds.includes(player.id) : true;
 

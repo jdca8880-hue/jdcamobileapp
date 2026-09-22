@@ -982,6 +982,7 @@ export function CricketProvider({ children }) {
     } catch (e) {
       console.error('Failed to register player:', e);
       alert('Failed to register player. Please check network connection.');
+      throw e;
     }
   };
 
