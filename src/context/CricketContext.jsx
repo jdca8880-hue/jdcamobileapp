@@ -212,71 +212,89 @@ export function CricketProvider({ children }) {
           });
         }
 
+        // 1. Immediately load whatever is in Dexie (Offline-First)
         let localMatches = await db.matches.toArray();
-        
+        let localTeams = await db.teams.toArray();
+        let localTournaments = [];
+        try { localTournaments = await db.tournaments.toArray(); } catch (e) {}
+        let localPlayers = await db.players.toArray();
+
         // --- MIGRATION: Purge old mock data from local cache ---
         if (localMatches.some(m => m.id === 'match-live-1' || m.id === 'match-completed-1')) {
           console.log('[CricketContext] Legacy mock data detected in cache. Purging...');
           await db.matches.clear();
           await db.players.clear();
           localMatches = [];
+          localPlayers = [];
         }
 
-        if (localMatches.length === 0) {
-          console.log('[CricketContext] No local matches, fetching from Supabase...');
-          if (supabase) {
-            const { data, error } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null);
-            if (!error && data && data.length > 0) {
-              await db.matches.bulkAdd(data);
-              localMatches = data;
-            }
-          }
-        }
+        // Initialize React state immediately with local cache
         setMatches(localMatches);
         if (localMatches.length > 0) setActiveMatchId(localMatches[0].id);
-
-        // Fetch Teams
-        let localTeams = await db.teams.toArray();
-        if (localTeams.length === 0 && supabase) {
-          console.log('[CricketContext] No local teams, fetching from Supabase...');
-          const { data, error } = await supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)');
-          if (!error && data) {
-            await db.teams.bulkAdd(data);
-            localTeams = data;
-          }
-        }
+        
         setTeams(localTeams);
-
-        // Fetch Tournaments
-        let localTournaments = [];
-        try {
-          localTournaments = await db.tournaments.toArray();
-        } catch (e) {
-          console.log('[CricketContext] tournaments store not ready yet');
-        }
-        if (localTournaments.length === 0 && supabase) {
-          console.log('[CricketContext] No local tournaments, fetching from Supabase...');
-          const { data, error } = await supabase.from('tournaments').select('*').is('deleted_at', null);
-          if (!error && data) {
-            try {
-              await db.tournaments.bulkAdd(data);
-            } catch (e) {}
-            localTournaments = data;
-          }
-        }
         setTournaments(localTournaments);
-
-        let localPlayers = await db.players.toArray();
-        if (localPlayers.length === 0 && supabase) {
-          console.log('[CricketContext] No local players, fetching from Supabase...');
-          const { data, error } = await supabase.from('players').select('*').is('deleted_at', null);
-          if (!error && data) {
-            await db.players.bulkAdd(data);
-            localPlayers = data;
-          }
-        }
+        
         setPlayers(localPlayers);
         if (localPlayers.length > 0) setSelectedPlayer(localPlayers[0]);
+
+        // 2. If online and Supabase is available, aggressively fetch and reconcile
+        if (supabase && navigator.onLine) {
+          console.log('[CricketContext] Online: Fetching fresh data from Supabase...');
+          
+          try {
+            const [matchesRes, teamsRes, tournamentsRes, playersRes] = await Promise.allSettled([
+              supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null).is('tournaments.deleted_at', null),
+              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
+              supabase.from('tournaments').select('*').is('deleted_at', null),
+              supabase.from('players').select('*').is('deleted_at', null)
+            ]);
+
+            // Reconcile Matches
+            if (matchesRes.status === 'fulfilled' && !matchesRes.value.error && matchesRes.value.data) {
+              const freshMatches = matchesRes.value.data;
+              await db.matches.clear();
+              await db.matches.bulkAdd(freshMatches);
+              setMatches(freshMatches);
+              if (freshMatches.length > 0 && localMatches.length === 0) {
+                 setActiveMatchId(freshMatches[0].id);
+              }
+            }
+
+            // Reconcile Teams
+            if (teamsRes.status === 'fulfilled' && !teamsRes.value.error && teamsRes.value.data) {
+              const freshTeams = teamsRes.value.data;
+              await db.teams.clear();
+              await db.teams.bulkAdd(freshTeams);
+              setTeams(freshTeams);
+            }
+
+            // Reconcile Tournaments
+            if (tournamentsRes.status === 'fulfilled' && !tournamentsRes.value.error && tournamentsRes.value.data) {
+              const freshTournaments = tournamentsRes.value.data;
+              try {
+                await db.tournaments.clear();
+                await db.tournaments.bulkAdd(freshTournaments);
+              } catch (e) {}
+              setTournaments(freshTournaments);
+            }
+
+            // Reconcile Players
+            if (playersRes.status === 'fulfilled' && !playersRes.value.error && playersRes.value.data) {
+              const freshPlayers = playersRes.value.data;
+              await db.players.clear();
+              await db.players.bulkAdd(freshPlayers);
+              setPlayers(freshPlayers);
+              if (freshPlayers.length > 0 && localPlayers.length === 0) {
+                 setSelectedPlayer(freshPlayers[0]);
+              }
+            }
+
+            console.log('[CricketContext] Server reconciliation complete.');
+          } catch (e) {
+             console.warn('[CricketContext] Error during Supabase reconciliation. Falling back to local Dexie data.', e);
+          }
+        }
 
         // Fetch Selection Processes
         if (supabase) {
@@ -363,7 +381,7 @@ export function CricketProvider({ children }) {
         setTournaments(tData);
       }
 
-      const { data: mData, error: mErr } = await supabase.from('matches').select('*, home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null);
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null).is('tournaments.deleted_at', null);
       if (!mErr && mData) {
         await db.matches.clear();
         await db.matches.bulkAdd(mData);
@@ -917,9 +935,12 @@ export function CricketProvider({ children }) {
     }
   };
 
-  const finalizeSelectionProcess = async (processId) => {
+  const finalizeSelectionProcess = async (processId, selectedPlayerIds) => {
+    if (!selectedPlayerIds || selectedPlayerIds.length === 0) {
+      throw new Error("No players selected for finalization.");
+    }
     try {
-      await api.finalizeSquad(processId, shortlistedIds);
+      await api.finalizeSquad(processId, selectedPlayerIds);
       setRepresentativeTeams(prev => prev.map(t => t.id === processId ? { ...t, status: 'FINALIZED' } : t));
       if (activeSelectionTeam && activeSelectionTeam.id === processId) {
         setActiveSelectionTeam({ ...activeSelectionTeam, status: 'FINALIZED' });

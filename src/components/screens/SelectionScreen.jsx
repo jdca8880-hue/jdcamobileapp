@@ -153,7 +153,11 @@ export default function SelectionScreen() {
 
   const handleSaveSquad = async () => {
     try {
-      await finalizeSelectionProcess(currentTeam.id);
+      if (!currentTeam.selectedPlayerIds || currentTeam.selectedPlayerIds.length === 0) {
+        alert("Cannot lock an empty squad. Please select at least one player.");
+        return;
+      }
+      await finalizeSelectionProcess(currentTeam.id, currentTeam.selectedPlayerIds);
       setShowSavedToast(true);
       setTimeout(() => setShowSavedToast(false), 3000);
     } catch (e) {

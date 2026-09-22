@@ -21,7 +21,7 @@ const ProfileTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function PlayerProfileScreen() {
-  const { selectedPlayer, goBack, shortlistedIds, toggleShortlist, userRole } = useCricket();
+  const { selectedPlayer, goBack, shortlistedIds, toggleShortlist, userRole, setPlayers } = useCricket();
   const [activeTab, setActiveTab] = useState('Overview');
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -62,6 +62,18 @@ export default function PlayerProfileScreen() {
     try {
       const { api } = await import('../../lib/api');
       await api.deletePlayer(player.id);
+      
+      try {
+        const { db } = await import('../../lib/db');
+        await db.players.delete(player.id);
+      } catch (e) {
+        console.error("Failed to delete from local DB:", e);
+      }
+      
+      if (setPlayers) {
+        setPlayers(prev => prev.filter(p => p.id !== player.id));
+      }
+      
       alert('Player deleted successfully.');
       goBack();
     } catch (err) {

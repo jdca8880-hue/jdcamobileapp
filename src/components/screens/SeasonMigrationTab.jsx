@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import { AlertTriangle, Check, Search, Calendar, ChevronRight, CheckSquare, Square, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, Search, Calendar, ChevronRight, CheckSquare, Square, Loader2, ArrowRightCircle, Trash2 } from 'lucide-react';
+import { useCricket } from '../../context/CricketContext';
 
 export default function SeasonMigrationTab({ userRole }) {
-  const [fromSeason, setFromSeason] = useState('2024-2025');
-  const [toSeason, setToSeason] = useState('2025-2026');
+  const { teams } = useCricket();
+  const [fromSeason, setFromSeason] = useState('2024-01-01');
+  const [toSeason, setToSeason] = useState('2025-01-01');
   const [cutoffDate, setCutoffDate] = useState('2025-09-01');
   
   const [ageCategories, setAgeCategories] = useState([]);
@@ -157,6 +159,35 @@ export default function SeasonMigrationTab({ userRole }) {
     }
   };
 
+  const handleMigrateSingle = async (p) => {
+    if (!window.confirm(`Are you sure you want to migrate ${p.name} to ${toSeason}?`)) return;
+    try {
+      await api.bulkMigratePlayers(toSeason, [{
+        player_id: p.player_id,
+        district_id: p.district_id,
+        age_category_id: p.projected_age_category_id
+      }]);
+      alert(`Migrated ${p.name} successfully.`);
+      setPlayers(prev => prev.filter(player => player.player_id !== p.player_id));
+    } catch (e) {
+      alert("Failed to migrate player: " + e.message);
+    }
+  };
+
+  const handleRemoveSingle = (p) => {
+    if (!window.confirm(`Are you sure you want to remove ${p.name} from this list?`)) return;
+    setPlayers(prev => prev.filter(player => player.player_id !== p.player_id));
+    const newSelected = new Set(selectedIds);
+    newSelected.delete(p.player_id);
+    setSelectedIds(newSelected);
+  };
+
+  const getPlayerTeam = (playerId) => {
+    if (!teams || teams.length === 0) return 'Unassigned';
+    const team = teams.find(t => t.squad && t.squad.some(member => member.id === playerId));
+    return team ? team.name : 'Unassigned';
+  };
+
   return (
     <div className="space-y-5">
       <div className="jdca-card p-5 border-l-4 border-l-blue-500">
@@ -171,21 +202,19 @@ export default function SeasonMigrationTab({ userRole }) {
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase">From Season</label>
             <input 
-              type="text" 
+              type="date" 
               value={fromSeason}
               onChange={e => setFromSeason(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
-              placeholder="e.g. 2024-2025"
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase">To Season</label>
             <input 
-              type="text" 
+              type="date" 
               value={toSeason}
               onChange={e => setToSeason(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
-              placeholder="e.g. 2025-2026"
             />
           </div>
           <div>
@@ -257,6 +286,8 @@ export default function SeasonMigrationTab({ userRole }) {
                   <th>{fromSeason} Category</th>
                   <th className="w-8"></th>
                   <th>Projected {toSeason} Category</th>
+                  <th>Team</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -302,6 +333,28 @@ export default function SeasonMigrationTab({ userRole }) {
                           Age Group Changed
                         </div>
                       )}
+                    </td>
+                    <td className="text-sm font-medium text-slate-700">
+                      {getPlayerTeam(p.player_id)}
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleMigrateSingle(p)}
+                          disabled={!p.isEligible}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Migrate Player"
+                        >
+                          <ArrowRightCircle size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleRemoveSingle(p)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          title="Remove from list"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

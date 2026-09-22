@@ -382,10 +382,11 @@ export default function AdministrationScreen() {
                                 setResetSuccess(false);
                                 setResetPassword('');
                               }} 
-                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" 
+                              className="text-[10px] bg-slate-100 text-slate-700 px-2 py-1 rounded font-bold hover:bg-slate-200 flex items-center gap-1 transition" 
                               title="Reset Password"
                             >
-                              <Lock size={14} />
+                              <Lock size={12} />
+                              Change Pass
                             </button>
                             <button onClick={() => revokeUserAccess(usr.id, usr.is_active)} className={`p-1.5 rounded ${usr.is_active === false ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'}`} title={usr.is_active === false ? "Restore Access" : "Revoke Access"}>
                               {usr.is_active === false ? <Check size={14} /> : <AlertTriangle size={14} />}

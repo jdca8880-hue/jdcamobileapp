@@ -141,6 +141,13 @@ create table if not exists profiles (
   updated_at timestamptz not null default now()
 );
 
+-- Ensure permission columns exist
+alter table profiles 
+  add column if not exists can_view boolean not null default true,
+  add column if not exists can_add boolean not null default false,
+  add column if not exists can_edit boolean not null default false,
+  add column if not exists can_delete boolean not null default false;
+
 -- ============================================================
 -- AGE CATEGORIES
 -- ============================================================
@@ -222,6 +229,11 @@ create table if not exists teams (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Ensure teams are unique by name (case-insensitive), season, and district
+create unique index if not exists teams_name_season_district_unique_idx 
+  on teams (lower(trim(name)), season, district_id) 
+  where is_active = true;
 
 create table if not exists team_players (
   id uuid primary key default gen_random_uuid(),
@@ -365,6 +377,11 @@ create table if not exists matches (
     toss_decision is null or toss_winner_id is not null
   )
 );
+
+-- Ensure active matches are unique by tournament, teams, and schedule time
+create unique index if not exists matches_fixture_unique_idx 
+  on matches (tournament_id, home_team_id, away_team_id, scheduled_at) 
+  where deleted_at is null;
 
 create table if not exists match_rosters (
   id uuid primary key default gen_random_uuid(),
@@ -1173,7 +1190,20 @@ for select using (id = auth.uid());
 drop policy if exists profiles_own_update on profiles;
 create policy profiles_own_update on profiles
 for update using (id = auth.uid())
-with check (id = auth.uid());
+with check (
+  id = auth.uid() 
+  and role = (select role from profiles where id = auth.uid())
+  and is_active = (select is_active from profiles where id = auth.uid())
+  and can_view = (select can_view from profiles where id = auth.uid())
+  and can_add = (select can_add from profiles where id = auth.uid())
+  and can_edit = (select can_edit from profiles where id = auth.uid())
+  and can_delete = (select can_delete from profiles where id = auth.uid())
+);
+
+drop policy if exists profiles_admin_update on profiles;
+create policy profiles_admin_update on profiles
+for update using (is_admin())
+with check (is_admin());
 
 -- ============================================================
 -- ADMIN WRITES

@@ -111,12 +111,14 @@ export const api = {
   },
 
   async deletePlayer(id) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('players')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
 
     if (error) throw error;
+    if (!data || data.length === 0) throw new Error("Permission denied or player not found");
     return true;
   },
 
@@ -132,6 +134,10 @@ export const api = {
     ]);
 
     const items = [];
+    if (tRes.error) console.error('[api] Recycle bin tournaments error:', tRes.error);
+    if (mRes.error) console.error('[api] Recycle bin matches error:', mRes.error);
+    if (pRes.error) console.error('[api] Recycle bin players error:', pRes.error);
+
     if (tRes.data) {
       tRes.data.forEach(t => items.push({ id: t.id, type: 'TOURNAMENT', name: t.name, deleted_at: t.deleted_at }));
     }
@@ -144,7 +150,7 @@ export const api = {
       }));
     }
     if (pRes.data) {
-      pRes.data.forEach(p => items.push({ id: p.id, type: 'PLAYER', name: p.full_name, deleted_at: p.deleted_at }));
+      pRes.data.forEach(p => items.push({ id: p.id, type: 'PLAYER', name: p.full_name || 'Unknown Player', deleted_at: p.deleted_at }));
     }
     
     // Sort by deleted_at descending
@@ -229,7 +235,12 @@ export const api = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error("A team with this name already exists for this district and season.");
+      }
+      throw error;
+    }
     return data;
   },
 
@@ -262,7 +273,12 @@ export const api = {
       .insert(matchesToInsert)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error("One or more of these matches already exist (duplicate fixture).");
+      }
+      throw error;
+    }
     return data;
   },
 
@@ -288,7 +304,12 @@ export const api = {
       .insert(matchesToInsert)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error("One or more of these matches already exist (duplicate fixture).");
+      }
+      throw error;
+    }
     return data;
   },
 
@@ -337,7 +358,27 @@ export const api = {
   },
 
   async finalizeSquad(processId, selectedPlayerIds) {
-    // 1. Update selection decisions
+    if (!selectedPlayerIds || selectedPlayerIds.length === 0) {
+      throw new Error("No players selected for finalization.");
+    }
+
+    // 1. Find process and target team
+    const { data: process, error: processError } = await supabase
+      .from('selection_processes')
+      .select('target_team_id')
+      .eq('id', processId)
+      .single();
+      
+    if (processError) throw processError;
+    const targetTeamId = process?.target_team_id;
+
+    if (!targetTeamId) {
+      throw new Error("This selection process has no target team configured. Cannot finalize the squad.");
+    }
+
+    // 2. Persist to selection_decisions (delete existing to prevent duplicates)
+    await supabase.from('selection_decisions').delete().eq('selection_process_id', processId);
+
     const decisions = selectedPlayerIds.map(playerId => ({
       selection_process_id: processId,
       player_id: playerId,
@@ -351,7 +392,26 @@ export const api = {
       if (insertError) throw insertError;
     }
 
-    // 2. Mark process as FINALIZED
+    // 3. Persist into team_players if targetTeamId exists
+    if (targetTeamId) {
+      const teamPlayers = selectedPlayerIds.map(playerId => ({
+        team_id: targetTeamId,
+        player_id: playerId
+      }));
+
+      // Insert team_players in bulk, ignoring duplicates to preserve existing legitimate members
+      const { error: tpError } = await supabase
+        .from('team_players')
+        .upsert(teamPlayers, { onConflict: 'team_id,player_id', ignoreDuplicates: true });
+        
+      if (tpError) {
+        console.error('[api] Failed to bulk insert team_players:', tpError);
+        // Throw on genuine failures to halt progression safely against partial/duplicate writes
+        throw tpError;
+      }
+    }
+
+    // 4. Mark process as FINALIZED
     const { error: updateError } = await supabase
       .from('selection_processes')
       .update({ status: 'FINALIZED' })
