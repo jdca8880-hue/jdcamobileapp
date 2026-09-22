@@ -251,6 +251,9 @@ export const api = {
 
     for (let i = 0; i < teams.length; i++) {
       for (let j = i + 1; j < teams.length; j++) {
+        if (!teams[i].id || !teams[j].id) {
+            throw new Error("Cannot generate schedule: One or more teams have missing IDs.");
+        }
         const matchDate = new Date(baseDate);
         matchDate.setDate(matchDate.getDate() + matchesToInsert.length + 1);
         
@@ -285,11 +288,15 @@ export const api = {
   async createDetailedMatches(tournamentId, format, matchesArray) {
     if (!matchesArray || matchesArray.length === 0) return [];
     
-    const matchesToInsert = matchesArray.map(m => ({
-      tournament_id: tournamentId,
-      home_team_id: m.homeTeamId,
-      away_team_id: m.awayTeamId,
-      scheduled_at: m.date ? new Date(m.date).toISOString() : new Date().toISOString(),
+    const matchesToInsert = matchesArray.map(m => {
+      if (!m.homeTeamId || !m.awayTeamId) {
+        throw new Error("Please select both Home and Away teams for all matches.");
+      }
+      return {
+        tournament_id: tournamentId,
+        home_team_id: m.homeTeamId || null,
+        away_team_id: m.awayTeamId || null,
+        scheduled_at: m.date ? new Date(m.date).toISOString() : new Date().toISOString(),
       status: 'SCHEDULED',
       match_format: format,
       max_overs: format === 'T20' ? 20 : (format === 'T10' ? 10 : 50),
