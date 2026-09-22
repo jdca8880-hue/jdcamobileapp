@@ -135,8 +135,8 @@ export default function SelectionWorkspace() {
       // Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = p.name.toLowerCase().includes(q);
-        const matchesDist = p.district.toLowerCase().includes(q);
+        const matchesName = (p.name || '').toLowerCase().includes(q);
+        const matchesDist = (p.district || '').toLowerCase().includes(q);
         if (!matchesName && !matchesDist) return false;
       }
 

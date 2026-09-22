@@ -80,10 +80,10 @@ export default function TeamsScreen() {
       // Calculate composition
       const composition = { batters: 0, bowlers: 0, allRounders: 0, wicketKeepers: 0 };
       squad.forEach(p => {
-        if (p.role.includes('Batter')) composition.batters++;
-        else if (p.role.includes('Bowler')) composition.bowlers++;
-        else if (p.role.includes('All-Rounder')) composition.allRounders++;
-        else if (p.role.includes('Wicket')) composition.wicketKeepers++;
+        if (p.role?.includes('Batter')) composition.batters++;
+        else if (p.role?.includes('Bowler')) composition.bowlers++;
+        else if (p.role?.includes('All-Rounder')) composition.allRounders++;
+        else if (p.role?.includes('Wicket')) composition.wicketKeepers++;
       });
 
       return {
@@ -99,7 +99,7 @@ export default function TeamsScreen() {
         district: team.district?.name || 'TBD',
         captain: squad.length > 0 ? squad[0].name : 'TBD',
         viceCaptain: squad.length > 1 ? squad[1].name : 'TBD',
-        wicketKeeper: squad.find(p => p.role.includes('Wicket'))?.name || 'TBD',
+        wicketKeeper: squad.find(p => p.role?.includes('Wicket'))?.name || 'TBD',
         headCoach: 'Head Coach',
         leadSelector: 'Lead Selector',
         squadSize: 15,
@@ -133,10 +133,10 @@ export default function TeamsScreen() {
       // Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = team.name.toLowerCase().includes(q);
-        const matchesCaptain = team.captain.toLowerCase().includes(q);
-        const matchesCoach = team.headCoach.toLowerCase().includes(q);
-        const matchesPlayer = team.squad.some(p => p.name.toLowerCase().includes(q) || p.district.toLowerCase().includes(q));
+        const matchesName = (team.name || '').toLowerCase().includes(q);
+        const matchesCaptain = (team.captain || '').toLowerCase().includes(q);
+        const matchesCoach = (team.headCoach || '').toLowerCase().includes(q);
+        const matchesPlayer = team.squad.some(p => (p.name || '').toLowerCase().includes(q) || (p.district || '').toLowerCase().includes(q));
         if (!matchesName && !matchesCaptain && !matchesCoach && !matchesPlayer) return false;
       }
 
@@ -150,10 +150,10 @@ export default function TeamsScreen() {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
-        team.name.toLowerCase().includes(q) ||
-        team.district.toLowerCase().includes(q) ||
-        team.captain.toLowerCase().includes(q) ||
-        team.homeGround.toLowerCase().includes(q)
+        (team.name || '').toLowerCase().includes(q) ||
+        (team.district || '').toLowerCase().includes(q) ||
+        (team.captain || '').toLowerCase().includes(q) ||
+        (team.homeGround || '').toLowerCase().includes(q)
       );
     });
   }, [searchQuery]);

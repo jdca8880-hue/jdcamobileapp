@@ -146,7 +146,7 @@ export default function ScoringScreen() {
         ...prev,
         playingXI: prev.playingXI.map(p => {
           if (p.id === player.id) return { ...p, role: 'Wicket Keeper' };
-          if (p.role.includes('Wicket Keeper')) return { ...p, role: 'Batter' };
+          if (p.role?.includes('Wicket Keeper')) return { ...p, role: 'Batter' };
           return p;
         })
       }));
