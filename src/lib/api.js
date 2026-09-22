@@ -304,7 +304,8 @@ export const api = {
       umpire_name: m.umpireName || null,
       scorer_name: m.scorerName || null,
       ball_type: m.ballType || null
-    }));
+      };
+    });
 
     const { data, error } = await supabase
       .from('matches')
