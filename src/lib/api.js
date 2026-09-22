@@ -809,5 +809,116 @@ export const api = {
       new_password: newPassword 
     });
     if (error) throw error;
+  },
+
+  // ==========================================
+  // SCORING READINESS: MATCH SETUP
+  // ==========================================
+
+  async persistMatchSetup(matchId, setupData) {
+    if (!matchId || !setupData) throw new Error("Match ID and setup data are required.");
+    
+    // 1. Fetch match to verify it exists and get team IDs if not explicitly passed
+    const { data: match, error: matchError } = await supabase
+      .from('matches')
+      .select('id, home_team_id, away_team_id, status')
+      .eq('id', matchId)
+      .single();
+      
+    if (matchError || !match) {
+      throw new Error("Match not found.");
+    }
+    
+    if (match.status === 'COMPLETED' || match.status === 'CANCELLED') {
+      throw new Error(`Cannot setup a match that is ${match.status}.`);
+    }
+
+    // Resolve toss winner team ID
+    let tossWinnerTeamId = null;
+    let tossDecision = setupData.tossDecision || 'BAT'; // BAT or BOWL
+
+    if (setupData.tossWinner === 'teamA') {
+      tossWinnerTeamId = match.home_team_id;
+    } else if (setupData.tossWinner === 'teamB') {
+      tossWinnerTeamId = match.away_team_id;
+    }
+
+    // 2. Prepare rosters
+    const homeRoster = setupData.teamAXI?.map((p, i) => ({
+      match_id: matchId,
+      team_id: match.home_team_id,
+      player_id: p.id,
+      is_playing_xi: true,
+      is_captain: !!p.isCaptain,
+      is_wicketkeeper: p.role === 'Wicket Keeper',
+      batting_order: i + 1
+    })) || [];
+
+    const awayRoster = setupData.teamBXI?.map((p, i) => ({
+      match_id: matchId,
+      team_id: match.away_team_id,
+      player_id: p.id,
+      is_playing_xi: true,
+      is_captain: !!p.isCaptain,
+      is_wicketkeeper: p.role === 'Wicket Keeper',
+      batting_order: i + 1
+    })) || [];
+    
+    const allRoster = [...homeRoster, ...awayRoster];
+
+    if (allRoster.length === 0) {
+       console.warn("No playing XI provided, creating match without roster.");
+    }
+
+    // Delete existing rosters for this match to ensure clean state
+    await supabase.from('match_rosters').delete().eq('match_id', matchId);
+
+    // Insert new rosters
+    if (allRoster.length > 0) {
+      const { error: rosterError } = await supabase
+        .from('match_rosters')
+        .insert(allRoster);
+        
+      if (rosterError) throw rosterError;
+    }
+
+    // 3. Update Match Status and Toss
+    const { error: updateError } = await supabase
+      .from('matches')
+      .update({
+        toss_winner_id: tossWinnerTeamId || null,
+        toss_decision: tossWinnerTeamId ? tossDecision : null,
+        status: 'IN_PROGRESS'
+      })
+      .eq('id', matchId);
+      
+    if (updateError) throw updateError;
+    
+    return true;
+  },
+
+  // ==========================================
+  // SCORING COMPLETION: FINALIZE MATCH
+  // ==========================================
+
+  async finalizeMatch(matchId, winnerId, resultMargin, resultText) {
+    if (!matchId) throw new Error("Match ID required");
+    
+    const { error } = await supabase
+      .from('matches')
+      .update({
+        status: 'COMPLETED',
+        winner_team_id: winnerId,
+        result_margin: resultMargin,
+        result_text: resultText
+      })
+      .eq('id', matchId);
+      
+    if (error) {
+      console.error('[api] Failed to finalize match:', error);
+      throw error;
+    }
+    
+    return true;
   }
 };

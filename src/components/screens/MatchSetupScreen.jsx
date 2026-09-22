@@ -1,33 +1,40 @@
 import React, { useState } from 'react';
 import { Check, Edit2, Search, ArrowRight, ArrowLeft, Plus, Trash2, X, Settings2, Users, Coins } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
+import { api } from '../../lib/api';
 
 export default function MatchSetupScreen() {
-  const { matchSetup, setMatchSetup, navigateTo, goBack, players } = useCricket();
+  const { matchSetup, setMatchSetup, navigateTo, goBack, players, activeMatchId } = useCricket();
   const [currentStep, setCurrentStep] = useState(1);
+  const [activeTeamTab, setActiveTeamTab] = useState('A');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditingXI, setIsEditingXI] = useState(false);
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
   const [rosterSearchQuery, setRosterSearchQuery] = useState('');
 
+  const activeXI = activeTeamTab === 'A' ? matchSetup.teamAXI : matchSetup.teamBXI;
+  const targetArrayName = activeTeamTab === 'A' ? 'teamAXI' : 'teamBXI';
+
   const addPlayerToXI = (player) => {
-    if (matchSetup.playingXI.length >= 11) return alert("Maximum 11 players allowed in Playing XI.");
-    if (matchSetup.playingXI.find(p => p.id === player.id)) return alert("Player already in Playing XI.");
+    if (activeXI.length >= 11) return alert(`Maximum 11 players allowed in ${activeTeamTab === 'A' ? matchSetup.teamA : matchSetup.teamB} XI.`);
+    if (activeXI.find(p => p.id === player.id)) return alert("Player already in Playing XI.");
     
     setMatchSetup(prev => ({
       ...prev,
-      playingXI: [...prev.playingXI, { ...player, isCaptain: false, role: player.role || 'Batter' }]
+      [targetArrayName]: [...prev[targetArrayName], { ...player, isCaptain: false, role: player.role || 'Batter' }]
     }));
   };
 
   const removePlayerFromXI = (playerId) => {
-    setMatchSetup(prev => ({ ...prev, playingXI: prev.playingXI.filter(p => p.id !== playerId) }));
+    setMatchSetup(prev => ({ ...prev, [targetArrayName]: prev[targetArrayName].filter(p => p.id !== playerId) }));
   };
 
   const toggleRole = (playerId, roleType) => {
     setMatchSetup(prev => ({
       ...prev,
-      playingXI: prev.playingXI.map(p => {
+      [targetArrayName]: prev[targetArrayName].map(p => {
         if (p.id === playerId) {
           if (roleType === 'captain') return { ...p, isCaptain: !p.isCaptain };
           if (roleType === 'wk') return { ...p, role: p.role?.includes('Wicket Keeper') ? 'Batter' : 'Wicket Keeper' };
@@ -46,7 +53,36 @@ export default function MatchSetupScreen() {
     { num: 3, label: 'Rules', icon: Settings2 },
   ];
 
-  const filteredPlayers = matchSetup.playingXI.filter((p) => (p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
+  const filteredPlayers = activeXI.filter((p) => (p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
+
+  const handleStartMatch = async () => {
+    if (matchSetup.teamAXI.length === 0 || matchSetup.teamBXI.length === 0) {
+      alert("Both teams must have at least one player in their Playing XI.");
+      return;
+    }
+    
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      // Find tossWinnerTeamId
+      let tossWinnerTeamId = null;
+      if (matchSetup.tossWinner === matchSetup.teamA) tossWinnerTeamId = matchSetup.teamAId;
+      else if (matchSetup.tossWinner === matchSetup.teamB) tossWinnerTeamId = matchSetup.teamBId;
+      
+      const setupPayload = {
+        ...matchSetup,
+        tossWinnerTeamId
+      };
+      
+      await api.persistMatchSetup(activeMatchId, setupPayload);
+      navigateTo('scoring');
+    } catch (err) {
+      console.error("Failed to persist setup:", err);
+      setSaveError(err.message || "Failed to save match setup. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="pb-[120px] bg-slate-50 min-h-screen">
@@ -138,9 +174,18 @@ export default function MatchSetupScreen() {
 
             <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579]">Playing XI ({matchSetup.playingXI.length}/11)</h2>
+                <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579]">Playing XIs</h2>
                 <button onClick={() => setIsEditingXI(!isEditingXI)} className="text-xs font-bold uppercase tracking-wider text-[#2457D6] flex items-center gap-1">
                   <Edit2 size={12}/> {isEditingXI ? 'DONE' : 'EDIT'}
+                </button>
+              </div>
+
+              <div className="flex mb-4 bg-slate-100 p-1 rounded-lg">
+                <button onClick={() => setActiveTeamTab('A')} className={`flex-1 py-2 text-xs font-bold rounded-md ${activeTeamTab === 'A' ? 'bg-white shadow-sm text-[#101827]' : 'text-[#8a99b0]'}`}>
+                  {matchSetup.teamA} ({matchSetup.teamAXI.length})
+                </button>
+                <button onClick={() => setActiveTeamTab('B')} className={`flex-1 py-2 text-xs font-bold rounded-md ${activeTeamTab === 'B' ? 'bg-white shadow-sm text-[#101827]' : 'text-[#8a99b0]'}`}>
+                  {matchSetup.teamB} ({matchSetup.teamBXI.length})
                 </button>
               </div>
 
@@ -165,7 +210,7 @@ export default function MatchSetupScreen() {
                   </div>
                 ))}
                 
-                {isEditingXI && matchSetup.playingXI.length < 11 && (
+                {isEditingXI && activeXI.length < 11 && (
                   <button onClick={() => setIsAddPlayerModalOpen(true)} className="w-full py-4 border-2 border-dashed border-gray-300 rounded-[12px] flex flex-col items-center justify-center text-[#8a99b0] active:bg-gray-50">
                      <Plus size={20} className="mb-1" />
                      <span className="text-[12px] font-bold uppercase tracking-wider">Add Player</span>
@@ -180,6 +225,12 @@ export default function MatchSetupScreen() {
         {currentStep === 3 && (
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100 animate-slide-up">
              <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4">Match Rules</h2>
+             
+             {saveError && (
+               <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-bold rounded">
+                 {saveError}
+               </div>
+             )}
              
              <div className="space-y-4">
                 <div>
@@ -214,10 +265,11 @@ export default function MatchSetupScreen() {
             </button>
           )}
           <button 
-            onClick={() => currentStep < 3 ? setCurrentStep(c => c + 1) : navigateTo('scoring')}
-            className={`py-4 rounded-[16px] text-white text-[14px] font-bold shadow-md active:opacity-90 flex items-center justify-center gap-2 ${currentStep > 1 ? 'flex-[2]' : 'w-full'} ${currentStep === 3 ? 'bg-[#0FA968]' : 'bg-[#2457D6]'}`}
+            disabled={isSaving}
+            onClick={() => currentStep < 3 ? setCurrentStep(c => c + 1) : handleStartMatch()}
+            className={`py-4 rounded-[16px] text-white text-[14px] font-bold shadow-md active:opacity-90 flex items-center justify-center gap-2 ${currentStep > 1 ? 'flex-[2]' : 'w-full'} ${currentStep === 3 ? 'bg-[#0FA968]' : 'bg-[#2457D6]'} ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            {currentStep === 3 ? 'Start Match' : 'Continue'} <ArrowRight size={16} />
+            {isSaving ? 'Saving...' : currentStep === 3 ? 'Start Match' : 'Continue'} {!isSaving && <ArrowRight size={16} />}
           </button>
         </div>
       </div>
@@ -233,7 +285,7 @@ export default function MatchSetupScreen() {
               <div className="p-4">
                  <input type="text" placeholder="Search players..." value={rosterSearchQuery} onChange={e => setRosterSearchQuery(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] outline-none mb-4" />
                  <div className="max-h-60 overflow-y-auto space-y-2">
-                    {players.filter(p => !matchSetup.playingXI.find(xi => xi.id === p.id) && (p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase())).map(p => (
+                    {players.filter(p => !activeXI.find(xi => xi.id === p.id) && (p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase())).map(p => (
                        <button key={p.id} onClick={() => { addPlayerToXI(p); setIsAddPlayerModalOpen(false); }} className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-[12px] active:bg-gray-50">
                           <div className="text-left">
                             <div className="font-bold text-[14px] text-[#101827]">{p.name}</div>

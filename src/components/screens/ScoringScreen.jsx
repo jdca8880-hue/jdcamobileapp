@@ -11,6 +11,7 @@ import { motion } from 'motion/react';
 import Modal from '../ui/Modal';
 import { supabase } from '../../lib/supabase';
 import { syncService } from '../../services/SyncService';
+import InningsInitScreen from './InningsInitScreen';
 
 const DISMISSALS = ['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket', 'Other'];
 const QUICK_RUNS = [0, 1, 2, 3, 4, 6];
@@ -20,9 +21,9 @@ export default function ScoringScreen() {
     runs, wickets, balls, formatOvers, calculateCRR, calculateProjectedScore,
     currentOverBalls, striker, nonStriker, currentBowler, isFreeHit, toggleStriker,
     validationError, setValidationError, matchStatus, recordRuns, recordExtra,
-    recordWicket, undoLastAction, innings, navigateTo, activeMatchId, matches,
+    recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
     matchSetup, setMatchSetup, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
-    deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack
+    deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings
   } = useCricket();
 
   const haptics = useHaptics();
@@ -50,18 +51,52 @@ export default function ScoringScreen() {
   }, []);
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
-  const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'Jabalpur';
-  const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'Mandla';
+  const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'Team A';
+  const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'Team B';
   const tournamentName = activeMatch?.tournament || 'JDCA District Cricket';
-  const playingXI = matchSetup?.playingXI || [];
+  
+  // Resolve XIs based on innings
+  const teamAXI = matchSetup?.teamAXI || [];
+  const teamBXI = matchSetup?.teamBXI || [];
+  const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
+  const electedTo = matchSetup?.electedTo;
+  
+  let battingTeamId = matchSetup?.teamAId;
+  let bowlingTeamId = matchSetup?.teamBId;
+  
+  if (tossWinnerTeamId) {
+    if (tossWinnerTeamId === matchSetup?.teamAId) {
+      battingTeamId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+      bowlingTeamId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+    } else {
+      battingTeamId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+      bowlingTeamId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+    }
+  }
 
-  const batters = useMemo(() => playingXI.filter(p => p?.name && p.name !== striker?.name && p.name !== nonStriker?.name), [playingXI, striker?.name, nonStriker?.name]);
+  if (innings === 2) {
+    const temp = battingTeamId;
+    battingTeamId = bowlingTeamId;
+    bowlingTeamId = temp;
+  }
+
+  const battingXI = battingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
+  const bowlingXI = bowlingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
+
+  // Only force full InningsInitScreen at the very beginning of the innings
+  const needsInitialization = balls === 0 && (!striker?.id || !nonStriker?.id || !currentBowler?.id);
+
+  const batters = useMemo(() => battingXI.filter(p => p?.name && p.name !== striker?.name && p.name !== nonStriker?.name), [battingXI, striker?.name, nonStriker?.name]);
   const lastBalls = deliveryLog.length ? deliveryLog.slice(-6) : currentOverBalls.map((b, i) => ({ ...b, id: `temp-${i}`, runs: Number(b.value) || 0, wicket: b.type === 'wicket', extra: b.type === 'extra' }));
   const isOverComplete = matchStatus === 'OVER_COMPLETE';
 
   useEffect(() => {
     if (isOverComplete) setOverOpen(true);
   }, [isOverComplete]);
+
+  if (needsInitialization) {
+    return <InningsInitScreen battingXI={battingXI} bowlingXI={bowlingXI} />;
+  }
 
   const doRun = (value) => {
     recordRuns(value);
@@ -91,7 +126,7 @@ export default function ScoringScreen() {
 
     let wk = '';
     if (selectedDismissal === 'Stumped') {
-      wk = matchSetup?.playingXI?.find(p => /wicket/i.test(p.role))?.name || fielder;
+      wk = bowlingXI.find(p => /wicket/i.test(p.role))?.name || fielder;
     }
 
     setReplacingBatterType(outName === nonStriker.name ? 'nonStriker' : 'striker');
@@ -141,20 +176,19 @@ export default function ScoringScreen() {
 
   const selectNewWk = (player) => {
     if (!player) return;
-    if (setMatchSetup) {
-      setMatchSetup(prev => ({
-        ...prev,
-        playingXI: prev.playingXI.map(p => {
-          if (p.id === player.id) return { ...p, role: 'Wicket Keeper' };
-          if (p.role?.includes('Wicket Keeper')) return { ...p, role: 'Batter' };
-          return p;
-        })
-      }));
-    }
+    const targetArrayName = bowlingTeamId === matchSetup?.teamAId ? 'teamAXI' : 'teamBXI';
+    setMatchSetup(prev => ({
+      ...prev,
+      [targetArrayName]: prev[targetArrayName].map(p => {
+        if (p.id === player.id) return { ...p, role: 'Wicket Keeper' };
+        if (p.role?.includes('Wicket Keeper')) return { ...p, role: 'Batter' };
+        return p;
+      })
+    }));
     setChangeWkOpen(false);
   };
 
-  const currentWk = playingXI.find(p => /wicket/i.test(p.role || ''));
+  const currentWk = bowlingXI.find(p => /wicket/i.test(p.role || ''));
 
   return (
     <div className="bg-cloud min-h-screen">
@@ -225,7 +259,7 @@ export default function ScoringScreen() {
                 {wickets}
               </motion.span>
             </div>
-            <div className="flex items-center justify-center gap-4 text-[14px] font-bold">
+            <div className="flex items-center justify-center gap-4 text-[14px] font-bold mt-4">
               <div className="bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-full text-slate-500">
                 Overs <span className="text-slate-900 ml-1">{formatOvers(balls)}</span>
               </div>
@@ -233,6 +267,14 @@ export default function ScoringScreen() {
                 CRR <span className="text-slate-900 ml-1">{calculateCRR()}</span>
               </div>
             </div>
+            {innings === 2 && target && (
+              <div className="mt-4 bg-jade-50 border border-jade-100 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-jade-700">
+                <div className="text-[12px] font-bold uppercase tracking-widest opacity-80 mb-0.5">Target: {target}</div>
+                <div className="text-[15px] font-black">
+                  Need {Math.max(0, target - runs)} runs from {Math.max(0, (totalMatchOvers * 6) - balls)} balls
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -380,8 +422,8 @@ export default function ScoringScreen() {
             {selectedDismissal === 'Caught' && (
               <div className="mb-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Caught by</label>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
-                  {playingXI.filter(p => p.name !== striker.name && p.name !== nonStriker.name).map(p => (
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {bowlingXI.filter(p => p.name !== striker.name && p.name !== nonStriker.name).map(p => (
                     <button 
                       key={p.id} 
                       className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === p.name ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
@@ -488,8 +530,8 @@ export default function ScoringScreen() {
               </div>
             )}
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Select new bowler</div>
-            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-              {playingXI.filter(p => /bowler|all-rounder/i.test(p.role || '') && p.id !== lastOverBowlerId).map(player => (
+            <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+              {bowlingXI.filter(p => /bowler|all-rounder/i.test(p.role || '') && p.id !== lastOverBowlerId).map(player => (
                 <button 
                   key={player.id} 
                   onClick={() => selectNextBowler(player)}
@@ -510,7 +552,7 @@ export default function ScoringScreen() {
           <Modal title="Change Wicket Keeper" onClose={() => setChangeWkOpen(false)}>
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Select new Wicket Keeper</div>
             <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-              {playingXI.map(player => {
+              {bowlingXI.map(player => {
                 const isWk = /wicket/i.test(player.role || '');
                 return (
                   <button 
@@ -528,6 +570,26 @@ export default function ScoringScreen() {
               })}
             </div>
           </Modal>
+        )}
+
+        {matchStatus === 'INNINGS_BREAK' && innings === 1 && (
+          <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 className="font-black text-slate-900">Innings Break</h3>
+              </div>
+              <div className="p-6 text-center">
+                <div className="text-[40px] font-black text-slate-900 leading-none mb-2">{runs}/{wickets}</div>
+                <div className="text-[14px] font-bold text-slate-500 mb-6">Target for {battingTeamId === matchSetup?.teamAId ? teamBName : teamAName}: {runs + 1}</div>
+                <button 
+                  onClick={() => startSecondInnings(runs + 1)}
+                  className="w-full py-4 rounded-xl font-bold bg-jade text-white shadow-lg active:scale-95 transition-transform"
+                >
+                  Start 2nd Innings
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>

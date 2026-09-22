@@ -395,10 +395,13 @@ export function CricketProvider({ children }) {
   // Match Setup State
   const [matchSetup, setMatchSetup] = useState({
     teamA: 'Team A',
+    teamAId: null,
     teamB: 'Team B',
+    teamBId: null,
     teamAShort: 'TA',
     teamBShort: 'TB',
     tossWinner: 'Team A',
+    tossWinnerTeamId: null,
     electedTo: 'Bat',
     totalOvers: 20,
     widePenalty: 1,
@@ -409,12 +412,14 @@ export function CricketProvider({ children }) {
       tvUmpire: '',
       referee: ''
     },
-    playingXI: []
+    teamAXI: [],
+    teamBXI: []
   });
 
   // Live Scoring Engine State
   const [innings, setInnings] = useState(1); // 1 or 2
   const [currentInningsId, setCurrentInningsId] = useState(null);
+  const [target, setTarget] = useState(null);
 
   const resolveInningsId = async (matchId = activeMatchId, inningsNum = innings) => {
     if (!matchId) return null;
@@ -454,6 +459,35 @@ export function CricketProvider({ children }) {
             });
           }
         } catch (cacheErr) {}
+
+        // Calculate Target for second innings
+        if (num === 2 && !target) {
+          try {
+            // Fetch first innings ID
+            const { data: firstInn } = await supabase
+              .from('innings')
+              .select('id')
+              .eq('match_id', matchId)
+              .eq('innings_number', 1)
+              .maybeSingle();
+              
+            if (firstInn?.id) {
+              const { data: deliveries } = await supabase
+                .from('deliveries')
+                .select('runs_total')
+                .eq('match_id', matchId)
+                .eq('innings_id', firstInn.id);
+                
+              if (deliveries) {
+                const firstInningsRuns = deliveries.reduce((acc, d) => acc + (d.runs_total || 0), 0);
+                setTarget(firstInningsRuns + 1);
+              }
+            }
+          } catch (e) {
+            console.error('[CricketContext] Failed to calculate target:', e);
+          }
+        }
+
         return inn.id;
       }
     } catch (err) {
@@ -468,6 +502,13 @@ export function CricketProvider({ children }) {
       resolveInningsId(activeMatchId, innings);
     }
   }, [activeMatchId, innings]);
+
+  useEffect(() => {
+    const activeMatch = matches?.find(m => m.id === activeMatchId);
+    if (activeMatch && activeMatch.status === 'COMPLETED') {
+      setMatchStatus('COMPLETED');
+    }
+  }, [activeMatchId, matches]);
 
   const [matchFormat, setMatchFormat] = useState('T20');
   const [totalMatchOvers, setTotalMatchOvers] = useState(20);
@@ -484,37 +525,9 @@ export function CricketProvider({ children }) {
   });
 
   // Current Batters & Bowler on Pitch
-  const [striker, setStriker] = useState({
-    id: '',
-    name: 'Striker',
-    runs: 0,
-    balls: 0,
-    fours: 0,
-    sixes: 0,
-    strikeRate: '0.0'
-  });
-
-  const [nonStriker, setNonStriker] = useState({
-    id: '',
-    name: 'Non-Striker',
-    runs: 0,
-    balls: 0,
-    fours: 0,
-    sixes: 0,
-    strikeRate: '0.0'
-  });
-
-  const [currentBowler, setCurrentBowler] = useState({
-    id: '',
-    name: 'Bowler',
-    overs: 0,
-    ballsBowled: 0,
-    maidens: 0,
-    runs: 0,
-    wickets: 0,
-    economy: '0.00',
-    wk: ''
-  });
+  const [striker, setStriker] = useState(null);
+  const [nonStriker, setNonStriker] = useState(null);
+  const [currentBowler, setCurrentBowler] = useState(null);
 
   // Ball Direction / Shot Sector & State Machine Attributes
   const [selectedDirection, setSelectedDirection] = useState('Cover');
@@ -658,6 +671,42 @@ export function CricketProvider({ children }) {
     if (newState.matchStatus === MATCH_STATES.INNINGS_BREAK) {
       setTimeout(() => navigateTo('innings-break'), 600);
     } else if (newState.matchStatus === MATCH_STATES.MATCH_FINISHED) {
+      // Calculate and finalize match
+      try {
+        const firstInningsScore = newState.target ? newState.target - 1 : 0;
+        let winnerId = null;
+        let margin = null;
+        let text = '';
+        
+        const activeMatch = matches?.find(m => m.id === activeMatchId);
+        const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'Team A';
+        const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'Team B';
+        
+        // Find team names based on battingTeamId
+        const isBattingTeamA = battingTeamId === matchSetup?.teamAId;
+        const battingName = isBattingTeamA ? teamAName : teamBName;
+        const bowlingName = isBattingTeamA ? teamBName : teamAName;
+        
+        if (newState.runs > firstInningsScore) {
+           winnerId = battingTeamId; 
+           const wktsLeft = 10 - newState.wickets;
+           margin = `${wktsLeft} wickets`;
+           text = `${battingName} won by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
+        } else if (newState.runs < firstInningsScore) {
+           winnerId = bowlingTeamId;
+           const runsDiff = firstInningsScore - newState.runs;
+           margin = `${runsDiff} runs`;
+           text = `${bowlingName} won by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
+        } else {
+           winnerId = null;
+           margin = 'Tie';
+           text = 'Match tied';
+        }
+        
+        api.finalizeMatch(activeMatchId, winnerId, margin, text).catch(console.error);
+      } catch (e) {
+        console.error(e);
+      }
       setTimeout(() => navigateTo('match-result'), 600);
     }
 
@@ -722,6 +771,29 @@ export function CricketProvider({ children }) {
     try { localStorage.setItem('jdca-scoring-first-run', '1'); } catch {}
   };
 
+  const startInnings = () => {
+    recordDeliveryEvent({
+      type: 'innings_start',
+      runs: 0,
+      totalRuns: 0,
+      label: 'Start'
+    });
+    setMatchStatus(MATCH_STATES.IN_PROGRESS);
+  };
+
+  const startSecondInnings = (targetRuns) => {
+    setTarget(targetRuns);
+    setInnings(2);
+    setRuns(0);
+    setWickets(0);
+    setBalls(0);
+    setCurrentOverBalls([]);
+    setStriker(null);
+    setNonStriker(null);
+    setCurrentBowler(null);
+    // startInnings() will be called by InningsInitScreen once the user selects players
+  };
+
   const replaceStriker = (player) => {
     if (!player) return;
     setStriker((prev) => ({
@@ -739,7 +811,7 @@ export function CricketProvider({ children }) {
     if (!player) return;
     const newBatter = {
       id: player.id || `temp-${Date.now()}`,
-      name: player.name || 'Unknown',
+      name: player.name || 'Batter',
       runs: Number.isFinite(player.runs) ? player.runs : 0,
       balls: Number.isFinite(player.balls) ? player.balls : 0,
       fours: Number.isFinite(player.fours) ? player.fours : 0,
@@ -751,6 +823,21 @@ export function CricketProvider({ children }) {
     } else {
       setNonStriker(newBatter);
     }
+  };
+
+  const replaceBowler = (player) => {
+    if (!player) return;
+    setCurrentBowler({
+      id: player.id,
+      name: player.name || 'Bowler',
+      overs: 0,
+      ballsBowled: 0,
+      maidens: 0,
+      runs: 0,
+      wickets: 0,
+      economy: '0.00',
+      wk: ''
+    });
   };
 
   const handleRetireBatter = (isStriker, isRetiredOut) => {
@@ -785,7 +872,25 @@ export function CricketProvider({ children }) {
   };
 
   // 1. Add Runs Action (0..6)
+  const validateScoringState = () => {
+    if (matchStatus === MATCH_STATES.MATCH_FINISHED || matchStatus === 'COMPLETED') {
+      setValidationError("Match has already been completed.");
+      return false;
+    }
+    if (!striker?.id || !nonStriker?.id || !currentBowler?.id) {
+      setValidationError("Missing active player IDs. Please initialize the innings.");
+      return false;
+    }
+    if (striker.id === nonStriker.id || striker.id === currentBowler.id || nonStriker.id === currentBowler.id) {
+      setValidationError("Player IDs must be unique for striker, non-striker, and bowler.");
+      return false;
+    }
+    return true;
+  };
+
   const recordRuns = (runAmount, direction = selectedDirection) => {
+    if (!validateScoringState()) return;
+
     const currentState = {
       runs,
       wickets,
@@ -824,6 +929,8 @@ export function CricketProvider({ children }) {
 
   // 2. Record Extra (Wide, No Ball, Leg Bye, Bye, Penalty)
   const recordExtra = (type, runsWithExtra = 0) => {
+    if (!validateScoringState()) return;
+
     const currentState = {
       runs,
       wickets,
@@ -855,6 +962,8 @@ export function CricketProvider({ children }) {
 
   // 3. Record Wicket / Dismissal (Bowled, Caught, LBW, Run Out, Stumped, etc.)
   const recordWicket = (dismissalType, outPlayerName = striker.name, fielder = '', wicketkeeper = '') => {
+    if (!validateScoringState()) return;
+
     const currentState = {
       runs,
       wickets,
@@ -887,8 +996,18 @@ export function CricketProvider({ children }) {
   };
 
   // 4. Undo Last Action (Zero-Drift Event Reversal)
-  const undoLastAction = () => {
+  const undoLastAction = async () => {
     if (ballHistory.length === 0) return;
+    if (matchStatus === MATCH_STATES.MATCH_FINISHED || matchStatus === 'COMPLETED') return; // Cannot undo after match completion
+    if (deliveryLog.length === 0) return;
+
+    const undoneDelivery = deliveryLog[deliveryLog.length - 1];
+    
+    // Guard against undoing initialization markers
+    if (undoneDelivery.type === 'innings_start' || undoneDelivery.type === 'match_start') {
+      return;
+    }
+
     const previousState = ballHistory[ballHistory.length - 1];
     setRuns(previousState.runs);
     setWickets(previousState.wickets);
@@ -902,12 +1021,32 @@ export function CricketProvider({ children }) {
     setInnings(previousState.innings);
     setMatchStatus(previousState.matchStatus || 'IN_PROGRESS');
     setLastOverBowlerId(previousState.lastOverBowlerId || null);
+    
+    // Remove from local log
     setDeliveryLog((prev) => prev.slice(0, -1));
     if (previousState.scorecard) {
       setScorecard(previousState.scorecard);
     }
     setBallHistory((prev) => prev.slice(0, -1));
     setValidationError(null);
+
+    // Remove from Dexie & Queue UNDO to Supabase
+    try {
+      const { db } = await import('../lib/db.js');
+      if (db.deliveries) {
+        await db.deliveries.where('id').equals(undoneDelivery.id).delete();
+      }
+      
+      const undoPayload = {
+        id: undoneDelivery.id,
+        matchId: undoneDelivery.matchId,
+        inningsId: undoneDelivery.inningsId
+      };
+      
+      await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
+    } catch (err) {
+      console.error('[CricketContext] Failed to persist undo:', err);
+    }
   };
 
   // Shortlist toggle for scouting
@@ -1053,6 +1192,7 @@ export function CricketProvider({ children }) {
         resolveInningsId,
         matchFormat,
         totalMatchOvers,
+        target,
         runs,
         wickets,
         balls,
@@ -1093,10 +1233,13 @@ export function CricketProvider({ children }) {
         lastOverBowlerId,
         replaceStriker,
         replaceBatter,
+        replaceBowler,
         handleRetireBatter,
         continueAfterOver,
         scoringFirstRunDone,
         markScoringFirstRunDone,
+        startInnings,
+        startSecondInnings,
         isAppLoading,
         officials: [],
         districtStats: [],

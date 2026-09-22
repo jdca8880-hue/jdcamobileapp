@@ -83,6 +83,8 @@ class SyncService {
           if (supabase) {
              if (action.action === 'RECORD_DELIVERY') {
                success = await this.pushDelivery(action.payload);
+             } else if (action.action === 'UNDO_DELIVERY') {
+               success = await this.deleteDelivery(action.payload);
              } else {
                // Fallback for other potential actions
                success = true;
@@ -138,6 +140,15 @@ class SyncService {
       throw new Error(`[SyncService] Missing valid Supabase inningsId for match ${payload.matchId} (innings ${payload.innings}). Cannot insert delivery.`);
     }
 
+    // Backend verification: Prevent delivery if match is COMPLETED
+    if (supabase) {
+      const { data: matchData } = await supabase.from('matches').select('status').eq('id', payload.matchId).maybeSingle();
+      if (matchData && matchData.status === 'COMPLETED') {
+        console.warn(`[SyncService] Match ${payload.matchId} is COMPLETED. Rejecting delivery record.`);
+        return true; // Return true to clear it from the offline queue gracefully
+      }
+    }
+
     // We map frontend `wicket` type to Postgres enum `wicket_type`
     let wicketType = 'NONE';
     if (payload.wicket) {
@@ -180,6 +191,31 @@ class SyncService {
     return true;
   }
 
+  async deleteDelivery(payload) {
+    if (!payload.id || !payload.matchId) return true; // Invalid data, skip
+
+    // Backend verification: Prevent undo if match is COMPLETED
+    if (supabase) {
+      const { data: matchData } = await supabase.from('matches').select('status').eq('id', payload.matchId).maybeSingle();
+      if (matchData && matchData.status === 'COMPLETED') {
+        console.warn(`[SyncService] Match ${payload.matchId} is COMPLETED. Rejecting undo record.`);
+        return true; // Return true to clear it from the offline queue gracefully
+      }
+    }
+    
+    const { error } = await supabase.from('deliveries')
+      .delete()
+      .eq('idempotency_key', payload.id) // The frontend generated payload.id maps to idempotency_key in DB
+      .eq('match_id', payload.matchId)
+      .eq('innings_id', payload.inningsId);
+      
+    if (error) {
+      console.error('[SyncService] Failed to delete delivery:', error);
+      throw error;
+    }
+    return true;
+  }
+
   /**
    * Attempt to perform an action immediately if online,
    * otherwise queue it for later.
@@ -189,6 +225,8 @@ class SyncService {
       try {
         if (actionType === 'RECORD_DELIVERY') {
            await this.pushDelivery(payload);
+        } else if (actionType === 'UNDO_DELIVERY') {
+           await this.deleteDelivery(payload);
         }
         console.log(`[SyncService] Executed live: ${actionType}`);
         return true;

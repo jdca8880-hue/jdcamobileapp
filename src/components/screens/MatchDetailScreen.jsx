@@ -157,14 +157,31 @@ export default function MatchDetailScreen() {
               </div>
             </div>
             
-            {live && (
-              <button 
-                onClick={() => navigateTo('scoring')}
-                className="w-full bg-[#0FA968] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#0a7d4e] transition-colors flex items-center justify-center gap-2"
-              >
-                <Radio size={20} /> LIVE SCORING CONSOLE
-              </button>
-            )}
+            {(() => {
+              const isAuthorizedScorer = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
+              const upcoming = match.status === 'SCHEDULED' || match.status === 'UPCOMING';
+              
+              return (
+                <>
+                  {upcoming && isAuthorizedScorer && (
+                    <button 
+                      onClick={() => navigateTo('match-setup')}
+                      className="w-full bg-[#2457D6] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#1a41a3] transition-colors flex items-center justify-center gap-2"
+                    >
+                      SETUP & START MATCH
+                    </button>
+                  )}
+                  {live && isAuthorizedScorer && (
+                    <button 
+                      onClick={() => navigateTo('scoring')}
+                      className="w-full bg-[#0FA968] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#0a7d4e] transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Radio size={20} /> LIVE SCORING CONSOLE
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 

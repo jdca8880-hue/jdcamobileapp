@@ -173,12 +173,10 @@ export function processDelivery(currentState, ballInput) {
       dismissalType: ball.dismissalType || 'Caught',
     });
 
-    // Introduce incoming batter
-    const newBatterIndex = state.wickets + 2;
-    const nextBatterNames = ['D. Karthik', 'C. Green', 'R. Patidar', 'W. Hasaranga', 'M. Siraj', 'H. Patel', 'Y. Chahal'];
-    const newBatter = {
-      id: `bat-${newBatterIndex}`,
-      name: nextBatterNames[state.wickets - 1] || `Batter ${newBatterIndex}`,
+    // Handle outgoing batter by setting them to a placeholder so the UI forces selection
+    const placeholderBatter = {
+      id: null,
+      name: '',
       runs: 0,
       balls: 0,
       fours: 0,
@@ -186,7 +184,11 @@ export function processDelivery(currentState, ballInput) {
       strikeRate: '0.0'
     };
 
-    state.striker = newBatter;
+    if (ball.outPlayerName === state.striker.name) {
+      state.striker = placeholderBatter;
+    } else {
+      state.nonStriker = placeholderBatter;
+    }
   }
 
   // 6. Over Pill Visual Labels
@@ -239,8 +241,10 @@ export function processDelivery(currentState, ballInput) {
       state.matchStatus = MATCH_STATES.INNINGS_BREAK;
     }
   } else if (state.innings === 2) {
-    const target = state.target || 185;
-    const isTargetChased = state.runs >= target;
+    const isTargetChased = state.target && state.runs >= state.target;
+    const isAllOut = state.wickets >= 10;
+    const isOversFinished = state.balls >= (state.totalMatchOvers * 6);
+    
     if (isTargetChased || isAllOut || isOversFinished) {
       state.matchStatus = MATCH_STATES.MATCH_FINISHED;
     }
