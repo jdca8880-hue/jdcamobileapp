@@ -1,0 +1,31 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Runs every day at 12:00 UTC
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Allows you to run this manually from the Actions tab
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Error: Secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set."
+            exit 1
+          fi
+          
+          echo "Pinging Supabase REST API to prevent auto-pausing..."
+          
+          # We query the 'age_categories' public table to ensure the request is valid
+          curl --fail -sS -X GET "$SUPABASE_URL/rest/v1/age_categories?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json"
+          
+          echo "Ping successful!"

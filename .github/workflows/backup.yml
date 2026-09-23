@@ -1,0 +1,54 @@
+name: Automated Database Backup
+
+on:
+  schedule:
+    # Runs every 3 days at 02:00 UTC
+    - cron: '0 2 */3 * *'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  backup-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Generate Backup Files
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "Error: Secret SUPABASE_DB_URL is not set."
+            exit 1
+          fi
+          
+          # Use today's date for the folder structure
+          DATE=$(date +'%Y-%m-%d')
+          YEAR=$(date +'%Y')
+          MONTH=$(date +'%m')
+          BACKUP_DIR="backups/$YEAR/$MONTH/jdca-backup-$DATE"
+          
+          mkdir -p "$BACKUP_DIR"
+          
+          echo "Dumping Roles..."
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f "$BACKUP_DIR/roles.sql"
+          
+          echo "Dumping Schema..."
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/schema.sql"
+          
+          echo "Dumping Data..."
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -f "$BACKUP_DIR/data.sql"
+          
+          echo "Compressing Backup..."
+          tar -czvf "jdca-backup-$DATE.tar.gz" -C "backups/$YEAR/$MONTH" "jdca-backup-$DATE"
+          
+          echo "Backup generated successfully!"
+
+      - name: Upload Backup Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jdca-database-backup-${{ github.run_id }}
+          path: jdca-backup-*.tar.gz
+          retention-days: 90
