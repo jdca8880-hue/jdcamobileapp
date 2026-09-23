@@ -1,5 +1,6 @@
 -- ==============================================================================
 -- JDCA Dummy Data Script
+-- WARNING: Development/test fixture — never executed automatically in production.
 -- Run this in your Supabase SQL Editor after running the main schema.
 -- It uses DO block to fetch existing UUIDs and link everything automatically.
 -- ==============================================================================

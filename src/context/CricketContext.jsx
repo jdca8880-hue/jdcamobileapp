@@ -51,6 +51,7 @@ export function CricketProvider({ children }) {
 
   // Application Loading State
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [appError, setAppError] = useState(null);
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -293,6 +294,7 @@ export function CricketProvider({ children }) {
             console.log('[CricketContext] Server reconciliation complete.');
           } catch (e) {
              console.warn('[CricketContext] Error during Supabase reconciliation. Falling back to local Dexie data.', e);
+             setAppError(e.message || 'Failed to fetch some live data. You are viewing cached offline data.');
           }
         }
 
@@ -356,6 +358,7 @@ export function CricketProvider({ children }) {
         }
       } catch (err) {
         console.error('[CricketContext] Sync error:', err);
+        setAppError(err.message || 'A critical error occurred while syncing data.');
         setIsAppLoading(false);
       }
     };
@@ -389,18 +392,19 @@ export function CricketProvider({ children }) {
       }
     } catch (err) {
       console.error('[CricketContext] Error refreshing admin data:', err);
+      setAppError(err.message || 'Failed to refresh admin data.');
     }
   };
 
   // Match Setup State
   const [matchSetup, setMatchSetup] = useState({
-    teamA: 'Team A',
+    teamA: '',
     teamAId: null,
-    teamB: 'Team B',
+    teamB: '',
     teamBId: null,
-    teamAShort: 'TA',
-    teamBShort: 'TB',
-    tossWinner: 'Team A',
+    teamAShort: '',
+    teamBShort: '',
+    tossWinner: '',
     tossWinnerTeamId: null,
     electedTo: 'Bat',
     totalOvers: 20,
@@ -679,8 +683,8 @@ export function CricketProvider({ children }) {
         let text = '';
         
         const activeMatch = matches?.find(m => m.id === activeMatchId);
-        const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'Team A';
-        const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'Team B';
+        const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'TBA';
+        const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'TBA';
         
         // Find team names based on battingTeamId
         const isBattingTeamA = battingTeamId === matchSetup?.teamAId;
@@ -1247,6 +1251,8 @@ export function CricketProvider({ children }) {
         announcements,
         setAnnouncements,
         pointsTable: [],
+        appError,
+        setAppError,
         representativeTeams,
         setRepresentativeTeams,
         activeSelectionTeam,

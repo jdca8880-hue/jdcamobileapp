@@ -4,17 +4,12 @@ export const api = {
   // ANNOUNCEMENTS
   // ==========================================
   async getAnnouncements() {
-    try {
-      const { data, error } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error && error.code !== '42P01') throw error;
-      return data || [];
-    } catch(e) {
-      console.warn("Announcements table might not exist yet", e);
-      return [];
-    }
+    const { data, error } = await supabase
+      .from('announcements')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error && error.code !== '42P01') throw error;
+    return data || [];
   },
   async createAnnouncement(announcementData) {
     const { data, error } = await supabase
@@ -133,10 +128,11 @@ export const api = {
       supabase.from('players').select('id, full_name, deleted_at').not('deleted_at', 'is', null)
     ]);
 
+    if (tRes.error) throw tRes.error;
+    if (mRes.error) throw mRes.error;
+    if (pRes.error) throw pRes.error;
+
     const items = [];
-    if (tRes.error) console.error('[api] Recycle bin tournaments error:', tRes.error);
-    if (mRes.error) console.error('[api] Recycle bin matches error:', mRes.error);
-    if (pRes.error) console.error('[api] Recycle bin players error:', pRes.error);
 
     if (tRes.data) {
       tRes.data.forEach(t => items.push({ id: t.id, type: 'TOURNAMENT', name: t.name, deleted_at: t.deleted_at }));
@@ -443,7 +439,8 @@ export const api = {
       .eq('id', matchId)
       .single();
 
-    if (matchError || !matchData) return null;
+    if (matchError) throw matchError;
+    if (!matchData) throw new Error("Match not found");
 
     // 2. Fetch innings
     const { data: inningsData } = await supabase
@@ -596,9 +593,9 @@ export const api = {
       .eq('id', matchId)
       .single();
 
-    if (matchErr || !match || !match.home_team_id || !match.away_team_id) {
-      console.warn('[api] Cannot create innings: match details missing or teams not set', matchErr);
-      return null;
+    if (matchErr) throw matchErr;
+    if (!match || !match.home_team_id || !match.away_team_id) {
+      throw new Error("Cannot create innings: match details missing or teams not set.");
     }
 
     // Determine batting and bowling team
@@ -642,8 +639,7 @@ export const api = {
         .maybeSingle();
       if (retry) return retry;
 
-      console.error('[api] Failed to create innings record:', insertErr);
-      return null;
+      throw insertErr;
     }
 
     return newInnings;

@@ -170,9 +170,9 @@ export function normalizeSelectionPlayer(p) {
 
   return {
     ...p,
-    id: p.id || `p_${Math.random()}`,
+    id: p.id || null,
     name: p.name || 'Unknown Player',
-    registrationNumber: `JDCA-${category}-${Math.floor(1000 + Math.random() * 9000)}`,
+    registrationNumber: p.registrationNumber || null,
     category,
     categoryLevel: AGE_HIERARCHY_LEVELS[category] || 5,
     gender,

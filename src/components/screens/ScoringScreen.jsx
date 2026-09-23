@@ -51,8 +51,8 @@ export default function ScoringScreen() {
   }, []);
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
-  const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'Team A';
-  const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'Team B';
+  const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'TBA';
+  const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'TBA';
   const tournamentName = activeMatch?.tournament || 'JDCA District Cricket';
   
   // Resolve XIs based on innings

@@ -21,16 +21,11 @@ export default function PlayerRegistrationScreen() {
   const [category, setCategory] = useState('Senior');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState('Men');
-  const [avatar, setAvatar] = useState('https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80');
+  const [avatar, setAvatar] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
 
-  const avatarPresets = [
-    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&auto=format&fit=crop&q=80'
-  ];
+  const avatarPresets = [];
 
   const [isUploading, setIsUploading] = useState(false);
 

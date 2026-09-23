@@ -340,7 +340,7 @@ export default function SelectionScreen() {
                   className="group relative flex flex-col items-center min-w-[76px] cursor-pointer rounded-xl p-2 bg-white border border-emerald-200 shadow-2xs hover:shadow-xs transition"
                 >
                   <img
-                    src={player.avatar || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80`}
+                    src={player.avatar || player.avatar_url || ''}
                     alt={player.name}
                     className="w-11 h-11 rounded-full object-cover border-2 border-emerald-500 shadow-2xs"
                   />
@@ -440,7 +440,7 @@ export default function SelectionScreen() {
                       >
                         <div className="relative shrink-0">
                           <img
-                            src={player.avatar || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80`}
+                            src={player.avatar || player.avatar_url || ''}
                             alt={player.name}
                             className="w-12 h-12 rounded-xl object-cover border border-gray-200"
                           />

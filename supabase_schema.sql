@@ -1136,6 +1136,15 @@ for select using (
   )
 );
 
+drop policy if exists rosters_scorer_write on match_rosters;
+create policy rosters_scorer_write on match_rosters
+for all using (
+  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+)
+with check (
+  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+);
+
 drop policy if exists innings_public_read on innings;
 create policy innings_public_read on innings
 for select using (

@@ -390,9 +390,9 @@ export default function HomeScreen() {
                         </span>
                       </div>
                       <div className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-3">
-                        <span>{liveMatches[0].teamA?.name || liveMatches[0].teamA || 'Team A'}</span>
+                        <span>{liveMatches[0].teamA?.name || liveMatches[0].teamA || 'TBA'}</span>
                         <span className="text-xs font-semibold px-2 py-0.5 bg-white/10 rounded-md text-slate-300">VS</span>
-                        <span>{liveMatches[0].teamB?.name || liveMatches[0].teamB || 'Team B'}</span>
+                        <span>{liveMatches[0].teamB?.name || liveMatches[0].teamB || 'TBA'}</span>
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-2">
                         <MapPin size={13} className="text-slate-400" />
