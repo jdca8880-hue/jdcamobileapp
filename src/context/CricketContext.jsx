@@ -1099,7 +1099,7 @@ export function CricketProvider({ children }) {
       const newPlayer = {
         id: p.id,
         name: p.full_name,
-        avatar: p.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        avatar: p.avatar_url || '',
         team: 'Local Club',
         club: 'District XI',
         role: p.primary_role,
@@ -1130,8 +1130,8 @@ export function CricketProvider({ children }) {
           behindSquare: 0,
           fine: 0,
         },
-        district: playerData.district || 'Indore District',
-        category: playerData.category || 'Senior',
+        district: playerData.district || '',
+        category: playerData.category || '',
         inForm: false,
       };
 

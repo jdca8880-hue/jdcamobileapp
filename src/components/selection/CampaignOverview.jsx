@@ -7,9 +7,8 @@ export default function CampaignOverview({ campaign, onNavigate }) {
   // Filter players for this campaign's category (mocking for now)
   const pool = players.filter(p => p.category === campaign.ageGroup);
   const selectedCount = shortlistedIds.length;
-  // Mock observed and evaluated for visual purposes
-  const observedCount = Math.floor(pool.length * 0.7);
-  const evaluatedCount = Math.floor(pool.length * 0.5);
+  const observedCount = 0;
+  const evaluatedCount = 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

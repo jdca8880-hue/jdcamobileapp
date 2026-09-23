@@ -386,19 +386,19 @@ export default function HomeScreen() {
                           LIVE NOW
                         </span>
                         <span className="text-xs text-blue-300 font-medium">
-                          {liveMatches[0].tournament || 'JDCA T20 Blast 2026 • Final'}
+                          {liveMatches[0].tournament || 'TBA'}
                         </span>
                       </div>
                       <div className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-3">
-                        <span>{liveMatches[0].teamA?.name || 'Jabalpur Kings'}</span>
+                        <span>{liveMatches[0].teamA?.name || liveMatches[0].teamA || 'Team A'}</span>
                         <span className="text-xs font-semibold px-2 py-0.5 bg-white/10 rounded-md text-slate-300">VS</span>
-                        <span>{liveMatches[0].teamB?.name || 'Katni Titans'}</span>
+                        <span>{liveMatches[0].teamB?.name || liveMatches[0].teamB || 'Team B'}</span>
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-2">
                         <MapPin size={13} className="text-slate-400" />
-                        <span>{liveMatches[0].venue || 'Wright Town Ground, Jabalpur'}</span>
+                        <span>{liveMatches[0].venue || 'TBA'}</span>
                         <span>•</span>
-                        <span>Toss: {liveMatches[0].teamA?.name || 'Jabalpur'} elected to bat</span>
+                        <span>Toss: {liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.id === liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.name || liveMatches[0].teamA) : (liveMatches[0].teamB?.name || liveMatches[0].teamB)) : 'TBA'} elected to {liveMatches[0].toss_decision?.toLowerCase() || 'bat'}</span>
                       </div>
                     </div>
 
@@ -421,11 +421,11 @@ export default function HomeScreen() {
                       <div className="text-xs space-y-1">
                         <div className="text-slate-300">
                           <span className="text-slate-400">Striker: </span>
-                          <span className="font-semibold text-white">{striker?.name || 'V. Kohli'}</span> ({striker?.runs || 64}*)
+                          <span className="font-semibold text-white">{striker?.name || 'Batter'}</span> ({striker?.runs || 0}*)
                         </div>
                         <div className="text-slate-300">
                           <span className="text-slate-400">Bowler: </span>
-                          <span className="font-semibold text-white">{currentBowler?.name || 'P. Cummins'}</span> ({currentBowler?.wickets || 1}/{currentBowler?.runs || 28})
+                          <span className="font-semibold text-white">{currentBowler?.name || 'Bowler'}</span> ({currentBowler?.wickets || 0}/{currentBowler?.runs || 0})
                         </div>
                       </div>
                     </div>
@@ -521,7 +521,7 @@ export default function HomeScreen() {
                               <div className="text-base font-black text-slate-900 tabular-nums drop-shadow-sm">
                                 {batter.careerRuns || 0}
                               </div>
-                              <div className="text-xs font-bold text-slate-500">Avg {batter.battingAvg || 42.5}</div>
+                              <div className="text-xs font-bold text-slate-500">Avg {batter.battingAvg || 0}</div>
                             </div>
                           </div>
                         );
@@ -560,14 +560,14 @@ export default function HomeScreen() {
                                 <div className="text-xs font-black text-slate-900">
                                   {bowler.name}
                                 </div>
-                                <div className="text-xs text-slate-500">{bowler.district || 'Katni'} • {bowler.role || 'Bowler'}</div>
+                                <div className="text-xs text-slate-500">{bowler.district || 'Unknown'} • {bowler.role || 'Bowler'}</div>
                               </div>
                             </div>
                             <div className="text-right relative z-10">
                               <div className="text-base font-black text-slate-900 tabular-nums drop-shadow-sm">
                                 {bowler.wickets || 0} Wkts
                               </div>
-                              <div className="text-xs font-bold text-slate-500">Econ {bowler.economy || '5.5'}</div>
+                              <div className="text-xs font-bold text-slate-500">Econ {bowler.economy || '0.0'}</div>
                             </div>
                           </div>
                         );

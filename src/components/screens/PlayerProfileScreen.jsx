@@ -25,27 +25,24 @@ export default function PlayerProfileScreen() {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const player = selectedPlayer || {
-    id: 'rohan-sharma',
-    name: 'Rohan Sharma',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    team: 'Jabalpur Kings XI',
-    role: 'Batter',
-    battingStyle: 'Right-Hand Batter',
-    bowlingStyle: 'Right-Arm Off Break',
-    category: 'Senior',
-    district: 'Jabalpur',
-    careerRuns: 4258,
-    battingAvg: 42.5,
-    strikeRate: 145.2,
-    matches: 112,
-    fifties: 28,
-    hundreds: 6,
-    fours: 412,
-    sixes: 85,
-    wickets: 0,
-    awards: ['Best Batter 2023-24', 'POTM - District Final'],
-  };
+  const player = selectedPlayer;
+  
+  if (!player) {
+    return (
+      <div className="pb-20 bg-[#f8fafc] min-h-screen flex flex-col items-center justify-center p-6">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center max-w-md w-full">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">No Player Selected</h2>
+          <p className="text-sm text-slate-500 mb-4">Please select a player from the directory to view their profile.</p>
+          <button 
+            onClick={goBack}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition w-full"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const isShortlisted = shortlistedIds?.includes(player.id);
 
@@ -122,7 +119,7 @@ export default function PlayerProfileScreen() {
 
           <div className="flex flex-col items-center mt-2 text-center">
             <img
-              src={player.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'}
+              src={player.avatar_url || player.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || player.full_name || 'Player')}&background=random`}
               alt={player.name}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white shadow-sm mb-3"
             />
@@ -191,7 +188,7 @@ export default function PlayerProfileScreen() {
                   <h3 className="font-semibold text-sm text-slate-900">Distinctions & Honors</h3>
                 </div>
                 <ul className="space-y-2 text-xs">
-                  {(player.awards || ['Best District Batter 2024', 'POTM - District Final']).map((award, i) => (
+                  {(player.awards || []).map((award, i) => (
                     <li key={i} className="flex items-center gap-2 text-slate-700">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                       <span>{award}</span>
@@ -269,25 +266,8 @@ export default function PlayerProfileScreen() {
                 <h3 className="font-semibold text-sm text-slate-900">Official Selection History</h3>
               </div>
               
-              <div className="divide-y divide-slate-100">
-                <div className="p-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">Senior District Trophy</div>
-                    <div className="text-xs text-slate-500 mt-0.5">2026 • {player.district} District XI</div>
-                  </div>
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded border border-emerald-100 flex items-center gap-1">
-                    <CheckCircle2 size={12} /> Selected
-                  </span>
-                </div>
-                <div className="p-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">MPCA Inter-District Championship</div>
-                    <div className="text-xs text-slate-500 mt-0.5">2025 • Jabalpur Division</div>
-                  </div>
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded">
-                    Participated
-                  </span>
-                </div>
+              <div className="p-8 text-center text-slate-500 text-sm">
+                No selection history available.
               </div>
             </div>
           )}
