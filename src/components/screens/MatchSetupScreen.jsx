@@ -4,7 +4,7 @@ import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
 
 export default function MatchSetupScreen() {
-  const { matchSetup, setMatchSetup, navigateTo, goBack, players, activeMatchId } = useCricket();
+  const { matchSetup, setMatchSetup, navigateTo, goBack, players, activeMatchId, registeredUsers = [] } = useCricket();
   const [currentStep, setCurrentStep] = useState(1);
   const [activeTeamTab, setActiveTeamTab] = useState('A');
   const [isSaving, setIsSaving] = useState(false);
@@ -53,7 +53,8 @@ export default function MatchSetupScreen() {
     { num: 3, label: 'Rules', icon: Settings2 },
   ];
 
-  const filteredPlayers = activeXI.filter((p) => (p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
+  const filteredPlayers = activeXI.filter((p) => (p.full_name || p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
+  const availableScorers = registeredUsers.filter(u => ['SCORER', 'DISTRICT_ADMIN', 'SUPER_ADMIN'].includes(u.role));
 
   const handleStartMatch = async () => {
     if (matchSetup.teamAXI.length === 0 || matchSetup.teamBXI.length === 0) {
@@ -194,7 +195,7 @@ export default function MatchSetupScreen() {
                   <div key={p.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-[12px]">
                     <div className="flex-1">
                        <div className="font-bold text-[14px] text-[#101827] flex items-center gap-1.5">
-                         {p.name} 
+                         {p.full_name || p.name} 
                          {p.isCaptain && <span className="bg-[#2457D6] text-white text-[9px] px-1.5 py-0.5 rounded-sm">C</span>}
                          {p.role?.includes('Wicket Keeper') && <span className="bg-[#ff6100] text-[#101827] text-[9px] px-1.5 py-0.5 rounded-sm">WK</span>}
                        </div>
@@ -250,6 +251,20 @@ export default function MatchSetupScreen() {
                     <option value={2}>2 Runs (No Re-bowl)</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Official Scorer</label>
+                  <select 
+                    value={matchSetup.assignedScorerId || ''} 
+                    onChange={e => setMatchSetup(p => ({ ...p, assignedScorerId: e.target.value }))} 
+                    className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent appearance-none"
+                  >
+                    <option value="">Select a scorer...</option>
+                    {availableScorers.map(s => (
+                      <option key={s.id} value={s.id}>{s.email || s.name}</option>
+                    ))}
+                  </select>
+                </div>
              </div>
           </div>
         )}
@@ -285,10 +300,10 @@ export default function MatchSetupScreen() {
               <div className="p-4">
                  <input type="text" placeholder="Search players..." value={rosterSearchQuery} onChange={e => setRosterSearchQuery(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] outline-none mb-4" />
                  <div className="max-h-60 overflow-y-auto space-y-2">
-                    {players.filter(p => !activeXI.find(xi => xi.id === p.id) && (p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase())).map(p => (
+                    {players.filter(p => !activeXI.find(xi => xi.id === p.id) && (p.full_name || p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase())).map(p => (
                        <button key={p.id} onClick={() => { addPlayerToXI(p); setIsAddPlayerModalOpen(false); }} className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-[12px] active:bg-gray-50">
                           <div className="text-left">
-                            <div className="font-bold text-[14px] text-[#101827]">{p.name}</div>
+                            <div className="font-bold text-[14px] text-[#101827]">{p.full_name || p.name}</div>
                             <div className="text-xs text-[#8a99b0]">{p.role}</div>
                           </div>
                           <Plus size={18} className="text-[#2457D6]"/>
