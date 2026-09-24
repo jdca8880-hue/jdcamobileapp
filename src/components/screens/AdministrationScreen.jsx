@@ -8,13 +8,15 @@ import { useCricket } from '../../context/CricketContext';
 import { PageHeader, TabBar } from '../ui/PageHeader';
 import { RoleBadge } from '../ui/Badge';
 import { api } from '../../lib/api';
+import SeasonManagementTab from './SeasonManagementTab';
 import SeasonMigrationTab from './SeasonMigrationTab';
 import RecycleBinTab from './RecycleBinTab';
 import SelectorAssignmentModal from './SelectorAssignmentModal';
 
 const TABS = [
   { id: 'staff',      label: 'Staff & Users' },
-  { id: 'migration',  label: 'Season Migration' },
+  { id: 'seasons',    label: 'Season Management' },
+  { id: 'migration',  label: 'Player Rollover' },
   { id: 'system',     label: 'System & Settings' },
   { id: 'recycle',    label: 'Recycle Bin' }
 ];
@@ -187,6 +189,18 @@ export default function AdministrationScreen() {
       } catch (error) {
         console.error('Failed to update user status:', error);
         alert('Failed to update user status');
+      }
+    }
+  };
+
+  const deleteUserRecord = async (userId, name) => {
+    if(window.confirm(`Are you absolutely sure you want to delete ${name}? This will permanently remove them from the database.`)) {
+      try {
+        await api.deleteUser(userId);
+        setRegisteredUsers(prev => prev.filter(u => u.id !== userId));
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+        alert('Failed to delete user. They might be referenced elsewhere in the database.');
       }
     }
   };
@@ -388,8 +402,12 @@ export default function AdministrationScreen() {
                               <Lock size={12} />
                               Change Pass
                             </button>
-                            <button onClick={() => revokeUserAccess(usr.id, usr.is_active)} className={`p-1.5 rounded ${usr.is_active === false ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'}`} title={usr.is_active === false ? "Restore Access" : "Revoke Access"}>
-                              {usr.is_active === false ? <Check size={14} /> : <AlertTriangle size={14} />}
+                            <button onClick={() => revokeUserAccess(usr.id, usr.is_active)} className={`text-[10px] px-2 py-1 rounded font-bold flex items-center gap-1 transition ${usr.is_active === false ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'}`} title={usr.is_active === false ? "Activate User" : "Deactivate User"}>
+                              {usr.is_active === false ? <><Check size={12} /> Activate Now</> : <><AlertTriangle size={12} /> Deactivate Now</>}
+                            </button>
+                            <button onClick={() => deleteUserRecord(usr.id, usr.name)} className="text-[10px] bg-red-50 text-red-700 px-2 py-1 rounded font-bold hover:bg-red-100 flex items-center gap-1 transition" title="Delete User">
+                              <X size={12} />
+                              Delete
                             </button>
                           </div>
                         </td>
@@ -401,6 +419,11 @@ export default function AdministrationScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── TAB: SEASON MANAGEMENT ────────────────────────────────────── */}
+      {activeTab === 'seasons' && (
+        <SeasonManagementTab userRole={userRole} />
       )}
 
       {/* ── TAB 2: JDCA MANAGEMENT / MIGRATION ────────────────────────────────────── */}

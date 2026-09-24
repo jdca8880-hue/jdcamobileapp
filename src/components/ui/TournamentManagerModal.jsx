@@ -10,7 +10,7 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
     initialData || {
       name: '',
       shortName: '',
-      season: '2026',
+      season_id: '',
       format: 'T20',
       startDate: '',
       endDate: '',
@@ -20,6 +20,26 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
       customMatches: []
     }
   );
+
+  const [seasons, setSeasons] = useState([]);
+
+  React.useEffect(() => {
+    const fetchSeasons = async () => {
+      try {
+        const data = await api.getSeasons();
+        setSeasons(data || []);
+        if (!initialData?.season_id && data?.length > 0) {
+          const active = data.find(s => s.is_current_active);
+          setFormData(prev => ({ ...prev, season_id: active ? active.id : data[0].id }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch seasons:', err);
+      }
+    };
+    if (isOpen) {
+      fetchSeasons();
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
@@ -151,16 +171,16 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                 <div className="space-y-1.5">
                   <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Season</label>
                   <select 
-                    name="season"
-                    value={formData.season}
+                    name="season_id"
+                    value={formData.season_id}
                     onChange={handleChange}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   >
-                    {
-                      Array.from({ length: 21 }, (_, i) => 2020 + i).map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))
-                    }
+                    {seasons.map(season => (
+                      <option key={season.id} value={season.id}>
+                        {season.name} {season.is_current_active ? '(Active)' : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

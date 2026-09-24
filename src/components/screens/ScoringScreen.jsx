@@ -300,7 +300,7 @@ export default function ScoringScreen() {
         </div>
 
         {/* PLAYERS ON FIELD */}
-        <div className="px-4 mb-8">
+        <div className="px-4 mb-8 pb-80">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <button onClick={() => toggleStriker?.()} className="bg-white rounded-[12px] p-4 text-left border border-slate-200 shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors">
               <div className="absolute top-0 right-0 w-2 h-full bg-jade" />
@@ -338,7 +338,7 @@ export default function ScoringScreen() {
         </div>
 
         {/* SCORING PAD */}
-        <div className="bg-slate-50 border-t border-slate-200 p-5 mt-auto shadow-[0_-10px_40px_rgba(0,0,0,0.03)] pb-24">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 border-t border-slate-200 p-3 sm:p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] pb-safe pt-4">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-[16px] font-black text-slate-900">Record Ball</h3>
@@ -379,7 +379,7 @@ export default function ScoringScreen() {
           </div>
 
           <div className="grid grid-cols-3 gap-2.5">
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.heavy(); setDismissalOpen(true); }} className="h-14 rounded-[12px] bg-red-600 text-white flex items-center justify-center gap-1.5 text-[13px] font-black shadow-md border border-red-700">
+             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.heavy(); setDismissalOpen(true); }} className="h-14 rounded-[12px] bg-red-600 text-white flex items-center justify-center gap-1.5 text-[13px] font-black shadow-md border border-red-700 active:bg-red-700 transition-colors">
                <ShieldAlert size={16} /> WICKET
              </motion.button>
              <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.medium(); setRetireModalOpen(true); }} className="h-14 rounded-[12px] bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 text-[13px] font-black shadow-sm active:bg-slate-50 transition-colors">

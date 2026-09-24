@@ -7,9 +7,11 @@ import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
 
 export default function MatchResultScreen() {
-  const { matches = [], activeMatchId, navigateTo } = useCricket();
+  const { matches = [], activeMatchId, navigateTo, userRole } = useCricket();
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedMotm, setSelectedMotm] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     async function fetchReport() {
@@ -21,6 +23,9 @@ export default function MatchResultScreen() {
         }
         const data = await api.getMatchScorecard(targetId);
         setMatchData(data);
+        if (data.manOfTheMatch) {
+           setSelectedMotm(data.manOfTheMatch.id);
+        }
       } catch (err) {
         console.error("Failed to load match scorecard", err);
       } finally {
@@ -40,7 +45,34 @@ export default function MatchResultScreen() {
 
   if (!matchData) return null;
 
-  return <div className="match-result-page matches-directory-page">
+  const canAssignMotm = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
+
+  const handleAssignMotm = async (e) => {
+    const playerId = e.target.value;
+    setSelectedMotm(playerId);
+    if (playerId && matchData) {
+      setIsAssigning(true);
+      try {
+        await api.assignManOfTheMatch(matchData.id, playerId);
+        const updatedData = await api.getMatchScorecard(matchData.id);
+        setMatchData(updatedData);
+      } catch (err) {
+        console.error("Failed to assign MotM:", err);
+        alert("Failed to assign Man of the Match.");
+      } finally {
+        setIsAssigning(false);
+      }
+    }
+  };
+
+  const allMatchPlayers = useMemo(() => {
+    if (!matchData?.scorecard) return [];
+    const tA = matchData.scorecard.teamA.batting.map(b => ({ id: b.id, name: b.name }));
+    const tB = matchData.scorecard.teamB.batting.map(b => ({ id: b.id, name: b.name }));
+    return [...tA, ...tB].filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
+  }, [matchData]);
+
+  return <div className="match-result-page matches-directory-page pb-24">
     <div className="result-hero-light">
       <div><span className="result-hero-light__kicker"><Trophy size={14}/> OFFICIAL MATCH RESULT</span><h1>{matchData.resultText || matchData.result || 'Match completed'}</h1><p>{matchData.tournament || 'JDCA Fixture'} • {matchData.venue || 'JDCA Ground'} • {matchData.date || 'Match Day'}</p></div>
       <div className="result-hero-light__scores"><span>{matchData.teamA?.name}</span><strong>{matchData.teamA?.score || '-'}</strong><small>{matchData.teamA?.overs || ''}</small><i>VS</i><span>{matchData.teamB?.name}</span><strong>{matchData.teamB?.score || '-'}</strong><small>{matchData.teamB?.overs || ''}</small></div>
@@ -52,7 +84,27 @@ export default function MatchResultScreen() {
       <div><small>TOP BATTER</small><b>{highlights.topBatter?.name || '-'}</b><span>{highlights.topBatter?.stat || 'Derived from scorecard'}</span></div>
       <div><small>TOP BOWLER</small><b>{highlights.topBowler?.name || '-'}</b><span>{highlights.topBowler?.stat || 'Derived from scorecard'}</span></div>
       <div><small>BEST PARTNERSHIP</small><b>{highlights.bestPartnership?.names || '-'}</b><span>{highlights.bestPartnership?.stat || 'Derived from scorecard'}</span></div>
-      <div><small>PLAYER OF THE MATCH</small><b>{highlights.playerOfMatch?.name || 'Official selection'}</b><span>{highlights.playerOfMatch?.batting || highlights.playerOfMatch?.bowling || 'Official award'}</span></div>
+      <div>
+        <small>PLAYER OF THE MATCH</small>
+        {canAssignMotm ? (
+          <select 
+            value={selectedMotm} 
+            onChange={handleAssignMotm}
+            disabled={isAssigning}
+            className="mt-1 w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-cobalt"
+          >
+            <option value="">-- Select Player --</option>
+            {allMatchPlayers.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        ) : (
+          <>
+            <b>{highlights.playerOfMatch?.name || matchData.manOfTheMatch?.name || 'Not yet awarded'}</b>
+            <span>{highlights.playerOfMatch?.name ? 'Official award' : 'Pending official selection'}</span>
+          </>
+        )}
+      </div>
       <div><small>RESULT</small><b>{matchData.resultText || matchData.result || 'Match completed'}</b><span>Official Final Status</span></div>
     </div></div>
     <div className="result-section"><div className="section-kicker"><Newspaper size={15}/> MEDIA REPORT</div><MatchMediaReport match={matchData}/></div>

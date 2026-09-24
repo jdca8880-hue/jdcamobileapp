@@ -73,7 +73,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto no-scrollbar space-y-1">
-        <div className="sidebar-kicker px-3 mb-3">JDCA / SEASON 2026</div>
+        <div className="sidebar-kicker px-3 mb-3">JDCA / CURRENT SEASON</div>
 
         {visible.map((item) => {
           const Icon = item.icon;

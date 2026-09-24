@@ -20,9 +20,11 @@ const MatchTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function MatchDetailScreen() {
-  const { matches = [], activeMatchId, navigateTo, goBack, userRole } = useCricket();
+  const { matches = [], activeMatchId, navigateTo, goBack, userRole, registeredUsers = [] } = useCricket();
   const [activeTab, setActiveTab] = useState('info');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedScorer, setSelectedScorer] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this match? It will be moved to the Recycle Bin.")) return;
@@ -37,6 +39,21 @@ export default function MatchDetailScreen() {
       alert('Failed to delete match.');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleAssignScorer = async () => {
+    if (!selectedScorer) return;
+    setIsAssigning(true);
+    try {
+      const { api } = await import('../../lib/api');
+      await api.assignScorer(match.id, selectedScorer);
+      alert('Scorer assigned successfully.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to assign scorer.');
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -153,7 +170,31 @@ export default function MatchDetailScreen() {
                 <h3 className="font-bold text-[14px] uppercase tracking-wider">Officials</h3>
               </div>
               <div className="p-4 text-[13px] font-bold text-[#101827]">
-                {(match.officials || []).join(', ') || 'Sunil Kumar (Umpire), Anil Sharma (Umpire), Rahul Jain (Scorer)'}
+                <div className="mb-3">
+                  <span className="text-[#8a99b0] font-medium block mb-1">Scorer</span>
+                  {match.scorer_name || match.scorerName || 'Not Assigned'}
+                </div>
+                {['SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(userRole) && (
+                  <div className="mt-3 pt-3 border-t border-gray-50 flex gap-2">
+                    <select 
+                      className="flex-1 p-2 rounded-lg border border-gray-200 text-[13px]"
+                      value={selectedScorer}
+                      onChange={(e) => setSelectedScorer(e.target.value)}
+                    >
+                      <option value="">-- Select Scorer --</option>
+                      {registeredUsers.filter(u => u.role === 'SCORER' || u.role === 'SUPER_ADMIN' || u.role === 'DISTRICT_ADMIN').map(u => (
+                        <option key={u.id} value={u.name}>{u.name}</option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={handleAssignScorer}
+                      disabled={isAssigning || !selectedScorer}
+                      className="bg-[#2457D6] text-white px-3 py-2 rounded-lg font-bold disabled:opacity-50"
+                    >
+                      Assign
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             

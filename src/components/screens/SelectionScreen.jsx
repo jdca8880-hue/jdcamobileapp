@@ -62,13 +62,25 @@ export default function SelectionScreen() {
     setActiveSelectionTeam,
     selectorPermissions,
     finalizeSelectionProcess,
-    navigateTo 
+    navigateTo,
+    userRole
   } = useCricket();
 
   const [selectedDistrict, setSelectedDistrict] = useState('All Districts');
   const [selectedRole, setSelectedRole] = useState('All Roles');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSavedToast, setShowSavedToast] = useState(false);
+
+  if (representativeTeams.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <ShieldAlert className="w-12 h-12 text-slate-400 mb-4" />
+        <h3 className="text-slate-600 font-bold text-lg">No Selection Assignments</h3>
+        <p className="text-sm text-slate-500 mt-2">You have not been assigned to any selection processes yet.</p>
+        <p className="text-xs text-slate-400 mt-1">Please contact the Administrator to assign you to a squad.</p>
+      </div>
+    );
+  }
 
   const currentTeam = activeSelectionTeam || representativeTeams[0];
   
@@ -83,38 +95,22 @@ export default function SelectionScreen() {
     );
   }
 
-  // Filter players according to authorized age rank and district permissions
+  // Filter players. Note: The backend RLS + get_eligible_players_for_process already handles permissions!
   const filteredPlayers = players.filter((player) => {
-    // 1. Selector Permission Level Check (Max Age Rank Level)
-    const maxRank = selectorPermissions?.maxAgeRankLevel || 6;
-    const playerCategoryRank = 
-      player.category === 'Under 13' || player.category === 'U13' ? 1 :
-      player.category === 'Under 15' || player.category === 'U15' ? 2 :
-      player.category === 'Under 17' || player.category === 'U17' ? 3 :
-      player.category === 'Under 19' || player.category === 'U19' ? 4 :
-      player.category === 'Under 23' || player.category === 'U23' ? 5 : 6;
-
-    if (playerCategoryRank > maxRank) return false;
-
-    // 2. Category Match with Active Target Team
-    const normalizedPlayerCategory = (player.category || '').replace('-', ' ').toLowerCase();
-    const normalizedTargetCategory = (currentTeam.ageCategory || '').replace('-', ' ').toLowerCase();
-    const matchesCategory = normalizedPlayerCategory === normalizedTargetCategory || playerCategoryRank <= (currentTeam.ageRankLevel || 4);
-
-    // 3. District Access Filter
+    // 1. District Access Filter
     const matchesDistrict = 
       selectedDistrict === 'All Districts' ? true : player.district === selectedDistrict;
 
-    // 4. Role Filter
+    // 2. Role Filter
     const matchesRole = 
       selectedRole === 'All Roles' ? true : (player.primaryRole || player.role || '').toLowerCase().includes(selectedRole.toLowerCase());
 
-    // 5. Search Filter
+    // 3. Search Filter
     const matchesSearch = 
       (player.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (player.district || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesCategory && matchesDistrict && matchesRole && matchesSearch;
+    return matchesDistrict && matchesRole && matchesSearch;
   });
 
   const selectedSquad = players.filter(p => shortlistedIds.includes(p.id));
@@ -153,17 +149,22 @@ export default function SelectionScreen() {
 
   const handleSaveSquad = async () => {
     try {
-      if (!currentTeam.selectedPlayerIds || currentTeam.selectedPlayerIds.length === 0) {
+      if (!shortlistedIds || shortlistedIds.length === 0) {
         alert("Cannot lock an empty squad. Please select at least one player.");
         return;
       }
-      await finalizeSelectionProcess(currentTeam.id, currentTeam.selectedPlayerIds);
+      await finalizeSelectionProcess(currentTeam.id, shortlistedIds);
       setShowSavedToast(true);
       setTimeout(() => setShowSavedToast(false), 3000);
     } catch (e) {
       alert("Failed to lock squad. You might not have the correct permissions.");
     }
   };
+
+  const isAdmin = ['SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(userRole);
+  const canFinalize = currentTeam.isLeadSelector || isAdmin;
+  const isFinalized = currentTeam.status === 'FINALIZED';
+
 
   const handleOpenComparison = (player1) => {
     setSelectedPlayer(player1);
@@ -191,12 +192,12 @@ export default function SelectionScreen() {
             <button
               type="button"
               onClick={handleSaveSquad}
-              disabled={currentTeam.status === 'FINALIZED'}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-cobalt px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-cobalt-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isFinalized || !canFinalize}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-sm transition ${isFinalized || !canFinalize ? 'bg-slate-400 cursor-not-allowed' : 'bg-cobalt hover:bg-cobalt-700 cursor-pointer'}`}
             >
               <Save className="w-4 h-4" />
               <span>
-                 {currentTeam.status === 'FINALIZED' ? 'Squad Locked' : `Finalize ${currentTeam.name} (${shortlistedIds.length}/${currentTeam.targetSquadSize})`}
+                 {isFinalized ? 'Squad Locked' : (!canFinalize ? 'Lead Selector Only' : `Finalize ${currentTeam.name} (${shortlistedIds.length}/${currentTeam.targetSquadSize})`)}
               </span>
             </button>
           </div>
@@ -234,18 +235,11 @@ export default function SelectionScreen() {
               }}
               className="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#E1FF01] cursor-pointer"
             >
-              {representativeTeams.map((team) => {
-                const isAuthorized = (team.ageRankLevel || 1) <= (selectorPermissions?.maxAgeRankLevel || 6);
-                return (
-                  <option 
-                    key={team.id} 
-                    value={team.id}
-                    disabled={!isAuthorized}
-                  >
-                    {team.name} {!isAuthorized ? '(Restricted)' : ''}
-                  </option>
-                );
-              })}
+              {representativeTeams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -319,11 +313,11 @@ export default function SelectionScreen() {
             <button
               type="button"
               onClick={handleSaveSquad}
-              disabled={currentTeam.status === 'FINALIZED'}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isFinalized || !canFinalize}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-xs transition ${isFinalized || !canFinalize ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'}`}
             >
               <Save className="w-3.5 h-3.5" />
-              <span>{currentTeam.status === 'FINALIZED' ? 'LOCKED' : 'Confirm & Lock Squad'}</span>
+              <span>{isFinalized ? 'LOCKED' : (!canFinalize ? 'Lead Selector Only' : 'Confirm & Lock Squad')}</span>
             </button>
           </div>
 

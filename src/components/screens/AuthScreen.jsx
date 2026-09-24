@@ -182,7 +182,7 @@ export default function AuthScreen() {
           {/* Footer */}
           <div className="mt-10 pt-6 border-t border-slate-200 text-center">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Governed by MPCA &middot; JDCA Version 2.4
+              JDCA Version 2.4
             </p>
           </div>
 

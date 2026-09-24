@@ -229,277 +229,147 @@ export default function SelectionWorkspace() {
     <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans text-slate-900">
       
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* TOP BAR & FILTERS (SELECT CATEGORY, DISTRICT, SEARCH) */}
+      {/* PREMIUM HEADER & FILTER WORKSPACE */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-2xs">
-        <div className="max-w-6xl mx-auto px-4 py-3.5 space-y-3">
-          
-          {/* Header Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-blue-600 shrink-0" />
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-                      Team Selection
-                    </h1>
-                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                      15 Players
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-medium hidden sm:block mt-0.5">
-                    Choose players from Jabalpur division districts to make the final 15-player team.
-                  </p>
-                </div>
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto">
+          {/* Header & Context */}
+          <div className="px-4 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="w-6 h-6 text-[#2457D6]" />
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Team Selection</h1>
               </div>
-
-              {/* Mobile Quick Actions: Selected Counter + Save */}
-              <div className="flex sm:hidden items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setIsTeamDrawerOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>{selectedCount}/15</span>
-                </button>
-                {selectedCount >= 11 && (
-                  <button
-                    type="button"
-                    onClick={() => setIsSaveModalOpen(true)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Save</span>
-                  </button>
-                )}
-              </div>
+              <p className="text-sm font-semibold text-slate-500 flex items-center gap-2 flex-wrap">
+                <span className="text-slate-800">{activeTeam.name.replace(' 2026', '')}</span>
+                <span className="text-slate-300">&bull;</span>
+                <span>{selectedDistrict === 'All' ? 'Jabalpur Division' : selectedDistrict}</span>
+                <span className="text-slate-300">&bull;</span>
+                <span>2026-27 Season</span>
+              </p>
             </div>
-
-            {/* Desktop Quick Actions */}
-            <div className="hidden sm:flex items-center gap-2">
+            
+            {/* Action Area: Selected Team Progress */}
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setIsTeamDrawerOpen(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                className="group relative flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-[#2457D6] hover:bg-[#eef2fd] transition-all cursor-pointer shadow-sm"
               >
-                <Users className="w-4 h-4" />
-                <span>Selected Players</span>
-                <span className="bg-white text-blue-700 rounded-full px-2 py-0.2 text-xs font-black">
-                  {selectedCount}/15
-                </span>
+                <div className="flex flex-col items-start">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-[#2457D6]">Current Team</span>
+                  <span className="text-sm font-black text-slate-900 group-hover:text-[#1b41a8]">{selectedCount} / 15 Selected</span>
+                </div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-colors ${selectedCount >= 15 ? 'bg-[#0FA968] text-white' : 'bg-[#2457D6] text-white'}`}>
+                  {selectedCount >= 15 ? <CheckCircle2 size={20} /> : <Users size={20} />}
+                </div>
               </button>
-
               {selectedCount >= 11 && (
                 <button
                   type="button"
                   onClick={() => setIsSaveModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-[#0FA968] hover:bg-[#0a7d4e] text-white font-bold transition-colors shadow-sm h-full flex items-center gap-2 cursor-pointer"
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Choose Captain & Save</span>
+                  <Save size={18} />
+                  <span className="hidden sm:inline">Finalize Team</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Mobile Context & Filter Toggle Strip (Toggle Disappear UX) */}
-          <div className="sm:hidden flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-            <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-              <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg truncate shrink-0">
-                {activeTeam.name.replace(' 2026', '')}
-              </span>
-              {selectedDistrict !== 'All' && (
-                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-lg truncate border border-blue-200">
-                  {selectedDistrict}
-                </span>
-              )}
-              {searchQuery && (
-                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg truncate">
-                  "{searchQuery}"
-                </span>
-              )}
+          {/* Compact Filters Bar */}
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <SlidersHorizontal size={16} className="text-slate-400" />
+              <span className="font-bold text-slate-700 hidden sm:inline">Filters:</span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 border cursor-pointer ${
-                isFiltersExpanded || selectedDistrict !== 'All' || searchQuery
-                  ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-2xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>{isFiltersExpanded ? 'Hide Filters' : 'Filters'}</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isFiltersExpanded ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
-
-          {/* First Step: Select Category and District (Collapsible on Mobile, Grid on Desktop) */}
-          <div className={`${isFiltersExpanded ? 'grid' : 'hidden'} sm:grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-150`}>
             
-            {/* Category */}
-            <div className="sm:col-span-4">
-              <label className="block text-xs font-bold text-slate-500 mb-1">
-                1. Select Age Category
-              </label>
+            <div className="grid grid-cols-2 sm:flex items-center gap-2 flex-1">
               <select
                 value={activeTeamId}
                 onChange={(e) => setActiveTeamId(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-blue-600 font-bold text-slate-800 cursor-pointer"
+                className="w-full sm:w-auto px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-[#2457D6] font-semibold text-slate-800 cursor-pointer shadow-sm h-[38px]"
               >
                 {CATEGORY_OPTIONS.map(opt => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.name}
-                  </option>
+                  <option key={opt.id} value={opt.id}>{opt.name}</option>
                 ))}
               </select>
-            </div>
 
-            {/* District */}
-            <div className="sm:col-span-4">
-              <label className="block text-xs font-bold text-slate-500 mb-1">
-                2. Select District
-              </label>
               <select
                 value={selectedDistrict}
                 onChange={(e) => setSelectedDistrict(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-blue-600 font-semibold text-slate-700 cursor-pointer"
+                className="w-full sm:w-auto px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-[#2457D6] font-semibold text-slate-800 cursor-pointer shadow-sm h-[38px]"
               >
                 <option value="All">All Districts</option>
                 {availableDistricts.filter(d => d !== 'All').map(d => (
-                  <option key={d} value={d}>{d} District</option>
+                  <option key={d} value={d}>{d}</option>
                 ))}
               </select>
             </div>
 
-            {/* Search */}
-            <div className="sm:col-span-4">
-              <label className="block text-xs font-bold text-slate-500 mb-1">
-                3. Search by Name
-              </label>
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Type player name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-blue-600 font-medium text-slate-800"
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search players..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-[#2457D6] font-medium text-slate-800 shadow-sm h-[38px]"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
-
           </div>
 
-          {/* Simple Tabs: All Players, Top Batters, Top Bowlers, All-Rounders, Wicket Keepers, Selected */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-1 border-t border-slate-100">
+          {/* Player Role Tabs */}
+          <div className="px-4 flex items-center gap-6 overflow-x-auto no-scrollbar border-t border-slate-100 bg-white">
             {[
               { id: 'all', label: 'All Players', count: categoryPlayers.length },
               { id: 'batters', label: 'Top Batters', count: categoryPlayers.filter(c => c.role === 'Batter').length },
               { id: 'bowlers', label: 'Top Bowlers', count: categoryPlayers.filter(c => c.role === 'Bowler').length },
               { id: 'allRounders', label: 'All-Rounders', count: categoryPlayers.filter(c => c.role === 'All-Rounder').length },
-              { id: 'wicketKeepers', label: 'Wicket Keepers', count: categoryPlayers.filter(c => c.role === 'Wicket Keeper').length },
-              { id: 'selected', label: `Selected (${selectedCount})`, count: selectedCount },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === tab.id
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`text-xs px-1.5 py-0.2 rounded-full ${
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-        </div>
-      </div>
-
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* TEAM SELECTION SUMMARY BAR */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 pt-5">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-slate-900">
-                Selected Players: <strong className="text-blue-600">{selectedCount} of 15</strong>
-              </span>
-              {selectedCount >= 15 ? (
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  15 Players Complete
-                </span>
-              ) : (
-                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                  Need {15 - selectedCount} more players
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5 mt-1 text-xs text-slate-600">
-              <span>Batters: <strong>{roleCounts.batters}</strong></span>
-              <span>•</span>
-              <span>Bowlers: <strong>{roleCounts.bowlers}</strong></span>
-              <span>•</span>
-              <span>All-Rounders: <strong>{roleCounts.allRounders}</strong></span>
-              <span>•</span>
-              <span>Wicket Keepers: <strong>{roleCounts.wicketKeepers}</strong></span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsTeamDrawerOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
-            >
-              View Selected ({selectedCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsSaveModalOpen(true)}
-              disabled={selectedCount === 0}
-              className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition ${
-                selectedCount > 0
-                  ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer shadow-xs'
-                  : 'bg-slate-300 cursor-not-allowed'
-              }`}
-            >
-              Choose Captain & Save →
-            </button>
+              { id: 'wicketKeepers', label: 'Top Wicket Keepers', count: categoryPlayers.filter(c => c.role === 'Wicket Keeper').length },
+            ].map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`py-3 text-sm font-bold whitespace-nowrap transition-colors relative cursor-pointer flex items-center gap-2 ${
+                    isActive ? 'text-[#2457D6]' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isActive ? 'bg-[#eef2fd] text-[#2457D6]' : 'bg-slate-100 text-slate-500'}`}>
+                    {tab.count}
+                  </span>
+                  {isActive && (
+                    <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2457D6]" />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* PLAYERS LIST (CLEAN, SIMPLE CARDS) */}
+      {/* PLAYERS LIST (PREMIUM CARDS) */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-4 py-5 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
         
-        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-          <span>Showing <strong>{displayedPlayers.length}</strong> players</span>
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <span>Showing <strong className="text-slate-800">{displayedPlayers.length}</strong> eligible players</span>
           <div className="flex items-center gap-2">
-            <span>Sort:</span>
+            <span className="font-semibold text-slate-400">Sort by:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-transparent font-bold text-slate-700 outline-none cursor-pointer"
+              className="bg-transparent font-bold text-slate-800 outline-none cursor-pointer"
             >
               <option value="runs">Most Runs</option>
               <option value="avg">Highest Average</option>
@@ -510,15 +380,15 @@ export default function SelectionWorkspace() {
         </div>
 
         {displayedPlayers.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-2 shadow-xs">
-            <AlertCircle className="w-8 h-8 text-slate-300 mx-auto" />
-            <h4 className="text-sm font-bold text-slate-800">No players found</h4>
-            <p className="text-xs text-slate-400">
+          <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-2 shadow-sm">
+            <AlertCircle className="w-10 h-10 text-slate-300 mx-auto" />
+            <h4 className="text-base font-bold text-slate-800">No players found</h4>
+            <p className="text-sm text-slate-500">
               Try selecting another tab, another district, or clearing the search box.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {displayedPlayers.map(player => {
               const inTeam = isSelected(player.id);
               const badgeStyle = ROLE_BADGES[player.role] || { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200' };
@@ -526,90 +396,77 @@ export default function SelectionWorkspace() {
               return (
                 <div
                   key={player.id}
-                  className={`bg-white rounded-2xl border p-4 transition-all flex flex-col justify-between ${
+                  className={`bg-white rounded-[16px] border transition-all flex flex-col justify-between overflow-hidden ${
                     inTeam
-                      ? 'border-emerald-400 ring-2 ring-emerald-500/20 bg-emerald-50/20 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
+                      ? 'border-[#0FA968] ring-1 ring-[#0FA968] shadow-md bg-emerald-50/10'
+                      : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
                   }`}
                 >
-                  <div>
-                    {/* Player Info */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <CloudinaryAvatar
-                          src={player.avatar}
-                          alt={player.name}
-                          className="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-sm text-slate-900 truncate">
-                            {player.name}
-                          </h3>
-                          <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate">{player.district}</span>
-                          </div>
+                  {/* Top Header */}
+                  <div className="p-4 pb-3 flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <CloudinaryAvatar src={player.avatar} alt={player.name} className="w-12 h-12 rounded-full object-cover border border-slate-200 shrink-0" />
+                      <div className="min-w-0">
+                        <h3 className="font-black text-[15px] text-slate-900 truncate" title={player.name}>{player.name}</h3>
+                        <div className="text-[11px] font-semibold text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                          <span className={`px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${badgeStyle.bg} ${badgeStyle.text}`}>{player.role}</span>
+                          <span className="text-slate-300">&bull;</span>
+                          <span className="truncate">{player.district}</span>
                         </div>
                       </div>
-
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md border shrink-0 ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}>
-                        {player.role}
-                      </span>
                     </div>
+                  </div>
 
-                    {/* Simple Stats Strip */}
-                    <div className="grid grid-cols-4 gap-1.5 my-3 p-2 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  {/* Core Stats */}
+                  <div className="px-4 py-3 bg-slate-50 border-y border-slate-100">
+                    <div className="grid grid-cols-4 gap-2 text-center">
                       <div>
-                        <span className="text-[9px] uppercase font-bold text-slate-400 block">Runs</span>
-                        <span className="text-xs font-bold text-slate-900">{player.careerRuns || 0}</span>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Matches</div>
+                        <div className="text-sm font-black text-slate-800">{player.matchesPlayed || 0}</div>
                       </div>
                       <div>
-                        <span className="text-[9px] uppercase font-bold text-slate-400 block">Avg</span>
-                        <span className="text-xs font-bold text-blue-600">{player.battingAvg || '-'}</span>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Runs</div>
+                        <div className="text-sm font-black text-[#2457D6]">{player.careerRuns || 0}</div>
                       </div>
                       <div>
-                        <span className="text-[9px] uppercase font-bold text-slate-400 block">SR</span>
-                        <span className="text-xs font-bold text-slate-900">{player.strikeRate || '-'}</span>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Avg</div>
+                        <div className="text-sm font-black text-slate-800">{player.battingAvg || '-'}</div>
                       </div>
                       <div>
-                        <span className="text-[9px] uppercase font-bold text-slate-400 block">
-                          {player.role === 'Bowler' ? 'Wkts' : 'HS'}
-                        </span>
-                        <span className="text-xs font-bold text-emerald-700">
-                          {player.role === 'Bowler' ? player.wickets : player.highScore || '-'}
-                        </span>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Wkts</div>
+                        <div className="text-sm font-black text-[#0FA968]">{player.wickets || 0}</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="p-3 flex items-center justify-between gap-2 bg-white">
                     <button
                       type="button"
                       onClick={() => setPlayerDetails(player)}
-                      className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+                      className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                     >
-                      View Details
+                      View Profile
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleTogglePlayer(player.id)}
-                      className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      className={`inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm ${
                         inTeam
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                          : 'bg-slate-900 hover:bg-blue-600 text-white shadow-xs'
+                          ? 'bg-[#0FA968] hover:bg-[#0a7d4e] text-white ring-2 ring-[#0FA968]/30 ring-offset-1'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                       }`}
                     >
                       {inTeam ? (
                         <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Selected (Remove)</span>
+                          <Check size={14} strokeWidth={3} />
+                          <span>Selected</span>
                         </>
                       ) : (
                         <>
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Add Player</span>
+                          <Plus size={14} strokeWidth={2.5} />
+                          <span>Select Player</span>
                         </>
                       )}
                     </button>

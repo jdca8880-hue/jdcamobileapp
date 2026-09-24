@@ -24,10 +24,12 @@ export default function InningsInitScreen({ battingXI, bowlingXI }) {
     const b = bowlingXI.find(p => p.id === selectedBowler);
 
     if (s && ns && b) {
-      replaceStriker({ ...s, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
-      replaceBatter(false, { ...ns, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
-      replaceBowler(b);
-      startInnings();
+      if (window.confirm("You are starting the scoring. Are you sure to start?")) {
+        replaceStriker({ ...s, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
+        replaceBatter(false, { ...ns, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
+        replaceBowler(b);
+        startInnings();
+      }
     }
   };
 

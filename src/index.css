@@ -1432,3 +1432,21 @@ main {
 }
 .match-folder-tile__actions button:hover { background: #eef2fd; color: #2457D6; }
 .match-folder-tile__actions .match-folder-tile__live-action { color: #0a7d4e; background: #f3fbf6; }
+
+/* Mobile Utilities */
+.pb-safe { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.pt-safe { padding-top: max(16px, env(safe-area-inset-top)); }
+
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+}

@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useCricket } from '../../context/CricketContext';
 import { PageHeader } from '../ui/PageHeader';
 import StatCard from '../ui/StatCard';
-import TeamManagerModal from '../ui/TeamManagerModal';
+
 
 const ROLE_COLORS = {
   'Batter': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', tag: 'bg-amber-500' },
@@ -57,7 +57,25 @@ export default function TeamsScreen() {
   const [printSuccessToast, setPrintSuccessToast] = useState(false);
   const [showOverviewStats, setShowOverviewStats] = useState(false);
   const [isTeamManagerOpen, setIsTeamManagerOpen] = useState(false);
-  const isAdmin = userRole === 'Admin' || userRole === 'SuperAdmin';
+  const isAdmin = userRole === 'Admin' || userRole === 'SUPER_ADMIN';
+
+  const [isRebuildingTeams, setIsRebuildingTeams] = useState(false);
+
+  const handleRebuildTeams = async () => {
+    if (!window.confirm("Are you sure you want to rebuild missing teams for all districts and categories? This may take a moment.")) return;
+    setIsRebuildingTeams(true);
+    try {
+      const { api } = await import('../../lib/api');
+      await api.rebuildTeams();
+      alert('Teams rebuilt successfully! Please refresh.');
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to rebuild teams.');
+    } finally {
+      setIsRebuildingTeams(false);
+    }
+  };
 
   // Map Supabase teams to UI expected format
   const mappedTeams = useMemo(() => {
@@ -209,11 +227,12 @@ export default function TeamsScreen() {
             {isAdmin && (
               <button
                 type="button"
-                onClick={() => setIsTeamManagerOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+                onClick={handleRebuildTeams}
+                disabled={isRebuildingTeams}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
               >
-                <Shield className="w-3.5 h-3.5 text-blue-200" />
-                <span>Create Team</span>
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+                <span>{isRebuildingTeams ? 'Building...' : 'Rebuild Teams'}</span>
               </button>
             )}
             <button
@@ -821,23 +840,7 @@ export default function TeamsScreen() {
         )}
       </AnimatePresence>
 
-      {isAdmin && (
-        <TeamManagerModal 
-          isOpen={isTeamManagerOpen}
-          onClose={() => setIsTeamManagerOpen(false)}
-          onSave={async (data) => {
-            try {
-              const { api } = await import('../../lib/api');
-              await api.createTeam(data);
-              alert('Team created successfully!');
-              window.location.reload(); // Quickest way to refresh for now
-            } catch (err) {
-              console.error('Failed to create team:', err);
-              alert('Error creating team: ' + err.message);
-            }
-          }}
-        />
-      )}
+
     </div>
   );
 }

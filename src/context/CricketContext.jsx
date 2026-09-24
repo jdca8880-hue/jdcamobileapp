@@ -245,7 +245,7 @@ export function CricketProvider({ children }) {
           
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes] = await Promise.allSettled([
-              supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null).is('tournaments.deleted_at', null),
+              supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null).is('tournaments.deleted_at', null),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
               supabase.from('tournaments').select('*').is('deleted_at', null),
               supabase.from('players').select('*').is('deleted_at', null)
@@ -302,16 +302,21 @@ export function CricketProvider({ children }) {
         if (supabase) {
           try {
              const processes = await api.getSelectionProcesses();
-             const formattedProcesses = processes.map(p => ({
-               id: p.id,
-               name: p.name,
-               season: p.season,
-               ageCategory: p.age_category?.name || 'Unknown',
-               gender: p.gender,
-               targetSquadSize: p.target_squad_size,
-               ageRankLevel: 4, // Default fallback rank
-               status: p.status
-             }));
+             const userId = currentSession?.user?.id;
+             const formattedProcesses = processes.map(p => {
+               const assignment = p.selector_assignments?.find(a => a.selector_id === userId);
+               return {
+                 id: p.id,
+                 name: p.name,
+                 season_id: p.season_id,
+                 ageCategory: p.age_category?.name || 'Unknown',
+                 gender: p.gender,
+                 targetSquadSize: p.target_squad_size,
+                 ageRankLevel: 4,
+                 status: p.status,
+                 isLeadSelector: assignment ? assignment.is_lead_selector : false
+               };
+             });
              setRepresentativeTeams(formattedProcesses);
              if (formattedProcesses.length > 0) setActiveSelectionTeam(formattedProcesses[0]);
           } catch(e) { console.error('Failed to load selection processes', e); }
@@ -384,7 +389,7 @@ export function CricketProvider({ children }) {
         setTournaments(tData);
       }
 
-      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null).is('tournaments.deleted_at', null);
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null).is('tournaments.deleted_at', null);
       if (!mErr && mData) {
         await db.matches.clear();
         await db.matches.bulkAdd(mData);

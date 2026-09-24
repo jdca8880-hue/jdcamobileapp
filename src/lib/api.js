@@ -25,6 +25,54 @@ export const api = {
     if (error) throw error;
   },
 
+  // SEASONS
+  // ==========================================
+  async getSeasons() {
+    const { data, error } = await supabase
+      .from('seasons')
+      .select('*')
+      .order('start_date', { ascending: false });
+    if (error && error.code !== '42P01') throw error;
+    return data || [];
+  },
+
+  async getActiveSeason() {
+    const { data, error } = await supabase
+      .from('seasons')
+      .select('*')
+      .eq('is_current_active', true)
+      .maybeSingle();
+    if (error && error.code !== '42P01') throw error;
+    return data;
+  },
+
+  async createSeason(seasonData) {
+    const { data, error } = await supabase
+      .from('seasons')
+      .insert([{
+        name: seasonData.name,
+        start_date: seasonData.start_date,
+        end_date: seasonData.end_date,
+        is_current_active: seasonData.is_current_active || false
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    if (seasonData.is_current_active) {
+      await this.setActiveSeason(data.id);
+    }
+    return data;
+  },
+
+  async setActiveSeason(seasonId) {
+    const { error } = await supabase.rpc('set_active_season', { p_season_id: seasonId });
+    if (error) {
+      await supabase.from('seasons').update({ is_current_active: false }).neq('id', seasonId);
+      const { error: updErr } = await supabase.from('seasons').update({ is_current_active: true }).eq('id', seasonId);
+      if (updErr) throw updErr;
+    }
+  },
+
   /**
    * Fetches the first available age category and district to use as defaults
    * since the current UI doesn't always specify them but the schema requires them.
@@ -50,7 +98,7 @@ export const api = {
       .from('tournaments')
       .insert({
         name: tournamentData.name,
-        season: tournamentData.season || '2026',
+        season_id: tournamentData.season_id,
         format: tournamentData.format || 'T20',
         age_category_id: defaults.age_category_id,
         gender: tournamentData.gender || 'Men',
@@ -70,7 +118,7 @@ export const api = {
       .from('tournaments')
       .update({
         name: tournamentData.name,
-        season: tournamentData.season,
+        season_id: tournamentData.season_id,
         format: tournamentData.format,
         gender: tournamentData.gender,
         start_date: tournamentData.startDate || null,
@@ -180,34 +228,70 @@ export const api = {
   // ==========================================
   // SELECTOR ACCESS MANAGEMENT
   // ==========================================
-  async getSelectorAccess(selectorId) {
-    const [ageRes, distRes] = await Promise.all([
-      supabase.from('selector_age_access').select('max_age_category_id').eq('selector_id', selectorId).maybeSingle(),
-      supabase.from('selector_district_access').select('district_id').eq('selector_id', selectorId)
-    ]);
-    return {
-      max_age_category_id: ageRes.data?.max_age_category_id || null,
-      district_ids: distRes.data ? distRes.data.map(d => d.district_id) : []
-    };
+  async getSelectorAssignments(selectorId) {
+    const { data, error } = await supabase
+      .from('selector_assignments')
+      .select('selection_process_id, is_lead_selector')
+      .eq('selector_id', selectorId);
+    if (error) throw error;
+    return data || [];
   },
 
-  async updateSelectorAccess(selectorId, maxAgeCategoryId, districtIds) {
-    // Upsert age access
-    if (maxAgeCategoryId) {
-      await supabase.from('selector_age_access').upsert({
+  async updateSelectorAssignments(selectorId, assignments) {
+    // assignments: array of { selection_process_id, is_lead_selector }
+    // 1. Delete existing assignments
+    await supabase.from('selector_assignments').delete().eq('selector_id', selectorId);
+    
+    // 2. Insert new ones if any
+    if (assignments && assignments.length > 0) {
+      const inserts = assignments.map(a => ({
         selector_id: selectorId,
-        max_age_category_id: maxAgeCategoryId
-      });
-    } else {
-      await supabase.from('selector_age_access').delete().eq('selector_id', selectorId);
+        selection_process_id: a.selection_process_id,
+        is_lead_selector: a.is_lead_selector || false
+      }));
+      const { error } = await supabase.from('selector_assignments').insert(inserts);
+      if (error) throw error;
     }
+  },
+  async rebuildTeams() {
+    const { data: districts } = await supabase.from('districts').select('id, name').eq('is_active', true);
+    const { data: ageCategories } = await supabase.from('age_categories').select('id, name, short_name').eq('is_active', true);
+    if (!districts || !ageCategories) return;
 
-    // Replace district access
-    await supabase.from('selector_district_access').delete().eq('selector_id', selectorId);
-    if (districtIds && districtIds.length > 0) {
-      const distInserts = districtIds.map(dId => ({ selector_id: selectorId, district_id: dId }));
-      await supabase.from('selector_district_access').insert(distInserts);
+    const genders = ['Men', 'Women'];
+    const teamsToInsert = [];
+
+    const activeSeasonData = await this.getActiveSeason();
+    if (!activeSeasonData) return;
+
+    districts.forEach(d => {
+      ageCategories.forEach(ac => {
+        genders.forEach(g => {
+          teamsToInsert.push({
+            name: `${d.name} ${ac.name} ${g}`,
+            short_name: `${ac.short_name}-${g.substring(0, 1)}`,
+            season_id: activeSeasonData.id,
+            district_id: d.id,
+            age_category_id: ac.id,
+            gender: g,
+            is_active: true
+          });
+        });
+      });
+    });
+
+    if (teamsToInsert.length > 0) {
+      const { data: existingTeams } = await supabase.from('teams').select('name, season_id, district_id');
+      const existingSet = new Set(existingTeams?.map(t => `${(t.name || '').trim().toLowerCase()}_${t.season_id}_${t.district_id}`) || []);
+
+      const newTeams = teamsToInsert.filter(t => !existingSet.has(`${t.name.trim().toLowerCase()}_${t.season_id}_${t.district_id}`));
+
+      if (newTeams.length > 0) {
+        const { error } = await supabase.from('teams').insert(newTeams);
+        if (error) throw error;
+      }
     }
+    return true;
   },
 
   async createTeam(teamData) {
@@ -222,7 +306,7 @@ export const api = {
       .insert({
         name: teamData.name,
         short_name: teamData.shortName || teamData.name.substring(0, 3).toUpperCase(),
-        season: teamData.season || '2026',
+        season_id: teamData.season_id,
         district_id: defaults.district_id,
         age_category_id: defaults.age_category_id,
         gender: teamData.gender === 'Women' ? 'Women' : 'Men',
@@ -324,7 +408,7 @@ export const api = {
   async getSelectionProcesses() {
     const { data, error } = await supabase
       .from('selection_processes')
-      .select('*, age_category:age_category_id(*), district:district_id(*)');
+      .select('*, age_category:age_category_id(*), district:district_id(*), selector_assignments(selector_id, is_lead_selector)');
     if (error) throw error;
     return data;
   },
@@ -435,7 +519,7 @@ export const api = {
     // 1. Fetch match and teams
     const { data: matchData, error: matchError } = await supabase
       .from('matches')
-      .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
+      .select('*, home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name)')
       .eq('id', matchId)
       .single();
 
@@ -546,6 +630,7 @@ export const api = {
       venue: matchData.venue_name || 'JDCA Ground',
       date: matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Unknown Date',
       resultText: matchData.result_text || matchData.status,
+      manOfTheMatch: matchData.man_of_the_match ? { id: matchData.man_of_the_match.id, name: matchData.man_of_the_match.full_name } : null,
       teamA: {
         name: matchData.home_team?.name || 'Home Team',
         score: innings.length > 0 ? `${stats1.runs}/${stats1.wickets}` : '',
@@ -658,12 +743,12 @@ export const api = {
     return data;
   },
 
-  async getPlayersBySeason(season) {
+  async getPlayersBySeason(seasonId) {
     const { data, error } = await supabase
       .from('player_registrations')
       .select(`
         id,
-        season,
+        season_id,
         age_category:age_category_id(id, name, short_name, max_age_months),
         district:district_id(id, name),
         player:player_id (
@@ -677,7 +762,7 @@ export const api = {
           is_active
         )
       `)
-      .eq('season', season);
+      .eq('season_id', seasonId);
       
     if (error) throw error;
     
@@ -702,7 +787,7 @@ export const api = {
       player_id: r.player_id,
       district_id: r.district_id,
       age_category_id: r.age_category_id,
-      season: targetSeason,
+      season_id: targetSeason,
       status: 'APPROVED'
     }));
 
@@ -744,7 +829,7 @@ export const api = {
     if (defaults.district_id) {
        await supabase.from('player_registrations').insert({
          player_id: data.id,
-         season: '2026',
+         season_id: playerData.season_id,
          district_id: defaults.district_id
        });
     }
@@ -799,12 +884,26 @@ export const api = {
     if (error) throw error;
   },
 
+  async deleteUser(userId) {
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) throw error;
+  },
+
   async resetUserPassword(userId, newPassword) {
     const { error } = await supabase.rpc('admin_reset_password', { 
       target_user_id: userId, 
       new_password: newPassword 
     });
     if (error) throw error;
+  },
+
+  async assignScorer(matchId, scorerName) {
+    const { error } = await supabase
+      .from('matches')
+      .update({ scorer_name: scorerName })
+      .eq('id', matchId);
+    if (error) throw error;
+    return true;
   },
 
   // ==========================================
@@ -897,7 +996,7 @@ export const api = {
   // SCORING COMPLETION: FINALIZE MATCH
   // ==========================================
 
-  async finalizeMatch(matchId, winnerId, resultMargin, resultText) {
+  async finalizeMatch(matchId, winnerId, resultMargin, resultText, manOfTheMatchId = null) {
     if (!matchId) throw new Error("Match ID required");
     
     const { error } = await supabase
@@ -906,7 +1005,8 @@ export const api = {
         status: 'COMPLETED',
         winner_team_id: winnerId,
         result_margin: resultMargin,
-        result_text: resultText
+        result_text: resultText,
+        man_of_the_match_id: manOfTheMatchId
       })
       .eq('id', matchId);
       
@@ -915,6 +1015,17 @@ export const api = {
       throw error;
     }
     
+    return true;
+  },
+
+  async assignManOfTheMatch(matchId, playerId) {
+    if (!matchId) throw new Error("Match ID required");
+    const { error } = await supabase
+      .from('matches')
+      .update({ man_of_the_match_id: playerId })
+      .eq('id', matchId);
+    
+    if (error) throw error;
     return true;
   }
 };
