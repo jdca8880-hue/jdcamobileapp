@@ -248,7 +248,7 @@ export function CricketProvider({ children }) {
               supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null).is('tournaments.deleted_at', null),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
               supabase.from('tournaments').select('*').is('deleted_at', null),
-              supabase.from('players').select('*').is('deleted_at', null)
+              supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name))').is('deleted_at', null)
             ]);
 
             // Reconcile Matches
@@ -282,7 +282,16 @@ export function CricketProvider({ children }) {
 
             // Reconcile Players
             if (playersRes.status === 'fulfilled' && !playersRes.value.error && playersRes.value.data) {
-              const freshPlayers = playersRes.value.data;
+              const freshPlayers = playersRes.value.data.map(p => {
+                let district = 'Unknown';
+                let category = 'Unknown';
+                if (p.player_registrations && p.player_registrations.length > 0) {
+                  const reg = p.player_registrations[0];
+                  district = reg.district?.name || district;
+                  category = reg.age_category?.name || category;
+                }
+                return { ...p, district, category };
+              });
               await db.players.clear();
               await db.players.bulkAdd(freshPlayers);
               setPlayers(freshPlayers);

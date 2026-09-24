@@ -83,9 +83,16 @@ export default function TeamsScreen() {
     const availablePlayers = [...contextPlayers];
     
     return contextTeams.map((team, index) => {
-      // Pick up to 15 players for this team from contextPlayers, trying to match gender/category if possible, or just slice
-      // For a real app, this should join with team_players.
-      const teamPlayers = availablePlayers.filter(p => p.gender === team.gender || !p.gender).slice(0, 15);
+      const teamCatName = team.age_category?.name || 'Senior';
+      let teamPlayers = [];
+      if (team.team_players && team.team_players.length > 0) {
+        teamPlayers = team.team_players.map(tp => tp.player).filter(Boolean);
+      } else {
+        teamPlayers = availablePlayers.filter(p => 
+          (p.gender === team.gender || !p.gender) && 
+          (p.category === teamCatName || !p.category)
+        ).slice(0, 15);
+      }
       
       const squad = teamPlayers.map(p => ({
         id: p.id,
@@ -138,12 +145,12 @@ export default function TeamsScreen() {
       // Category filter
       if (activeTab === 'Senior Men' && (team.category !== 'Senior' || team.gender !== 'Men')) return false;
       if (activeTab === 'Senior Women' && (team.category !== 'Senior' || team.gender !== 'Women')) return false;
-      if (activeTab === 'Under-23' && team.category !== 'Under-23') return false;
-      if (activeTab === 'Under-19 Men' && (team.category !== 'Under-19' || team.gender !== 'Men')) return false;
-      if (activeTab === 'Under-19 Women' && (team.category !== 'Under-19' || team.gender !== 'Women')) return false;
-      if (activeTab === 'Under-17' && team.category !== 'Under-17') return false;
-      if (activeTab === 'Under-15' && team.category !== 'Under-15') return false;
-      if (activeTab === 'Under-13' && team.category !== 'Under-13') return false;
+      if (activeTab === 'Under-23' && team.category !== 'Under 23') return false;
+      if (activeTab === 'Under-19 Men' && (team.category !== 'Under 19' || team.gender !== 'Men')) return false;
+      if (activeTab === 'Under-19 Women' && (team.category !== 'Under 19' || team.gender !== 'Women')) return false;
+      if (activeTab === 'Under-17' && team.category !== 'Under 17') return false;
+      if (activeTab === 'Under-15' && team.category !== 'Under 15') return false;
+      if (activeTab === 'Under-13' && team.category !== 'Under 13') return false;
 
       // Gender filter
       if (selectedGender !== 'All' && team.gender !== selectedGender) return false;

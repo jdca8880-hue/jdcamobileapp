@@ -40,11 +40,13 @@ const ROLE_BADGES = {
 };
 
 const CATEGORY_OPTIONS = [
-  { id: 'team_2026_u19_men', name: 'Under-19 Boys', category: 'U19', gender: 'Men' },
-  { id: 'team_2026_u17_men', name: 'Under-17 Boys', category: 'U17', gender: 'Men' },
-  { id: 'team_2026_u15_men', name: 'Under-15 Boys', category: 'U15', gender: 'Men' },
-  { id: 'team_2026_u13_men', name: 'Under-13 Boys', category: 'U13', gender: 'Men' },
-  { id: 'team_2026_u19_women', name: 'Under-19 Girls', category: 'U19', gender: 'Women' },
+  { id: 'team_2026_senior_men', name: 'Senior Men', category: 'Senior', gender: 'Men' },
+  { id: 'team_2026_u23_men', name: 'Under-23 Boys', category: 'Under 23', gender: 'Men' },
+  { id: 'team_2026_u19_men', name: 'Under-19 Boys', category: 'Under 19', gender: 'Men' },
+  { id: 'team_2026_u17_men', name: 'Under-17 Boys', category: 'Under 17', gender: 'Men' },
+  { id: 'team_2026_u15_men', name: 'Under-15 Boys', category: 'Under 15', gender: 'Men' },
+  { id: 'team_2026_u13_men', name: 'Under-13 Boys', category: 'Under 13', gender: 'Men' },
+  { id: 'team_2026_u19_women', name: 'Under-19 Girls', category: 'Under 19', gender: 'Women' },
 ];
 
 export default function SelectionWorkspace() {

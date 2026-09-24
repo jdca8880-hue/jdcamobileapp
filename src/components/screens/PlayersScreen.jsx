@@ -4,7 +4,7 @@ import { Search, ChevronRight, UserPlus, Filter, User } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 
 const JDCA_DISTRICTS = ['All', 'Jabalpur', 'Katni', 'Narsinghpur', 'Seoni', 'Mandla', 'Balaghat', 'Chhindwara', 'Dindori', 'Pandhurna'];
-const CATEGORIES = ['All', 'Senior', 'U-22', 'U-19', 'U-16', 'U-15', 'U-13'];
+const CATEGORIES = ['All', 'Senior', 'Under 23', 'Under 19', 'Under 17', 'Under 15', 'Under 13'];
 
 const ROLE_BRIGHT_BADGES = {
   Batter: 'bg-amber-500 text-white shadow-xs',
@@ -88,8 +88,13 @@ export default function PlayersScreen() {
     
     if (categoryFilter !== 'All') {
       const cat = String(p.category || 'Senior').toLowerCase();
-      const f = categoryFilter.toLowerCase().replace('-', '');
-      if (!cat.includes(f)) return false;
+      const f = categoryFilter.toLowerCase();
+      
+      // Match exactly or loosely (e.g., 'under 19' matches 'under 19', 'u19', 'u-19')
+      const normalizedCat = cat.replace('under ', 'u').replace('-', '').replace(' ', '');
+      const normalizedF = f.replace('under ', 'u').replace('-', '').replace(' ', '');
+      
+      if (!cat.includes(f) && normalizedCat !== normalizedF) return false;
     }
 
     return true;
