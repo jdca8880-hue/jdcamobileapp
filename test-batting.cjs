@@ -1,0 +1,1 @@
+const { createClient } = require('@supabase/supabase-js'); require('dotenv').config(); const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY); supabase.from('v_player_career_batting').select('*').limit(3).then(console.log).catch(console.error);

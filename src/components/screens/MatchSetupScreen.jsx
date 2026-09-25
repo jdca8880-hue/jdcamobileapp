@@ -68,7 +68,7 @@ export default function MatchSetupScreen() {
   ];
 
   const filteredPlayers = activeXI.filter((p) => (p.full_name || p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
-  const availableScorers = registeredUsers.filter(u => u.role === 'SCORER');
+  const availableScorers = registeredUsers.filter(u => u.role?.toUpperCase() === 'SCORER');
 
   const handleStartMatch = async () => {
     if (matchSetup.teamAXI.length === 0 || matchSetup.teamBXI.length === 0) {

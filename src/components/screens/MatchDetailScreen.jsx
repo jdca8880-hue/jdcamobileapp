@@ -182,7 +182,7 @@ export default function MatchDetailScreen() {
                       onChange={(e) => setSelectedScorer(e.target.value)}
                     >
                       <option value="">-- Select Scorer --</option>
-                      {registeredUsers.filter(u => u.role === 'SCORER' || u.role === 'SUPER_ADMIN' || u.role === 'DISTRICT_ADMIN').map(u => (
+                      {registeredUsers.filter(u => ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase())).map(u => (
                         <option key={u.id} value={u.name}>{u.name}</option>
                       ))}
                     </select>

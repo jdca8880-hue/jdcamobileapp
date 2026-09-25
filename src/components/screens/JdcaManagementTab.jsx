@@ -5,8 +5,8 @@ import { useCricket } from '../../context/CricketContext';
 export default function JdcaManagementTab() {
   const { registeredUsers } = useCricket();
 
-  const scorers = registeredUsers.filter(u => u.role === 'SCORER');
-  const selectors = registeredUsers.filter(u => u.role === 'SELECTOR');
+  const scorers = registeredUsers.filter(u => u.role?.toUpperCase() === 'SCORER');
+  const selectors = registeredUsers.filter(u => u.role?.toUpperCase() === 'SELECTOR');
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
