@@ -262,10 +262,10 @@ export function CricketProvider({ children }) {
           
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes] = await Promise.allSettled([
-              supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null).is('tournaments.deleted_at', null),
+              supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)'),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
-              supabase.from('tournaments').select('*').is('deleted_at', null),
-              supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name))').is('deleted_at', null),
+              supabase.from('tournaments').select('*'),
+              supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name))'),
               supabase.from('v_player_career_batting').select('*'),
               supabase.from('v_player_career_bowling').select('*'),
               supabase.from('v_player_career_fielding').select('*')
@@ -435,14 +435,14 @@ export function CricketProvider({ children }) {
     try {
       const { db } = await import('../lib/db.js');
       
-      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*').is('deleted_at', null);
+      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*');
       if (!tErr && tData) {
         await db.tournaments.clear();
         await db.tournaments.bulkAdd(tData);
         setTournaments(tData);
       }
 
-      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null).is('tournaments.deleted_at', null);
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)');
       if (!mErr && mData) {
         await db.matches.clear();
         await db.matches.bulkAdd(mData);
