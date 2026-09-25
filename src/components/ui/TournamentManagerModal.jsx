@@ -1,8 +1,10 @@
 import React, { useState, useContext } from 'react';
 import { X, Calendar, Trophy, Plus, Trash2, ArrowRight, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { useCricket } from '../../context/CricketContext';
 
 export default function TournamentManagerModal({ isOpen, onClose, initialData = null, teams = [], refreshAdminData }) {
+  const { registeredUsers = [] } = useCricket();
   const [step, setStep] = useState(1); // 1: Tournament Details, 2: Configure Matches
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -352,13 +354,18 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                             onChange={(e) => updateMatchRow(match.id, 'umpireName', e.target.value)}
                             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
                           />
-                          <input 
-                            type="text" 
-                            placeholder="Scorer Name"
+                          <select 
                             value={match.scorerName}
                             onChange={(e) => updateMatchRow(match.id, 'scorerName', e.target.value)}
                             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
-                          />
+                          >
+                            <option value="">Select Scorer</option>
+                            {registeredUsers
+                              .filter(u => ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()))
+                              .map(u => (
+                                <option key={u.id} value={u.name}>{u.name}</option>
+                              ))}
+                          </select>
                         </div>
                       </div>
                     </div>

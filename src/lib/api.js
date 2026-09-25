@@ -96,11 +96,14 @@ export const api = {
       throw new Error("No age categories found in the database. Please seed age_categories table first.");
     }
 
+    const { data: seasonData } = await supabase.from('seasons').select('name').eq('id', tournamentData.season_id).single();
+
     const { data, error } = await supabase
       .from('tournaments')
       .insert({
         name: tournamentData.name,
         season_id: tournamentData.season_id,
+        season: seasonData?.name || '2024-25',
         format: tournamentData.format || 'T20',
         age_category_id: defaults.age_category_id,
         gender: tournamentData.gender || 'Men',
@@ -116,11 +119,14 @@ export const api = {
   },
 
   async updateTournament(id, tournamentData) {
+    const { data: seasonData } = await supabase.from('seasons').select('name').eq('id', tournamentData.season_id).single();
+
     const { data, error } = await supabase
       .from('tournaments')
       .update({
         name: tournamentData.name,
         season_id: tournamentData.season_id,
+        season: seasonData?.name || '2024-25',
         format: tournamentData.format,
         gender: tournamentData.gender,
         start_date: tournamentData.startDate || null,
