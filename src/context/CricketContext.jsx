@@ -326,11 +326,11 @@ export function CricketProvider({ children }) {
                   career_batting: batting, 
                   career_bowling: bowling, 
                   career_fielding: fielding,
-                  name: p.full_name,
-                  avatar: p.avatar_url,
+                  name: p.full_name || 'Unknown Player',
+                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`,
                   role: p.primary_role,
-                  careerRuns: batting ? batting.total_runs : 0,
-                  wickets: bowling ? bowling.total_wickets : 0
+                  careerRuns: batting ? batting.career_runs : 0,
+                  wickets: bowling ? bowling.wickets : 0
                 };
               });
               await db.players.clear();
