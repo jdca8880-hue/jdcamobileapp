@@ -330,7 +330,20 @@ export function CricketProvider({ children }) {
                   avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`,
                   role: p.primary_role,
                   careerRuns: batting ? batting.career_runs : 0,
-                  wickets: bowling ? bowling.wickets : 0
+                  wickets: bowling ? bowling.wickets : 0,
+                  battingAvg: batting ? batting.average : 0,
+                  strikeRate: batting ? batting.strike_rate : 0,
+                  matches: batting ? batting.total_matches : (bowling ? bowling.total_matches : 0),
+                  highScore: batting ? batting.highest_score : 0,
+                  fours: batting ? batting.total_fours : 0,
+                  sixes: batting ? batting.total_sixes : 0,
+                  fifties: batting ? batting.fifties : 0,
+                  hundreds: batting ? batting.hundreds : 0,
+                  economy: bowling ? bowling.economy : 0,
+                  bestBowling: null,
+                  bowlingAvg: null,
+                  battingStyle: p.batting_style,
+                  bowlingStyle: p.bowling_style
                 };
               });
               await db.players.clear();

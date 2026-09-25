@@ -168,13 +168,13 @@ export default function PlayerProfileScreen() {
                 <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
                   <div className="text-xs font-medium text-slate-400">Career Runs</div>
                   <div className="text-xl sm:text-2xl font-semibold text-blue-700 mt-1">
-                    {player.careerRuns || player.runs || 0}
+                    {player.careerRuns || 0}
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
                   <div className="text-xs font-medium text-slate-400">Batting Average</div>
                   <div className="text-xl sm:text-2xl font-semibold text-slate-900 mt-1">
-                    {player.battingAvg ? player.battingAvg.toFixed(1) : '-'}
+                    {player.battingAvg ? player.battingAvg : '-'}
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
@@ -186,7 +186,7 @@ export default function PlayerProfileScreen() {
                 <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
                   <div className="text-xs font-medium text-slate-400">Wickets</div>
                   <div className="text-xl sm:text-2xl font-semibold text-slate-900 mt-1">
-                    {player.wickets ?? (player.role === 'Bowler' ? 14 : 0)}
+                    {player.wickets || 0}
                   </div>
                 </div>
               </div>
@@ -214,17 +214,17 @@ export default function PlayerProfileScreen() {
               <div className="p-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-sm text-slate-900">Batting Profile</h3>
-                  <p className="text-xs text-slate-500">{player.battingStyle || 'Right-Hand Bat'}</p>
+                  <p className="text-xs text-slate-500">{player.battingStyle || '-'}</p>
                 </div>
               </div>
               <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <div className="text-xs font-medium text-slate-400">Matches</div>
-                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.matches || 24}</div>
+                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.matches || 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-slate-400">Highest Score</div>
-                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.highScore || '118*'}</div>
+                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.highScore || 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-slate-400">50s / 100s</div>
@@ -265,25 +265,25 @@ export default function PlayerProfileScreen() {
               <div className="p-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-sm text-slate-900">Bowling Profile</h3>
-                  <p className="text-xs text-slate-500">{player.bowlingStyle || 'Right-Arm Medium'}</p>
+                  <p className="text-xs text-slate-500">{player.bowlingStyle || '-'}</p>
                 </div>
               </div>
               <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <div className="text-xs font-medium text-slate-400">Wickets</div>
-                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.wickets || (player.role === 'Bowler' ? 14 : 0)}</div>
+                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.wickets || 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-slate-400">Economy</div>
-                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.economy || (player.role === 'Bowler' ? '6.4' : '-')}</div>
+                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.economy || '-'}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-slate-400">Best Figures</div>
-                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.bestBowling || (player.role === 'Bowler' ? '4/18' : '-')}</div>
+                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.bestBowling || '-'}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-slate-400">Average</div>
-                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.average ? player.average.toFixed(1) : '-'}</div>
+                  <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.bowlingAvg || '-'}</div>
                 </div>
               </div>
 
