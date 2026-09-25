@@ -25,6 +25,14 @@ export default function PlayerRegistrationScreen() {
   const [formErrors, setFormErrors] = useState({});
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
 
+  const filteredCategories = AGE_CATEGORIES.filter(c => {
+    if (gender === 'Women') {
+      return c.includes('Women') || c.includes('Girls') || (!c.includes('Men') && !c.includes('Boy') && !AGE_CATEGORIES.some(ac => ac.includes('Women') && ac.includes(c.replace('Women\'s ', '')))); // Keep generics like Under-15 if they don't have a Women's specific version
+    } else {
+      return c.includes('Men') || c.includes('Boys') || (!c.includes('Women') && !c.includes('Girls'));
+    }
+  });
+
   const avatarPresets = [];
 
   const [isUploading, setIsUploading] = useState(false);
@@ -180,7 +188,7 @@ export default function PlayerRegistrationScreen() {
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Age Category</label>
                 <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
-                  {AGE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {filteredCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>

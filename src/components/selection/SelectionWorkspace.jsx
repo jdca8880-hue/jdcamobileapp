@@ -407,7 +407,7 @@ export default function SelectionWorkspace() {
                   {/* Top Header */}
                   <div className="p-4 pb-3 flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <CloudinaryAvatar src={player.avatar} alt={player.name} className="w-12 h-12 rounded-full object-cover border border-slate-200 shrink-0" />
+                      <CloudinaryAvatar src={player.avatar_url || player.avatar} alt={player.name} className="w-12 h-12 rounded-full object-cover border border-slate-200 shrink-0" />
                       <div className="min-w-0">
                         <h3 className="font-black text-[15px] text-slate-900 truncate" title={player.name}>{player.name}</h3>
                         <div className="text-[11px] font-semibold text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
@@ -589,7 +589,7 @@ export default function SelectionWorkspace() {
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <CloudinaryAvatar
-                            src={player.avatar}
+                            src={player.avatar_url || player.avatar}
                             alt={player.name}
                             className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
                           />

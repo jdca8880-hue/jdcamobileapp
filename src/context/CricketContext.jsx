@@ -329,11 +329,14 @@ export function CricketProvider({ children }) {
                  targetSquadSize: p.target_squad_size,
                  ageRankLevel: 4,
                  status: p.status,
+                 processType: p.process_type || 'DISTRICT_TEAM',
+                 targetDistrictId: p.target_district_id,
+                 targetDistrictName: p.district?.name,
                  isLeadSelector: assignment ? assignment.is_lead_selector : false
                };
              });
              setRepresentativeTeams(formattedProcesses);
-             if (formattedProcesses.length > 0) setActiveSelectionTeam(formattedProcesses[0]);
+             // Do not auto-select, force user to pick one
           } catch(e) { console.error('Failed to load selection processes', e); }
 
           try {

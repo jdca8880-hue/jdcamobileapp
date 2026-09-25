@@ -13,11 +13,13 @@ import SeasonMigrationTab from './SeasonMigrationTab';
 import RecycleBinTab from './RecycleBinTab';
 import SelectorAssignmentModal from './SelectorAssignmentModal';
 import JdcaManagementTab from './JdcaManagementTab';
+import TeamRegistrationTab from './TeamRegistrationTab';
 
 const TABS = [
   { id: 'staff',      label: 'Staff & Users' },
   { id: 'seasons',    label: 'Season Management' },
   { id: 'management', label: 'JDCA Management' },
+  { id: 'teams',      label: 'Team Registration' },
   { id: 'migration',  label: 'Player Rollover' },
   { id: 'system',     label: 'System & Settings' },
   { id: 'recycle',    label: 'Recycle Bin' }
@@ -426,6 +428,11 @@ export default function AdministrationScreen() {
       {/* ── TAB: SEASON MANAGEMENT ────────────────────────────────────── */}
       {activeTab === 'seasons' && (
         <SeasonManagementTab userRole={userRole} />
+      )}
+
+      {/* ── TAB: TEAM REGISTRATION ────────────────────────────────────── */}
+      {activeTab === 'teams' && (
+        <TeamRegistrationTab userRole={userRole} />
       )}
 
       {/* ── TAB 2: JDCA MANAGEMENT ────────────────────────────────────── */}

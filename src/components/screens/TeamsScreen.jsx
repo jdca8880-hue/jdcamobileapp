@@ -99,7 +99,7 @@ export default function TeamsScreen() {
         name: p.full_name || p.name,
         role: p.primary_role || p.role || 'Batter',
         district: p.district || team.district?.name || 'TBD',
-        avatar: p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.name)}&background=random`
+        avatar: p.avatar_url || p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.name)}&background=random`
       }));
 
       // Calculate composition
@@ -512,7 +512,7 @@ export default function TeamsScreen() {
                         title={`${player.name} (${player.role} - ${player.district})`}
                       >
                         <CloudinaryAvatar
-                          src={player.avatar}
+                          src={player.avatar_url || player.avatar}
                           alt={player.name}
                           className="w-8 h-8 rounded-full object-cover border border-slate-200 group-hover:border-blue-600 transition"
                         />
@@ -753,7 +753,7 @@ export default function TeamsScreen() {
                               <td className="py-2.5 px-3">
                                 <div className="flex items-center gap-2.5">
                                   <CloudinaryAvatar
-                                    src={player.avatar}
+                                    src={player.avatar_url || player.avatar}
                                     alt={player.name}
                                     className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
                                   />

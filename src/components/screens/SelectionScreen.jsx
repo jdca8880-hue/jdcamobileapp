@@ -82,14 +82,34 @@ export default function SelectionScreen() {
     );
   }
 
-  const currentTeam = activeSelectionTeam || representativeTeams[0];
+  const currentTeam = activeSelectionTeam;
   
   if (!currentTeam) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-cobalt border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <h3 className="text-slate-600 font-bold">Loading Selection Processes...</h3>
+      <div className="flex flex-col h-screen bg-slate-50 p-6 space-y-6">
+        <PageHeader title="Select a Team" subtitle="Choose a team to begin the selection process" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          {representativeTeams.map(team => (
+            <div 
+              key={team.id} 
+              onClick={() => setActiveSelectionTeam(team)}
+              className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-cobalt hover:shadow-md transition group"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-cobalt/10">
+                  <ShieldAlert className="w-5 h-5 text-slate-500 group-hover:text-cobalt" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900">{team.name}</h4>
+                  <p className="text-xs text-slate-500">{team.processType === 'JDCA_REPRESENTATIVE' ? '🌟 JDCA Final Team' : '📍 District Team'}</p>
+                </div>
+              </div>
+              <div className="text-[11px] font-semibold text-slate-600 space-y-1">
+                <p>Category: {team.ageCategory}</p>
+                <p>Gender: {team.gender}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -98,8 +118,12 @@ export default function SelectionScreen() {
   // Filter players. Note: The backend RLS + get_eligible_players_for_process already handles permissions!
   const filteredPlayers = players.filter((player) => {
     // 1. District Access Filter
+    const targetDistrict = currentTeam.processType === 'DISTRICT_TEAM' && currentTeam.targetDistrictName 
+      ? currentTeam.targetDistrictName 
+      : selectedDistrict;
+      
     const matchesDistrict = 
-      selectedDistrict === 'All Districts' ? true : player.district === selectedDistrict;
+      targetDistrict === 'All Districts' ? true : player.district === targetDistrict;
 
     // 2. Role Filter
     const matchesRole = 
@@ -218,9 +242,12 @@ export default function SelectionScreen() {
               <h2 className="text-lg font-black text-white flex items-center gap-2">
                 {currentTeam.name}
               </h2>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-300 mt-1">
                 Season {currentTeam.season} • Category: {currentTeam.ageCategory} • Gender: {currentTeam.gender}
               </p>
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-white/20 text-white">
+                {currentTeam.processType === 'JDCA_REPRESENTATIVE' ? '🌟 JDCA FINAL TEAM' : '📍 DISTRICT TEAM'}
+              </div>
             </div>
           </div>
 
@@ -369,9 +396,10 @@ export default function SelectionScreen() {
           {/* District Filter */}
           <div className="sm:col-span-3">
             <select
-              value={selectedDistrict}
+              value={currentTeam.processType === 'DISTRICT_TEAM' && currentTeam.targetDistrictName ? currentTeam.targetDistrictName : selectedDistrict}
               onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-gray-50/70 border border-gray-200 rounded-xl outline-none focus:bg-white focus:border-cobalt font-semibold text-gray-700 cursor-pointer"
+              disabled={currentTeam.processType === 'DISTRICT_TEAM' && !!currentTeam.targetDistrictName}
+              className={`w-full px-3 py-2 text-xs border rounded-xl outline-none focus:border-cobalt font-semibold cursor-pointer ${currentTeam.processType === 'DISTRICT_TEAM' && !!currentTeam.targetDistrictName ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-gray-50/70 border-gray-200 text-gray-700'}`}
             >
               {JDCA_DISTRICTS.map((d) => (
                 <option key={d} value={d}>{d}</option>
