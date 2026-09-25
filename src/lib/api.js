@@ -569,6 +569,36 @@ export const api = {
   // MATCH REPORTS & SCORECARDS
   // ==========================================
 
+  async getPlayerMatchStats(playerId) {
+    if (!playerId) return { batting: [], bowling: [] };
+    try {
+      const [batRes, bowlRes] = await Promise.all([
+        supabase.from('v_player_match_batting').select('*, matches(scheduled_at, home_team:home_team_id(name), away_team:away_team_id(name))').eq('player_id', playerId).order('match_id'),
+        supabase.from('v_player_match_bowling').select('*, matches(scheduled_at, home_team:home_team_id(name), away_team:away_team_id(name))').eq('player_id', playerId).order('match_id')
+      ]);
+
+      const processMatches = (data) => {
+        return (data || []).sort((a, b) => {
+          const dateA = a.matches?.scheduled_at ? new Date(a.matches.scheduled_at) : new Date(0);
+          const dateB = b.matches?.scheduled_at ? new Date(b.matches.scheduled_at) : new Date(0);
+          return dateA - dateB;
+        }).map(stat => ({
+          ...stat,
+          opponent: stat.matches?.home_team?.name || 'Unknown', // Simplification
+          date: stat.matches?.scheduled_at ? new Date(stat.matches.scheduled_at).toLocaleDateString() : 'Unknown'
+        }));
+      };
+
+      return {
+        batting: processMatches(batRes.data),
+        bowling: processMatches(bowlRes.data)
+      };
+    } catch (e) {
+      console.error('Error fetching player match stats:', e);
+      return { batting: [], bowling: [] };
+    }
+  },
+
   async getMatchScorecard(matchId) {
     if (!matchId) return null;
 

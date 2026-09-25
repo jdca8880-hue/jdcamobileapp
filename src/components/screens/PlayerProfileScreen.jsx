@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Star, MapPin, Award, Activity, TrendingUp, Sliders, Calendar, ShieldCheck, CheckCircle2, Trash2
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
+import { api } from '../../lib/api';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const ProfileTabs = ({ tabs, active, onChange }) => (
   <div className="flex bg-slate-100 p-1 rounded-xl mb-4 max-w-xl mx-auto">
@@ -24,8 +26,15 @@ export default function PlayerProfileScreen() {
   const { selectedPlayer, goBack, shortlistedIds, toggleShortlist, userRole, setPlayers } = useCricket();
   const [activeTab, setActiveTab] = useState('Overview');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [matchStats, setMatchStats] = useState({ batting: [], bowling: [] });
 
   const player = selectedPlayer;
+
+  useEffect(() => {
+    if (player?.id) {
+      api.getPlayerMatchStats(player.id).then(setMatchStats).catch(console.error);
+    }
+  }, [player?.id]);
   
   if (!player) {
     return (
@@ -226,6 +235,27 @@ export default function PlayerProfileScreen() {
                   <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.fours || 0} / {player.sixes || 0}</div>
                 </div>
               </div>
+              
+              {/* Batting Chart */}
+              {matchStats.batting.length > 0 && (
+                <div className="p-4 border-t border-slate-100">
+                  <h4 className="font-semibold text-sm text-slate-800 mb-4">Match-by-Match Runs</h4>
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={matchStats.batting}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="date" tick={{fontSize: 10}} tickMargin={10} minTickGap={15} />
+                        <YAxis tick={{fontSize: 10}} />
+                        <Tooltip 
+                          contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px'}}
+                          labelStyle={{fontWeight: 'bold', color: '#0f172a', marginBottom: '4px'}}
+                        />
+                        <Line type="monotone" dataKey="runs_scored" name="Runs" stroke="#f59e0b" strokeWidth={3} dot={{r: 4, fill: '#f59e0b', strokeWidth: 0}} activeDot={{r: 6}} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -256,6 +286,27 @@ export default function PlayerProfileScreen() {
                   <div className="text-lg font-semibold text-slate-900 mt-0.5">{player.average ? player.average.toFixed(1) : '-'}</div>
                 </div>
               </div>
+
+              {/* Bowling Chart */}
+              {matchStats.bowling.length > 0 && (
+                <div className="p-4 border-t border-slate-100">
+                  <h4 className="font-semibold text-sm text-slate-800 mb-4">Match-by-Match Wickets</h4>
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={matchStats.bowling}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="date" tick={{fontSize: 10}} tickMargin={10} minTickGap={15} />
+                        <YAxis tick={{fontSize: 10}} allowDecimals={false} />
+                        <Tooltip 
+                          contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px'}}
+                          labelStyle={{fontWeight: 'bold', color: '#0f172a', marginBottom: '4px'}}
+                        />
+                        <Line type="monotone" dataKey="wickets_taken" name="Wickets" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, fill: '#3b82f6', strokeWidth: 0}} activeDot={{r: 6}} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
