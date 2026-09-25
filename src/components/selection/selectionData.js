@@ -56,7 +56,8 @@ export function normalizeSelectionPlayer(p) {
   else if (catStr.includes('19')) category = 'U19';
 
   let gender = p.gender || 'Men';
-  if (p.name && (p.name.includes('Priya') || p.name.includes('Ananya') || p.name.includes('Pooja'))) {
+  const playerName = p.name || p.full_name || '';
+  if (playerName && (playerName.includes('Priya') || playerName.includes('Ananya') || playerName.includes('Pooja'))) {
     gender = 'Women';
   }
 
@@ -171,7 +172,7 @@ export function normalizeSelectionPlayer(p) {
   return {
     ...p,
     id: p.id || null,
-    name: p.name || 'Unknown Player',
+    name: p.name || p.full_name || 'Unknown Player',
     registrationNumber: p.registrationNumber || null,
     category,
     categoryLevel: AGE_HIERARCHY_LEVELS[category] || 5,

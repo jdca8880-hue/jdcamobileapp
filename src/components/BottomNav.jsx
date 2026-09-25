@@ -67,7 +67,8 @@ export default function BottomNav() {
     ];
 
     return allItems.filter(item => {
-      if (item.id === 'more' || item.id === 'home' || item.id === 'teams') return true;
+      if (item.id === 'more' || item.id === 'teams') return true;
+      if (item.id === 'home') return userRole !== 'SCORER';
       if (item.id === 'scoring') return ['DISTRICT_ADMIN', 'SCORER'].includes(userRole);
       if (item.id === 'matches') return ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER', 'VIEWER'].includes(userRole);
       return true;

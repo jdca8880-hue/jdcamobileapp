@@ -4,7 +4,21 @@ import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
 
 export default function MatchSetupScreen() {
-  const { matchSetup, setMatchSetup, navigateTo, goBack, players, activeMatchId, registeredUsers = [] } = useCricket();
+  const { matchSetup, setMatchSetup, navigateTo, goBack, players, activeMatchId, matches = [], registeredUsers = [] } = useCricket();
+  
+  React.useEffect(() => {
+    const activeMatch = matches.find(m => m.id === activeMatchId);
+    if (activeMatch) {
+      setMatchSetup(prev => ({
+        ...prev,
+        teamA: activeMatch.home_team?.name || activeMatch.teamA?.name || prev.teamA || 'Team A',
+        teamAId: activeMatch.home_team_id || activeMatch.teamA?.id || prev.teamAId,
+        teamB: activeMatch.away_team?.name || activeMatch.teamB?.name || prev.teamB || 'Team B',
+        teamBId: activeMatch.away_team_id || activeMatch.teamB?.id || prev.teamBId,
+        assignedScorerId: activeMatch.scorer_id || prev.assignedScorerId,
+      }));
+    }
+  }, [activeMatchId, matches, setMatchSetup]);
   const [currentStep, setCurrentStep] = useState(1);
   const [activeTeamTab, setActiveTeamTab] = useState('A');
   const [isSaving, setIsSaving] = useState(false);
@@ -54,7 +68,7 @@ export default function MatchSetupScreen() {
   ];
 
   const filteredPlayers = activeXI.filter((p) => (p.full_name || p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
-  const availableScorers = registeredUsers.filter(u => ['SCORER', 'DISTRICT_ADMIN', 'SUPER_ADMIN'].includes(u.role));
+  const availableScorers = registeredUsers.filter(u => u.role === 'SCORER');
 
   const handleStartMatch = async () => {
     if (matchSetup.teamAXI.length === 0 || matchSetup.teamBXI.length === 0) {
@@ -133,16 +147,16 @@ export default function MatchSetupScreen() {
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Team A Name *</label>
                 <input 
-                  type="text" value={matchSetup.teamA} onChange={(e) => setMatchSetup({ ...matchSetup, teamA: e.target.value })}
-                  className="w-full bg-slate-50 rounded-[12px] p-4 text-[16px] font-black outline-none border focus:border-[#2457D6] border-transparent"
+                  type="text" value={matchSetup.teamA} readOnly
+                  className="w-full bg-slate-50 rounded-[12px] p-4 text-[16px] font-black outline-none border border-transparent text-gray-500 cursor-not-allowed"
                 />
               </div>
               <div className="text-center font-black text-[12px] text-[#8a99b0] uppercase tracking-widest">VS</div>
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Team B Name *</label>
                 <input 
-                  type="text" value={matchSetup.teamB} onChange={(e) => setMatchSetup({ ...matchSetup, teamB: e.target.value })}
-                  className="w-full bg-slate-50 rounded-[12px] p-4 text-[16px] font-black outline-none border focus:border-[#2457D6] border-transparent"
+                  type="text" value={matchSetup.teamB} readOnly
+                  className="w-full bg-slate-50 rounded-[12px] p-4 text-[16px] font-black outline-none border border-transparent text-gray-500 cursor-not-allowed"
                 />
               </div>
             </div>
@@ -264,6 +278,45 @@ export default function MatchSetupScreen() {
                       <option key={s.id} value={s.id}>{s.email || s.name}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100">
+                  <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4">Match Officials (Manually Assigned)</h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Umpire 1</label>
+                      <input 
+                        type="text" value={matchSetup.umpires?.umpire1 || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, umpire1: e.target.value } }))}
+                        placeholder="Enter Name"
+                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Umpire 2</label>
+                      <input 
+                        type="text" value={matchSetup.umpires?.umpire2 || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, umpire2: e.target.value } }))}
+                        placeholder="Enter Name"
+                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">TV Umpire (Optional)</label>
+                      <input 
+                        type="text" value={matchSetup.umpires?.tvUmpire || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, tvUmpire: e.target.value } }))}
+                        placeholder="Enter Name"
+                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Match Referee</label>
+                      <input 
+                        type="text" value={matchSetup.umpires?.referee || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, referee: e.target.value } }))}
+                        placeholder="Enter Name"
+                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
+                      />
+                    </div>
+                  </div>
                 </div>
              </div>
           </div>

@@ -3,20 +3,31 @@ import { Plus, Search, CalendarDays, ArrowRight, MapPin } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { MatchStatusBadge } from '../ui/Badge';
 
-const TABS = [
-  { id: 'all', label: 'All' },
-  { id: 'live', label: 'Live' },
-  { id: 'upcoming', label: 'Upcoming' },
-  { id: 'completed', label: 'Completed' },
-];
-
 import { MatchCard } from '../ui/MatchCard';
 
 export default function MatchesScreen() {
-  const { matches = [], navigateTo, setActiveMatchId } = useCricket();
-  const [activeTab, setActiveTab] = useState('all');
+  const { matches = [], navigateTo, setActiveMatchId, userRole, userName } = useCricket();
+  const [activeTab, setActiveTab] = useState(userRole === 'SCORER' ? 'my_matches' : 'all');
+
+  const TABS = useMemo(() => {
+    const baseTabs = [
+      { id: 'all', label: 'All' },
+      { id: 'live', label: 'Live' },
+      { id: 'upcoming', label: 'Upcoming' },
+      { id: 'completed', label: 'Completed' },
+    ];
+    if (userRole === 'SCORER') {
+      return [{ id: 'my_matches', label: 'My Matches' }, ...baseTabs];
+    }
+    return baseTabs;
+  }, [userRole]);
 
   const filtered = useMemo(() => matches.filter(m => {
+    if (activeTab === 'my_matches') {
+      // Scorer assignment matching
+      return (m.scorer_name === userName && userName) || (m.scorer_id === userName); // Fallback string match
+    }
+
     const status = String(m.status || '').toUpperCase();
     const live = status === 'LIVE' || status === 'IN_PROGRESS';
     const upcoming = status === 'UPCOMING' || status === 'SCHEDULED';
@@ -26,13 +37,14 @@ export default function MatchesScreen() {
     if (activeTab === 'upcoming') return upcoming;
     if (activeTab === 'completed') return completed;
     return true;
-  }), [matches, activeTab]);
+  }), [matches, activeTab, userName]);
 
   const openMatch = (match) => {
     setActiveMatchId(match.id);
     navigateTo('match-detail');
   };
 
+  const myScoringMatches = filtered; // When activeTab is my_matches, filtered already has just those
   const liveMatches = filtered.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
   const upcomingMatches = filtered.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
   const completedMatches = filtered.filter(m => m.status === 'COMPLETED' || m.status === 'FINISHED');
@@ -59,6 +71,18 @@ export default function MatchesScreen() {
       </div>
 
       <div className="px-4 pt-6">
+        {/* MY MATCHES SECTION */}
+        {activeTab === 'my_matches' && myScoringMatches.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-[12px] font-black uppercase tracking-widest text-[#2457D6] mb-3 ml-1 flex items-center gap-2">
+              <CalendarDays size={14} /> My Assigned Matches
+            </h2>
+            {myScoringMatches.map(match => (
+              <MatchCard key={match.id} match={match} onClick={() => openMatch(match)} />
+            ))}
+          </div>
+        )}
+
         {/* LIVE SECTION */}
         {(activeTab === 'all' || activeTab === 'live') && liveMatches.length > 0 && (
           <div className="mb-6">

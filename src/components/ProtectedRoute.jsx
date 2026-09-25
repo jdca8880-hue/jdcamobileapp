@@ -37,7 +37,7 @@ export const ROLE_HOME = {
   SUPER_ADMIN: '/home',
   DISTRICT_ADMIN: '/home',
   SELECTOR: '/home',
-  SCORER: '/home',
+  SCORER: '/matches',
   VIEWER: '/home',
 };
 

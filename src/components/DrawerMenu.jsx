@@ -38,7 +38,7 @@ export default function DrawerMenu() {
   const visible = ALL_NAV.filter(item => {
     if (item.adminOnly && !['SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(userRole)) return false;
     if (userRole === 'SUPER_ADMIN' && item.id === 'scoring') return false;
-    if (userRole === 'SCORER')   return ['home','matches','scoring','teams','tournaments','news'].includes(item.id);
+    if (userRole === 'SCORER')   return ['matches','scoring','teams','tournaments'].includes(item.id);
     if (userRole === 'SELECTOR') return ['home','players','selection','teams','tournaments','news'].includes(item.id);
     if (userRole === 'VIEWER')   return ['home','matches','players','teams','tournaments','news'].includes(item.id);
     return true;

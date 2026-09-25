@@ -885,8 +885,17 @@ export const api = {
   },
 
   async deleteUser(userId) {
-    const { error } = await supabase.from('profiles').delete().eq('id', userId);
-    if (error) throw error;
+    const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+    
+    if (error) {
+      // Fallback: If the SQL function isn't deployed, at least delete from profiles
+      if (error.message && error.message.includes('Could not find the function')) {
+        const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
+        if (profileError) throw profileError;
+      } else {
+        throw error;
+      }
+    }
   },
 
   async resetUserPassword(userId, newPassword) {

@@ -56,6 +56,8 @@ export function CricketProvider({ children }) {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
+  const [userId, setUserId] = useState(null);
   const [userRole, setUserRole] = useState('VIEWER'); // SUPER_ADMIN, DISTRICT_ADMIN, SCORER, SELECTOR, VIEWER
   const [userPermissions, setUserPermissions] = useState({ can_add: false, can_edit: false, can_delete: false });
 
@@ -162,14 +164,16 @@ export function CricketProvider({ children }) {
           
           if (session?.user) {
             setUserEmail(session.user.email);
+            setUserId(session.user.id);
             setIsAuthenticated(true);
             // Fetch role from profiles
             const { data: profile, error: profileErr } = await supabase
               .from('profiles')
-              .select('role, is_active, can_add, can_edit, can_delete')
+              .select('role, is_active, can_add, can_edit, can_delete, full_name')
               .eq('id', session.user.id)
               .single();
             if (profile) {
+              setUserName(profile.full_name || '');
               if (profile.is_active === false) {
                 await supabase.auth.signOut();
               } else {
@@ -186,13 +190,15 @@ export function CricketProvider({ children }) {
           supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
               setUserEmail(session.user.email);
+              setUserId(session.user.id);
               setIsAuthenticated(true);
               const { data: profile, error: profileErr } = await supabase
                 .from('profiles')
-                .select('role, is_active, can_add, can_edit, can_delete')
+                .select('role, is_active, can_add, can_edit, can_delete, full_name')
                 .eq('id', session.user.id)
                 .single();
               if (profile) {
+                setUserName(profile.full_name || '');
                 if (profile.is_active === false) {
                   await supabase.auth.signOut();
                 } else {
@@ -1174,6 +1180,8 @@ export function CricketProvider({ children }) {
         isAuthenticated,
         setIsAuthenticated,
         userEmail,
+        userId,
+        userName,
         setUserEmail,
         userRole,
         userPermissions,
