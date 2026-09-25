@@ -49,6 +49,7 @@ export default function MatchDetailScreen() {
       const { api } = await import('../../lib/api');
       await api.assignScorer(match.id, selectedScorer);
       alert('Scorer assigned successfully.');
+      window.location.reload();
     } catch (err) {
       console.error(err);
       alert('Failed to assign scorer.');

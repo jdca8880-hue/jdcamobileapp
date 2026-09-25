@@ -25,7 +25,7 @@ export default function MatchesScreen() {
   const filtered = useMemo(() => matches.filter(m => {
     if (activeTab === 'my_matches') {
       // Scorer assignment matching
-      return (m.scorer_name === userName && userName) || (m.scorer_id === userName); // Fallback string match
+      return (m.scorer_name?.trim().toLowerCase() === userName?.trim().toLowerCase() && userName) || (m.scorer_id === userName);
     }
 
     const status = String(m.status || '').toUpperCase();

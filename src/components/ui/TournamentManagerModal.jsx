@@ -3,7 +3,7 @@ import { X, Calendar, Trophy, Plus, Trash2, ArrowRight, Loader2 } from 'lucide-r
 import { api } from '../../lib/api';
 import { useCricket } from '../../context/CricketContext';
 
-export default function TournamentManagerModal({ isOpen, onClose, initialData = null, teams = [], refreshAdminData }) {
+export default function TournamentManagerModal({ isOpen, onClose, initialData = null, teams = [], refreshAdminData, onSave }) {
   const { registeredUsers = [] } = useCricket();
   const [step, setStep] = useState(1); // 1: Tournament Details, 2: Configure Matches
   const [isSaving, setIsSaving] = useState(false);
@@ -61,22 +61,26 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
     setIsSaving(true);
     
     try {
-      let savedTournament;
-      if (initialData?.id) {
-        savedTournament = await api.updateTournament(initialData.id, formData);
+      if (onSave) {
+        await onSave(formData);
       } else {
-        savedTournament = await api.createTournament(formData);
-      }
+        let savedTournament;
+        if (initialData?.id) {
+          savedTournament = await api.updateTournament(initialData.id, formData);
+        } else {
+          savedTournament = await api.createTournament(formData);
+        }
 
-      if (formData.customMatches && formData.customMatches.length > 0) {
-        await api.createDetailedMatches(savedTournament.id, formData.format, formData.customMatches);
-      }
+        if (formData.customMatches && formData.customMatches.length > 0) {
+          await api.createDetailedMatches(savedTournament.id, formData.format, formData.customMatches);
+        }
 
-      if (refreshAdminData) {
-        await refreshAdminData();
+        if (refreshAdminData) {
+          await refreshAdminData();
+        }
+        
+        onClose();
       }
-      
-      onClose();
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'Failed to save tournament');
