@@ -82,16 +82,6 @@ export default function HomeScreen() {
   const liveMatches = matches.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
   const upcomingMatches = matches.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
 
-  // Top performers
-  const topBatters = [...players]
-    .sort((a, b) => (b.careerRuns || 0) - (a.careerRuns || 0))
-    .slice(0, 4);
-
-  const topBowlers = [...players]
-    .filter(p => (p.wickets || 0) > 0)
-    .sort((a, b) => (b.wickets || 0) - (a.wickets || 0))
-    .slice(0, 4);
-
   // Filtered districts
   const filteredDistricts = districtFilter === 'All'
     ? districtStats
@@ -483,97 +473,7 @@ export default function HomeScreen() {
                     </button>
                   </div>
 
-                  {/* Top Run Scorers */}
-                  <div>
-                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span>Leading Run Scorers (Orange Cap Race)</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
-                      {topBatters.map((batter, idx) => {
-                        const bgClass = 'bg-white border-l-4 border-l-amber-500 border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1';
-                        return (
-                          <div
-                            key={batter.id || idx}
-                            onClick={() => {
-                              setSelectedPlayer(batter);
-                              navigateTo('player-profile');
-                            }}
-                            className={`p-3.5 rounded-2xl ${bgClass} border hover:scale-[1.03] transition-all duration-300 cursor-pointer flex items-center justify-between group relative overflow-hidden`}
-                          >
-                            <div className="flex items-center gap-2.5 relative z-10">
-                              <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 text-slate-900 shadow-sm">
-                                {idx + 1}
-                              </span>
-                              <img
-                                src={batter.avatar}
-                                alt={batter.name}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-slate-200 shadow-sm"
-                              />
-                              <div>
-                                <div className="text-xs font-black text-slate-900">
-                                  {batter.name}
-                                </div>
-                                <div className="text-xs text-slate-500">{batter.district || 'Jabalpur'} • {batter.category || 'Senior'}</div>
-                              </div>
-                            </div>
-                            <div className="text-right relative z-10">
-                              <div className="text-base font-black text-slate-900 tabular-nums drop-shadow-sm">
-                                {batter.careerRuns || 0}
-                              </div>
-                              <div className="text-xs font-bold text-slate-500">Avg {batter.battingAvg || 0}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
 
-                  {/* Top Wicket Takers */}
-                  <div className="pt-2">
-                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-purple-500" />
-                      <span>Leading Wicket Takers (Purple Cap Race)</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
-                      {topBowlers.map((bowler, idx) => {
-                        const bgClass = 'bg-white border-l-4 border-l-purple-500 border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1';
-                        return (
-                          <div
-                            key={bowler.id || idx}
-                            onClick={() => {
-                              setSelectedPlayer(bowler);
-                              navigateTo('player-profile');
-                            }}
-                            className={`p-3.5 rounded-2xl ${bgClass} border hover:scale-[1.03] transition-all duration-300 cursor-pointer flex items-center justify-between group relative overflow-hidden`}
-                          >
-                            <div className="flex items-center gap-2.5 relative z-10">
-                              <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black bg-purple-50 text-purple-700 border border-purple-200 text-slate-900 shadow-sm">
-                                {idx + 1}
-                              </span>
-                              <img
-                                src={bowler.avatar}
-                                alt={bowler.name}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-slate-200 shadow-sm"
-                              />
-                              <div>
-                                <div className="text-xs font-black text-slate-900">
-                                  {bowler.name}
-                                </div>
-                                <div className="text-xs text-slate-500">{bowler.district || 'Unknown'} • {bowler.role || 'Bowler'}</div>
-                              </div>
-                            </div>
-                            <div className="text-right relative z-10">
-                              <div className="text-base font-black text-slate-900 tabular-nums drop-shadow-sm">
-                                {bowler.wickets || 0} Wkts
-                              </div>
-                              <div className="text-xs font-bold text-slate-500">Econ {bowler.economy || '0.0'}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
 
                 {/* 9 Districts Quick Radar */}
