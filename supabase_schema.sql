@@ -1102,6 +1102,61 @@ begin
 end;
 $$;
 
+create or replace function is_selector_authorized_for_process(p_process_id uuid, p_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role app_role;
+  v_max_rank integer;
+  v_process_rank integer;
+  v_process_district uuid;
+  v_authorized boolean;
+begin
+  select role into v_role from profiles where id = p_user_id;
+  
+  if v_role in ('SUPER_ADMIN', 'DISTRICT_ADMIN') then
+    return true;
+  elsif v_role = 'SELECTOR' then
+    select ac.rank_level into v_max_rank
+    from selector_age_access saa
+    join age_categories ac on ac.id = saa.max_age_category_id
+    where saa.selector_id = p_user_id;
+    
+    if v_max_rank is null then
+      return false;
+    end if;
+
+    select pac.rank_level, coalesce(sp.district_id, t.district_id) 
+    into v_process_rank, v_process_district
+    from selection_processes sp
+    join age_categories pac on pac.id = sp.age_category_id
+    left join teams t on t.id = sp.target_team_id
+    where sp.id = p_process_id;
+
+    if v_process_rank > v_max_rank then
+      return false;
+    end if;
+
+    if v_process_district is not null then
+      select exists (
+        select 1 
+        from selector_district_access sda 
+        where sda.selector_id = p_user_id 
+          and sda.district_id = v_process_district
+      ) into v_authorized;
+      return coalesce(v_authorized, false);
+    else
+      return false;
+    end if;
+  else
+    return false;
+  end if;
+end;
+$$;
+
 -- ============================================================
 -- PUBLIC READ POLICIES
 -- ============================================================
@@ -1341,11 +1396,19 @@ drop policy if exists decisions_write on selection_decisions;
 
 create policy decisions_write on selection_decisions
 for all using (
-  current_app_role() in ('SUPER_ADMIN','SELECTOR')
+  current_app_role() = 'SUPER_ADMIN'
+  or (
+    current_app_role() = 'SELECTOR'
+    and is_selector_authorized_for_process(selection_process_id, auth.uid())
+  )
 )
 with check (
-  current_app_role() in ('SUPER_ADMIN','SELECTOR')
-  and decided_by = auth.uid()
+  current_app_role() = 'SUPER_ADMIN'
+  or (
+    current_app_role() = 'SELECTOR'
+    and decided_by = auth.uid()
+    and is_selector_authorized_for_process(selection_process_id, auth.uid())
+  )
 );
 
 -- ============================================================
@@ -1371,6 +1434,16 @@ with check (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN')
 );
 
+drop policy if exists matches_scorer_update on matches;
+create policy matches_scorer_update on matches
+for update using (
+  current_app_role() = 'SCORER'
+  and status not in ('COMPLETED', 'ABANDONED', 'CANCELLED')
+)
+with check (
+  current_app_role() = 'SCORER'
+);
+
 -- ============================================================
 -- SCORER WRITE
 -- Only scorers/admins can create/update live innings/deliveries.
@@ -1381,12 +1454,22 @@ drop policy if exists innings_scorer_write on innings;
 create policy innings_scorer_write on innings
 for insert with check (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  and exists (
+    select 1 from matches m
+    where m.id = match_id
+    and m.status not in ('COMPLETED', 'ABANDONED', 'CANCELLED')
+  )
 );
 
 drop policy if exists innings_scorer_update on innings;
 create policy innings_scorer_update on innings
 for update using (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  and exists (
+    select 1 from matches m
+    where m.id = match_id
+    and m.status not in ('COMPLETED', 'ABANDONED', 'CANCELLED')
+  )
 )
 with check (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
@@ -1397,12 +1480,22 @@ create policy deliveries_scorer_insert on deliveries
 for insert with check (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
   and created_by = auth.uid()
+  and exists (
+    select 1 from matches m
+    where m.id = match_id
+    and m.status not in ('COMPLETED', 'ABANDONED', 'CANCELLED')
+  )
 );
 
 drop policy if exists deliveries_scorer_update on deliveries;
 create policy deliveries_scorer_update on deliveries
 for update using (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  and exists (
+    select 1 from matches m
+    where m.id = match_id
+    and m.status not in ('COMPLETED', 'ABANDONED', 'CANCELLED')
+  )
 )
 with check (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')

@@ -31,6 +31,7 @@ export const api = {
     const { data, error } = await supabase
       .from('seasons')
       .select('*')
+      .neq('name', '2024-25')
       .order('start_date', { ascending: false });
     if (error && error.code !== '42P01') throw error;
     return data || [];
@@ -41,6 +42,7 @@ export const api = {
       .from('seasons')
       .select('*')
       .eq('is_current_active', true)
+      .neq('name', '2024-25')
       .maybeSingle();
     if (error && error.code !== '42P01') throw error;
     return data;
@@ -507,6 +509,60 @@ export const api = {
     
     if (updateError) throw updateError;
     return true;
+  },
+
+  // ==========================================
+  // HYDRATE MATCH STATE
+  // ==========================================
+  
+  async hydrateLiveMatch(matchId) {
+    if (!matchId) throw new Error("Match ID required");
+    
+    // 1. Fetch match and teams
+    const { data: match, error: matchError } = await supabase
+      .from('matches')
+      .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
+      .eq('id', matchId)
+      .single();
+      
+    if (matchError) throw matchError;
+
+    // 2. Fetch Match Rosters
+    const { data: rosters } = await supabase
+      .from('match_rosters')
+      .select('*, player:player_id(*)')
+      .eq('match_id', matchId);
+
+    const teamAXI = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
+    const teamBXI = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
+
+    // 3. Fetch Innings
+    const { data: inningsData } = await supabase
+      .from('innings')
+      .select('*')
+      .eq('match_id', matchId)
+      .order('innings_number', { ascending: false })
+      .limit(1);
+
+    const currentInning = inningsData && inningsData.length > 0 ? inningsData[0] : null;
+    let deliveries = [];
+    
+    if (currentInning) {
+      const { data: dData } = await supabase
+        .from('deliveries')
+        .select('*, striker:striker_id(*), non_striker:non_striker_id(*), bowler:bowler_id(*)')
+        .eq('innings_id', currentInning.id)
+        .order('delivery_sequence', { ascending: true });
+      if (dData) deliveries = dData;
+    }
+
+    return {
+      match,
+      teamAXI,
+      teamBXI,
+      currentInning,
+      deliveries
+    };
   },
 
   // ==========================================

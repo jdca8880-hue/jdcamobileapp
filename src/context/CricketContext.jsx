@@ -139,7 +139,18 @@ export function CricketProvider({ children }) {
 
   // Matches State
   const [matches, setMatches] = useState([]);
-  const [activeMatchId, setActiveMatchId] = useState(null);
+  const [activeMatchId, setActiveMatchIdState] = useState(() => {
+    try { return sessionStorage.getItem('jdca-active-match-id') || null; }
+    catch { return null; }
+  });
+
+  const setActiveMatchId = (id) => {
+    setActiveMatchIdState(id);
+    try {
+      if (id) sessionStorage.setItem('jdca-active-match-id', id);
+      else sessionStorage.removeItem('jdca-active-match-id');
+    } catch {}
+  };
   
   // Teams State
   const [teams, setTeams] = useState([]);
@@ -254,7 +265,10 @@ export function CricketProvider({ children }) {
               supabase.from('matches').select('*, tournaments!inner(id, deleted_at), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null).is('tournaments.deleted_at', null),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
               supabase.from('tournaments').select('*').is('deleted_at', null),
-              supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name))').is('deleted_at', null)
+              supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name))').is('deleted_at', null),
+              supabase.from('v_player_career_batting').select('*'),
+              supabase.from('v_player_career_bowling').select('*'),
+              supabase.from('v_player_career_fielding').select('*')
             ]);
 
             // Reconcile Matches
@@ -288,6 +302,10 @@ export function CricketProvider({ children }) {
 
             // Reconcile Players
             if (playersRes.status === 'fulfilled' && !playersRes.value.error && playersRes.value.data) {
+              const batStats = batStatsRes?.status === 'fulfilled' ? batStatsRes.value.data || [] : [];
+              const bowlStats = bowlStatsRes?.status === 'fulfilled' ? bowlStatsRes.value.data || [] : [];
+              const fieldStats = fieldStatsRes?.status === 'fulfilled' ? fieldStatsRes.value.data || [] : [];
+
               const freshPlayers = playersRes.value.data.map(p => {
                 let district = 'Unknown';
                 let category = 'Unknown';
@@ -296,7 +314,24 @@ export function CricketProvider({ children }) {
                   district = reg.district?.name || district;
                   category = reg.age_category?.name || category;
                 }
-                return { ...p, district, category };
+                
+                const batting = batStats.find(s => s.player_id === p.id) || null;
+                const bowling = bowlStats.find(s => s.player_id === p.id) || null;
+                const fielding = fieldStats.find(s => s.player_id === p.id) || null;
+
+                return { 
+                  ...p, 
+                  district, 
+                  category, 
+                  career_batting: batting, 
+                  career_bowling: bowling, 
+                  career_fielding: fielding,
+                  name: p.full_name,
+                  avatar: p.avatar_url,
+                  role: p.primary_role,
+                  careerRuns: batting ? batting.total_runs : 0,
+                  wickets: bowling ? bowling.total_wickets : 0
+                };
               });
               await db.players.clear();
               await db.players.bulkAdd(freshPlayers);
@@ -447,6 +482,155 @@ export function CricketProvider({ children }) {
   const [innings, setInnings] = useState(1); // 1 or 2
   const [currentInningsId, setCurrentInningsId] = useState(null);
   const [target, setTarget] = useState(null);
+
+  // Hydrate Match State on refresh
+  const hydrateMatchState = async (matchId) => {
+    try {
+      const { match, teamAXI, teamBXI, currentInning, deliveries } = await api.hydrateLiveMatch(matchId);
+      if (!match) return false;
+
+      setMatchSetup({
+        teamA: match.home_team?.name || '',
+        teamAId: match.home_team_id,
+        teamB: match.away_team?.name || '',
+        teamBId: match.away_team_id,
+        teamAShort: match.home_team?.short_name || '',
+        teamBShort: match.away_team?.short_name || '',
+        tossWinnerTeamId: match.toss_winner_id,
+        electedTo: match.toss_decision === 'BAT' ? 'Bat' : 'Bowl',
+        totalOvers: match.max_overs || 20,
+        teamAXI,
+        teamBXI
+      });
+
+      if (currentInning) {
+        setInnings(currentInning.innings_number);
+        setCurrentInningsId(currentInning.id);
+        
+        let mergedDeliveries = [...deliveries];
+        
+        try {
+          const { db } = await import('../lib/db.js');
+          if (db.sync_queue) {
+            const pendingActions = await db.sync_queue.toArray();
+            const supabaseKeys = new Set(deliveries.map(d => d.idempotency_key));
+            
+            const offlineDeliveries = pendingActions
+              .filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.inningsId === currentInning.id)
+              .filter(a => !supabaseKeys.has(a.payload.id))
+              .map(a => {
+                const p = a.payload;
+                let extraType = 'NONE';
+                if (p.extraType) extraType = p.extraType.toUpperCase();
+                
+                let wicketType = 'NONE';
+                if (p.wicket) {
+                  const wMap = {
+                    'Bowled': 'BOWLED', 'Caught': 'CAUGHT', 'LBW': 'LBW', 'Run Out': 'RUN_OUT',
+                    'Stumped': 'STUMPED', 'Hit Wicket': 'HIT_WICKET', 'Retired Hurt': 'RETIRED_HURT',
+                    'Retired Out': 'RETIRED_OUT'
+                  };
+                  wicketType = wMap[p.dismissalType] || 'NONE';
+                }
+                
+                return {
+                  id: p.id,
+                  idempotency_key: p.id,
+                  runs_total: p.totalRuns || 0,
+                  runs_off_bat: p.runsOffBat || 0,
+                  runs_extras: p.extraRuns || 0,
+                  extra_type: extraType,
+                  wicket_type: wicketType,
+                  striker: { name: p.striker },
+                  dismissed_player_id: p.wicket ? p.strikerId : null,
+                  striker_id: p.strikerId,
+                  non_striker_id: p.nonStrikerId,
+                  bowler_id: p.bowlerId,
+                };
+              });
+              
+            mergedDeliveries = [...mergedDeliveries, ...offlineDeliveries];
+          }
+        } catch (err) {
+          console.error('[CricketContext] Failed to merge offline deliveries during hydration:', err);
+        }
+
+        let r = 0;
+        let w = 0;
+        let b = 0;
+        
+        const mappedLog = [];
+        mergedDeliveries.forEach((d) => {
+          r += d.runs_total;
+          if (d.wicket_type !== 'NONE') w++;
+          if (d.extra_type === 'NONE' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
+            b++;
+          }
+          
+          let t = 'run';
+          if (d.wicket_type !== 'NONE') t = 'wicket';
+          else if (d.extra_type !== 'NONE') t = 'extra';
+          
+          mappedLog.push({
+            id: d.idempotency_key,
+            type: t,
+            runs: d.runs_total,
+            runsOffBat: d.runs_off_bat,
+            extraRuns: d.runs_extras,
+            extraType: d.extra_type !== 'NONE' ? d.extra_type.toLowerCase() : null,
+            totalRuns: d.runs_total,
+            wicket: d.wicket_type !== 'NONE',
+            dismissalType: d.wicket_type,
+            outPlayerName: d.dismissed_player_id ? d.striker?.name : null,
+            over: Math.floor(b/6) + '.' + (b%6)
+          });
+        });
+        
+        setRuns(r);
+        setWickets(w);
+        setBalls(b);
+        setDeliveryLog(mappedLog);
+
+        const currentOverBallsArr = mappedLog.filter(dl => 
+          Math.floor((b - 1) / 6) === Math.floor((parseInt(dl.over.split('.')[0]) * 6 + parseInt(dl.over.split('.')[1]) - 1) / 6)
+        ).map(dl => ({
+          id: dl.id,
+          type: dl.type,
+          value: dl.runs,
+          runs: dl.runs,
+          wicket: dl.wicket,
+          extra: !!dl.extraType
+        }));
+        setCurrentOverBalls(currentOverBallsArr);
+
+        if (mergedDeliveries.length > 0) {
+          const scorecard = await api.getMatchScorecard(matchId);
+          if (scorecard && scorecard.innings && scorecard.innings.length >= currentInning.innings_number) {
+            const currentStats = scorecard.innings[currentInning.innings_number - 1];
+            const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
+
+            if (lastDel.striker_id) {
+              const strikerStat = currentStats.batting.find(bt => bt.id === lastDel.striker_id);
+              if (strikerStat) setStriker({ ...strikerStat, strikeRate: strikerStat.strikeRate });
+            }
+            if (lastDel.non_striker_id) {
+              const nonStrikerStat = currentStats.batting.find(bt => bt.id === lastDel.non_striker_id);
+              if (nonStrikerStat) setNonStriker({ ...nonStrikerStat, strikeRate: nonStrikerStat.strikeRate });
+            }
+            if (lastDel.bowler_id) {
+              const bowlerStat = currentStats.bowling.find(bw => bw.id === lastDel.bowler_id);
+              if (bowlerStat) setCurrentBowler({ ...bowlerStat, economy: bowlerStat.economy, overs: bowlerStat.overs });
+              setLastOverBowlerId(lastDel.bowler_id);
+            }
+          }
+        }
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to hydrate match state', e);
+      return false;
+    }
+  };
 
   const resolveInningsId = async (matchId = activeMatchId, inningsNum = innings) => {
     if (!matchId) return null;
@@ -1214,6 +1398,7 @@ export function CricketProvider({ children }) {
         setActiveMatchId,
         matchSetup,
         setMatchSetup,
+        hydrateMatchState,
         innings,
         setInnings,
         currentInningsId,

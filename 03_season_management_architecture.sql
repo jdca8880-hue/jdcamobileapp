@@ -23,9 +23,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_single_active_season
   WHERE is_current_active = true;
 
 -- Seed standard JDCA seasons if table is empty
-INSERT INTO seasons (name, start_date, end_date, is_current_active)
-SELECT '2024-25', '2024-09-01'::date, '2025-05-31'::date, false
-WHERE NOT EXISTS (SELECT 1 FROM seasons WHERE name = '2024-25');
+
 
 INSERT INTO seasons (name, start_date, end_date, is_current_active)
 SELECT '2025-26', '2025-09-01'::date, '2026-05-31'::date, true

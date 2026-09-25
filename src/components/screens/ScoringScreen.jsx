@@ -22,7 +22,7 @@ export default function ScoringScreen() {
     currentOverBalls, striker, nonStriker, currentBowler, isFreeHit, toggleStriker,
     validationError, setValidationError, matchStatus, recordRuns, recordExtra,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
-    matchSetup, setMatchSetup, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
+    matchSetup, setMatchSetup, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings
   } = useCricket();
 
@@ -42,6 +42,26 @@ export default function ScoringScreen() {
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
+  const [isHydrating, setIsHydrating] = useState(false);
+  const [hydrationError, setHydrationError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkHydration = async () => {
+      // If we have an active match but no Team A Playing XI in state, we must have refreshed.
+      if (activeMatchId && (!matchSetup?.teamAXI || matchSetup.teamAXI.length === 0)) {
+        setIsHydrating(true);
+        setHydrationError(false);
+        const success = await hydrateMatchState(activeMatchId);
+        if (isMounted) {
+          setIsHydrating(false);
+          if (!success) setHydrationError(true);
+        }
+      }
+    };
+    checkHydration();
+    return () => { isMounted = false; };
+  }, [activeMatchId]);
 
   useEffect(() => {
     const unsubscribe = syncService.subscribe((state) => {
@@ -93,6 +113,32 @@ export default function ScoringScreen() {
   useEffect(() => {
     if (isOverComplete) setOverOpen(true);
   }, [isOverComplete]);
+
+  if (isHydrating) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
+        <RefreshCw className="h-10 w-10 text-primary-600 animate-spin mb-4" />
+        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Hydrating Match State...</h3>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">Reconstructing scoring state from database.</p>
+      </div>
+    );
+  }
+
+  if (hydrationError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+        <WifiOff className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Failed to Load Match</h3>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">Please check your network connection and try again.</p>
+        <button 
+          onClick={() => navigateTo('home')}
+          className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold"
+        >
+          Return Home
+        </button>
+      </div>
+    );
+  }
 
   if (needsInitialization) {
     return <InningsInitScreen battingXI={battingXI} bowlingXI={bowlingXI} />;
@@ -267,6 +313,24 @@ export default function ScoringScreen() {
                 CRR <span className="text-slate-900 ml-1">{calculateCRR()}</span>
               </div>
             </div>
+            
+            {/* Sync Divergence Warning */}
+            {syncState.pendingCount > 0 && (
+              <div className="mt-4 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-amber-700 w-full max-w-sm mx-auto">
+                <div className="flex items-center gap-2 text-[14px] font-bold">
+                  {syncState.status === 'OFFLINE' ? (
+                    <WifiOff size={16} />
+                  ) : (
+                    <RefreshCw size={16} className="animate-spin" />
+                  )}
+                  {syncState.status === 'OFFLINE' ? 'Offline' : 'Syncing'}
+                </div>
+                <div className="text-[12px] opacity-80 text-center leading-tight mt-1">
+                  {syncState.pendingCount} pending {syncState.pendingCount === 1 ? 'delivery' : 'deliveries'} not saved to database. Local score may diverge.
+                </div>
+              </div>
+            )}
+
             {innings === 2 && target && (
               <div className="mt-4 bg-jade-50 border border-jade-100 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-jade-700">
                 <div className="text-[12px] font-bold uppercase tracking-widest opacity-80 mb-0.5">Target: {target}</div>

@@ -88,73 +88,35 @@ export function normalizeSelectionPlayer(p) {
     }
   }
 
-  const matchHistory = p.matchHistory || [];
+  // Derive all performance statistics from career stats fetched from database
+  let careerRuns = parseInt(p.career_batting?.career_runs || 0, 10);
+  let careerBalls = parseInt(p.career_batting?.career_balls || 0, 10);
+  let highScore = parseInt(p.career_batting?.highest_score || 0, 10);
+  let fifties = parseInt(p.career_batting?.fifties || 0, 10);
+  let hundreds = parseInt(p.career_batting?.hundreds || 0, 10);
+  let fours = parseInt(p.career_batting?.total_fours || 0, 10);
+  let sixes = parseInt(p.career_batting?.total_sixes || 0, 10);
+  let strikeRate = p.career_batting?.strike_rate || '0.0';
+  let battingAvg = p.career_batting?.batting_average || '0.0';
 
-  // Derive all performance statistics exclusively from matchHistory
-  let careerRuns = 0;
-  let careerBalls = 0;
-  let dismissals = 0;
-  let highScore = 0;
-  let fifties = 0;
-  let hundreds = 0;
-  let fours = 0;
-  let sixes = 0;
+  let careerWickets = parseInt(p.career_bowling?.wickets || 0, 10);
+  let careerRunsConceded = parseInt(p.career_bowling?.runs_conceded || 0, 10);
+  let careerBallsBowled = parseInt(p.career_bowling?.legal_balls || 0, 10);
+  let maidens = 0; // Not supported by current view
+  let bestBowling = '-'; // Not directly supported by view natively
+  let economy = p.career_bowling?.economy || '-';
 
-  let careerWickets = 0;
-  let careerRunsConceded = 0;
-  let careerBallsBowled = 0;
-  let maidens = 0;
-  let bestBowlingW = -1;
-  let bestBowlingR = 999;
+  let totalCatches = parseInt(p.career_fielding?.catches_behind || 0, 10);
+  let totalStumpings = parseInt(p.career_fielding?.stumpings || 0, 10);
+  let totalRunOuts = parseInt(p.career_fielding?.run_outs || 0, 10);
 
-  let totalCatches = 0;
-  let totalStumpings = 0;
-  let totalRunOuts = 0;
-
-  matchHistory.forEach(m => {
-    if (m.batting) {
-      careerRuns += (m.batting.runs || 0);
-      careerBalls += (m.batting.balls || 0);
-      fours += (m.batting.fours || 0);
-      sixes += (m.batting.sixes || 0);
-      
-      if (m.batting.runs > highScore) highScore = m.batting.runs;
-      if (m.batting.runs >= 100) hundreds++;
-      else if (m.batting.runs >= 50) fifties++;
-      
-      if (!m.batting.notOut && m.batting.runs !== undefined) dismissals++;
-    }
-
-    if (m.bowling && parseFloat(m.bowling.overs || 0) > 0) {
-      careerWickets += (m.bowling.wickets || 0);
-      careerRunsConceded += (m.bowling.runs || 0);
-      const overs = parseFloat(m.bowling.overs);
-      careerBallsBowled += Math.floor(overs) * 6 + Math.round((overs % 1) * 10);
-      maidens += (m.bowling.maidens || 0);
-
-      if (m.bowling.wickets > bestBowlingW || (m.bowling.wickets === bestBowlingW && m.bowling.runs < bestBowlingR)) {
-        bestBowlingW = m.bowling.wickets;
-        bestBowlingR = m.bowling.runs;
-      }
-    }
-
-    if (m.fielding) {
-      totalCatches += (m.fielding.catches || 0);
-      totalStumpings += (m.fielding.stumpings || 0);
-      totalRunOuts += (m.fielding.runOuts || 0);
-    }
-  });
-
-  const matches = matchHistory.length;
-  const battingAvg = dismissals > 0 ? (careerRuns / dismissals).toFixed(1) : (careerRuns > 0 ? careerRuns.toFixed(1) : '0.0');
-  const strikeRate = careerBalls > 0 ? ((careerRuns / careerBalls) * 100).toFixed(1) : '0.0';
-  const highScoreStr = dismissals === matches && matches > 0 ? `${highScore}` : `${highScore}*`;
-
+  const matches = parseInt(p.career_batting?.total_matches || p.career_bowling?.total_matches || 0, 10);
+  const highScoreStr = `${highScore}`; // Assuming view highest_score is absolute
   const oversBowled = careerBallsBowled > 0 ? Math.floor(careerBallsBowled / 6) + (careerBallsBowled % 6) / 10 : 0;
   const bowlingAvg = careerWickets > 0 ? (careerRunsConceded / careerWickets).toFixed(1) : '-';
-  const economy = oversBowled > 0 ? (careerRunsConceded / oversBowled).toFixed(2) : '-';
-  const bestBowling = bestBowlingW >= 0 ? `${bestBowlingW}/${bestBowlingR}` : '-';
   const totalDismissals = totalCatches + totalStumpings + totalRunOuts;
+
+  const matchHistory = p.matchHistory || [];
 
   const selectionHistory = p.selectionHistory || [];
 
