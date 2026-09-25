@@ -265,7 +265,7 @@ export function CricketProvider({ children }) {
               supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)'),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
               supabase.from('tournaments').select('*'),
-              supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name))'),
+              supabase.from('players').select('*, player_registrations(district:district_id(name))'),
               supabase.from('v_player_career_batting').select('*'),
               supabase.from('v_player_career_bowling').select('*'),
               supabase.from('v_player_career_fielding').select('*')
@@ -307,12 +307,12 @@ export function CricketProvider({ children }) {
               const fieldStats = fieldStatsRes?.status === 'fulfilled' ? fieldStatsRes.value.data || [] : [];
 
               const freshPlayers = playersRes.value.data.map(p => {
-                let district = 'Unknown';
-                let category = 'Unknown';
+                let district = undefined;
+                let category = undefined;
                 if (p.player_registrations && p.player_registrations.length > 0) {
                   const reg = p.player_registrations[0];
-                  district = reg.district?.name || district;
-                  category = reg.age_category?.name || category;
+                  district = reg.district?.name || undefined;
+                  category = reg.age_category?.name || undefined;
                 }
                 
                 const batting = batStats.find(s => s.player_id === p.id) || null;
@@ -326,7 +326,7 @@ export function CricketProvider({ children }) {
                   career_batting: batting, 
                   career_bowling: bowling, 
                   career_fielding: fielding,
-                  name: p.full_name || 'Unknown Player',
+                  name: p.full_name || '',
                   avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`,
                   role: p.primary_role,
                   careerRuns: batting ? batting.career_runs : 0,
