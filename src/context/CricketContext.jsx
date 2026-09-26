@@ -261,9 +261,9 @@ export function CricketProvider({ children }) {
           
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes, batStatsRes, bowlStatsRes, fieldStatsRes] = await Promise.allSettled([
-              supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)'),
+              supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
-              supabase.from('tournaments').select('*, tournament_teams(team_id)'),
+              supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null),
               supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)'),
               supabase.from('v_player_career_batting').select('*'),
               supabase.from('v_player_career_bowling').select('*'),
@@ -400,6 +400,12 @@ export function CricketProvider({ children }) {
               if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                 const matchData = payload.new;
                 
+                if (matchData.deleted_at) {
+                  await db.matches.delete(matchData.id);
+                  setMatches(prev => prev.filter(m => m.id !== matchData.id));
+                  return;
+                }
+
                 // Update Local Dexie
                 await db.matches.put(matchData);
                 
@@ -408,7 +414,7 @@ export function CricketProvider({ children }) {
                   const existingIndex = prev.findIndex(m => m.id === matchData.id);
                   if (existingIndex >= 0) {
                     const newArr = [...prev];
-                    newArr[existingIndex] = matchData;
+                    newArr[existingIndex] = { ...newArr[existingIndex], ...matchData };
                     return newArr;
                   }
                   return [matchData, ...prev];
@@ -417,6 +423,34 @@ export function CricketProvider({ children }) {
                 const matchId = payload.old.id;
                 await db.matches.delete(matchId);
                 setMatches(prev => prev.filter(m => m.id !== matchId));
+              }
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, async (payload) => {
+              console.log('[Realtime] Tournament update received:', payload);
+              
+              if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                const tData = payload.new;
+                
+                if (tData.deleted_at) {
+                  await db.tournaments.delete(tData.id);
+                  setTournaments(prev => prev.filter(t => t.id !== tData.id));
+                  return;
+                }
+
+                await db.tournaments.put(tData);
+                setTournaments(prev => {
+                  const existingIndex = prev.findIndex(t => t.id === tData.id);
+                  if (existingIndex >= 0) {
+                    const newArr = [...prev];
+                    newArr[existingIndex] = { ...newArr[existingIndex], ...tData };
+                    return newArr;
+                  }
+                  return [tData, ...prev];
+                });
+              } else if (payload.eventType === 'DELETE') {
+                const tId = payload.old.id;
+                await db.tournaments.delete(tId);
+                setTournaments(prev => prev.filter(t => t.id !== tId));
               }
             })
             .subscribe((status) => {
@@ -444,14 +478,14 @@ export function CricketProvider({ children }) {
     try {
       const { db } = await import('../lib/db.js');
       
-      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*, tournament_teams(team_id)');
+      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null);
       if (!tErr && tData) {
         await db.tournaments.clear();
         await db.tournaments.bulkAdd(tData);
         setTournaments(tData);
       }
 
-      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)');
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null);
       if (!mErr && mData) {
         await db.matches.clear();
         await db.matches.bulkAdd(mData);
