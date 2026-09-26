@@ -115,6 +115,16 @@ export const api = {
       .single();
 
     if (error) throw error;
+
+    if (tournamentData.participatingTeams && tournamentData.participatingTeams.length > 0) {
+      const teamInserts = tournamentData.participatingTeams.map(teamId => ({
+        tournament_id: data.id,
+        team_id: teamId
+      }));
+      const { error: teamErr } = await supabase.from('tournament_teams').insert(teamInserts);
+      if (teamErr) throw teamErr;
+    }
+
     return data;
   },
 
@@ -138,6 +148,19 @@ export const api = {
       .single();
 
     if (error) throw error;
+
+    if (tournamentData.participatingTeams) {
+      await supabase.from('tournament_teams').delete().eq('tournament_id', id);
+      if (tournamentData.participatingTeams.length > 0) {
+        const teamInserts = tournamentData.participatingTeams.map(teamId => ({
+          tournament_id: id,
+          team_id: teamId
+        }));
+        const { error: teamErr } = await supabase.from('tournament_teams').insert(teamInserts);
+        if (teamErr) throw teamErr;
+      }
+    }
+
     return data;
   },
 
@@ -332,46 +355,6 @@ export const api = {
     return data;
   },
 
-  async generateSchedule(tournamentId, teams, format = 'T20') {
-    const matchesToInsert = [];
-    let baseDate = new Date();
-    baseDate.setDate(baseDate.getDate() + 1);
-
-    for (let i = 0; i < teams.length; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        if (!teams[i].id || !teams[j].id) {
-            throw new Error("Cannot generate schedule: One or more teams have missing IDs.");
-        }
-        const matchDate = new Date(baseDate);
-        matchDate.setDate(matchDate.getDate() + matchesToInsert.length + 1);
-        
-        matchesToInsert.push({
-          tournament_id: tournamentId,
-          home_team_id: teams[i].id,
-          away_team_id: teams[j].id,
-          scheduled_at: matchDate.toISOString(),
-          status: 'SCHEDULED',
-          match_format: format,
-          max_overs: format === 'T20' ? 20 : (format === 'T10' ? 10 : 50)
-        });
-      }
-    }
-
-    if (matchesToInsert.length === 0) return [];
-
-    const { data, error } = await supabase
-      .from('matches')
-      .insert(matchesToInsert)
-      .select();
-
-    if (error) {
-      if (error.code === '23505') {
-        throw new Error("One or more of these matches already exist (duplicate fixture).");
-      }
-      throw error;
-    }
-    return data;
-  },
 
   async createDetailedMatches(tournamentId, format, matchesArray) {
     if (!matchesArray || matchesArray.length === 0) return [];
@@ -539,8 +522,8 @@ export const api = {
       .select('*, player:player_id(*)')
       .eq('match_id', matchId);
 
-    const teamAXI = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
-    const teamBXI = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
+    const teamAXI = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...r.player, name: r.player.full_name || r.player.name, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
+    const teamBXI = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...r.player, name: r.player.full_name || r.player.name, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
 
     // 3. Fetch Innings
     const { data: inningsData } = await supabase
@@ -918,11 +901,14 @@ export const api = {
     
     // Also create registration mapping
     const defaults = await this.getDefaults();
-    if (defaults.district_id) {
+    const activeSeason = await this.getActiveSeason();
+    if (defaults.district_id && activeSeason) {
        await supabase.from('player_registrations').insert({
          player_id: data.id,
-         season_id: playerData.season_id,
-         district_id: defaults.district_id
+         season_id: playerData.season_id || activeSeason.id,
+         season: activeSeason.name,
+         district_id: defaults.district_id,
+         age_category_id: defaults.age_category_id
        });
     }
 
@@ -1030,13 +1016,16 @@ export const api = {
     }
 
     // Resolve toss winner team ID
-    let tossWinnerTeamId = null;
+    let tossWinnerTeamId = setupData.tossWinnerTeamId || null;
     let tossDecision = setupData.tossDecision || 'BAT'; // BAT or BOWL
 
-    if (setupData.tossWinner === 'teamA') {
-      tossWinnerTeamId = match.home_team_id;
-    } else if (setupData.tossWinner === 'teamB') {
-      tossWinnerTeamId = match.away_team_id;
+    // Fallback: resolve from legacy string identifiers if no UUID was provided
+    if (!tossWinnerTeamId) {
+      if (setupData.tossWinner === 'teamA') {
+        tossWinnerTeamId = match.home_team_id;
+      } else if (setupData.tossWinner === 'teamB') {
+        tossWinnerTeamId = match.away_team_id;
+      }
     }
 
     // 2. Prepare rosters

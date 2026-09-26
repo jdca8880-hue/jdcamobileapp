@@ -184,7 +184,7 @@ export default function MatchDetailScreen() {
                     >
                       <option value="">-- Select Scorer --</option>
                       {registeredUsers.filter(u => ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase())).map(u => (
-                        <option key={u.id} value={u.name}>{u.name}</option>
+                        <option key={u.id} value={u.name || u.email}>{u.name || u.email}</option>
                       ))}
                     </select>
                     <button 
@@ -210,7 +210,7 @@ export default function MatchDetailScreen() {
                       onClick={() => navigateTo('match-setup')}
                       className="w-full bg-[#2457D6] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#1a41a3] transition-colors flex items-center justify-center gap-2"
                     >
-                      SETUP & START MATCH
+                      START SCORING
                     </button>
                   )}
                   {live && isAuthorizedScorer && (

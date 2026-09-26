@@ -248,60 +248,7 @@ export default function TournamentsScreen() {
     navigateTo('match-detail');
   };
 
-  const handleGenerateSchedule = async (tournamentId) => {
-    // Collect unique teams from existing matches
-    const tourneyMatches = getTournamentMatches(tournamentId);
-    const uniqueTeamsMap = new Map();
-    tourneyMatches.forEach(m => {
-      const teamA = m.teamA || m.home_team || 'JBP';
-      const teamB = m.teamB || m.away_team || 'MDL';
-      const tA = teamA?.name || teamA;
-      const tB = teamB?.name || teamB;
-      if (tA && !uniqueTeamsMap.has(tA)) uniqueTeamsMap.set(tA, teamA);
-      if (tB && !uniqueTeamsMap.has(tB)) uniqueTeamsMap.set(tB, teamB);
-    });
 
-    const teamsList = Array.from(uniqueTeamsMap.values());
-    if (teamsList.length < 2) {
-      alert("Not enough teams to generate a schedule.");
-      return;
-    }
-
-    if (!window.confirm(`Generate Round-Robin schedule for ${teamsList.length} teams in this tournament?`)) return;
-
-    const newMatches = [];
-    let baseDate = new Date();
-    baseDate.setDate(baseDate.getDate() + 1);
-
-    for (let i = 0; i < teamsList.length; i++) {
-      for (let j = i + 1; j < teamsList.length; j++) {
-        // Only add if they haven't played each other
-        const alreadyPlayed = tourneyMatches.some(m => 
-          ((m.teamA?.name || m.teamA || m.home_team?.name) === (teamsList[i].name || teamsList[i]) && (m.teamB?.name || m.teamB || m.away_team?.name) === (teamsList[j].name || teamsList[j])) ||
-          ((m.teamA?.name || m.teamA || m.home_team?.name) === (teamsList[j].name || teamsList[j]) && (m.teamB?.name || m.teamB || m.away_team?.name) === (teamsList[i].name || teamsList[i]))
-        );
-
-        if (!alreadyPlayed) {
-          newMatches.push(teamsList[i]);
-          newMatches.push(teamsList[j]);
-        }
-      }
-    }
-
-    if (newMatches.length > 0) {
-      try {
-        const { api } = await import('../../lib/api');
-        await api.generateSchedule(tournamentId, teamsList);
-        alert(`Matches generated. Please refresh to see them.`);
-        window.location.reload();
-      } catch (err) {
-        console.error('Failed to generate schedule:', err);
-        alert('Error: ' + err.message);
-      }
-    } else {
-      alert("All teams have already played each other. No new matches generated.");
-    }
-  };
 
   const handleEditTournament = (e, tournament) => {
     e.stopPropagation();
@@ -314,6 +261,7 @@ export default function TournamentsScreen() {
       startDate: tournament.start_date || '',
       endDate: tournament.end_date || '',
       status: tournament.status,
+      participatingTeams: tournament.tournament_teams?.map(tt => tt.team_id) || [],
       customMatches: []
     });
     setIsManagerOpen(true);
@@ -350,6 +298,14 @@ export default function TournamentsScreen() {
           )}
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button 
+            onClick={() => setActiveTab('Participating Teams')}
+            className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-bold transition-colors cursor-pointer ${
+              activeTab === 'Participating Teams' ? 'bg-[#101827] text-white shadow-sm' : 'bg-white border border-gray-200 text-[#596579] hover:bg-gray-50'
+            }`}
+          >
+            Participating Teams
+          </button>
           <button 
             onClick={() => setActiveTab('Matches')}
             className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-bold transition-colors cursor-pointer ${
@@ -432,12 +388,39 @@ export default function TournamentsScreen() {
                 <div className="bg-white animate-in slide-in-from-top-2 duration-300">
                   {activeTab === 'Standings' ? (
                     <PointsTableUI pointsTable={activeTournamentPointsTable} />
+                  ) : activeTab === 'Participating Teams' ? (
+                    <div className="p-4 sm:p-5">
+                      <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4">Participating District Teams</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {tournament.tournament_teams?.length > 0 ? (
+                          tournament.tournament_teams.map(tt => {
+                            const teamData = teams.find(t => t.id === tt.team_id);
+                            return teamData ? (
+                              <div key={tt.team_id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-800">
+                                {teamData.name}
+                              </div>
+                            ) : null;
+                          })
+                        ) : (
+                          <div className="col-span-full p-4 bg-slate-50 rounded-xl text-center text-sm text-slate-500">
+                            No teams registered. Edit tournament to add participating teams.
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   ) : (
                     <div className="p-4 sm:p-5">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579]">League Stage</h3>
                         <div className="flex gap-2 items-center">
-                           {isAdmin && <button onClick={() => handleGenerateSchedule(tournament.id)} className="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded transition-colors cursor-pointer">Auto Generate</button>}
+                           {isAdmin && (
+                             <button 
+                               onClick={(e) => handleEditTournament(e, tournament)} 
+                               className="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition-colors cursor-pointer flex items-center gap-1"
+                             >
+                               <Plus size={12}/> Create Match
+                             </button>
+                           )}
                            <span className="text-xs font-semibold text-slate-400">{ms.length} Fixtures</span>
                         </div>
                       </div>

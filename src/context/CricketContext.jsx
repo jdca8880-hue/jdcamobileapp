@@ -248,7 +248,6 @@ export function CricketProvider({ children }) {
 
         // Initialize React state immediately with local cache
         setMatches(localMatches);
-        if (localMatches.length > 0) setActiveMatchId(localMatches[0].id);
         
         setTeams(localTeams);
         setTournaments(localTournaments);
@@ -261,11 +260,11 @@ export function CricketProvider({ children }) {
           console.log('[CricketContext] Online: Fetching fresh data from Supabase...');
           
           try {
-            const [matchesRes, teamsRes, tournamentsRes, playersRes] = await Promise.allSettled([
+            const [matchesRes, teamsRes, tournamentsRes, playersRes, batStatsRes, bowlStatsRes, fieldStatsRes] = await Promise.allSettled([
               supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)'),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
-              supabase.from('tournaments').select('*'),
-              supabase.from('players').select('*, player_registrations(district:district_id(name))'),
+              supabase.from('tournaments').select('*, tournament_teams(team_id)'),
+              supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)'),
               supabase.from('v_player_career_batting').select('*'),
               supabase.from('v_player_career_bowling').select('*'),
               supabase.from('v_player_career_fielding').select('*')
@@ -277,9 +276,6 @@ export function CricketProvider({ children }) {
               await db.matches.clear();
               await db.matches.bulkAdd(freshMatches);
               setMatches(freshMatches);
-              if (freshMatches.length > 0 && localMatches.length === 0) {
-                 setActiveMatchId(freshMatches[0].id);
-              }
             }
 
             // Reconcile Teams
@@ -448,7 +444,7 @@ export function CricketProvider({ children }) {
     try {
       const { db } = await import('../lib/db.js');
       
-      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*');
+      const { data: tData, error: tErr } = await supabase.from('tournaments').select('*, tournament_teams(team_id)');
       if (!tErr && tData) {
         await db.tournaments.clear();
         await db.tournaments.bulkAdd(tData);

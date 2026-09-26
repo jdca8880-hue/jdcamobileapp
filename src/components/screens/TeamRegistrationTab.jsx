@@ -169,7 +169,8 @@ export default function TeamRegistrationTab({ userRole }) {
   const activeTeam = districtTeams.find(t => t.id === activeTeamId);
 
   const filteredPlayers = players.filter(p => {
-    if (activeTeam && p.gender !== activeTeam.gender) return false;
+    // Only filter by gender if both the team and player have gender set
+    if (activeTeam?.gender && p.gender && p.gender !== activeTeam.gender) return false;
     if (searchQuery) {
       const pName = p.name || p.full_name || '';
       return pName.toLowerCase().includes(searchQuery.toLowerCase()) || 

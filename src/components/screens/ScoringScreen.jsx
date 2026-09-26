@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   RotateCcw, FileText, ShieldAlert, AlertTriangle, X,
   ChevronRight, RefreshCw, Radio, CircleHelp, WifiOff,
-  MoreHorizontal, Users
+  MoreHorizontal, Users, Trophy, Calendar, ChevronDown
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -12,6 +12,7 @@ import Modal from '../ui/Modal';
 import { supabase } from '../../lib/supabase';
 import { syncService } from '../../services/SyncService';
 import InningsInitScreen from './InningsInitScreen';
+import { MatchCard } from '../ui/MatchCard';
 
 const DISMISSALS = ['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket', 'Other'];
 const QUICK_RUNS = [0, 1, 2, 3, 4, 6];
@@ -23,7 +24,8 @@ export default function ScoringScreen() {
     validationError, setValidationError, matchStatus, recordRuns, recordExtra,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
     matchSetup, setMatchSetup, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
-    deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings
+    deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
+    tournaments, setActiveMatchId
   } = useCricket();
 
   const haptics = useHaptics();
@@ -44,6 +46,12 @@ export default function ScoringScreen() {
   const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
   const [isHydrating, setIsHydrating] = useState(false);
   const [hydrationError, setHydrationError] = useState(false);
+  const [selectedTournament, setSelectedTournament] = useState('');
+
+  const latestDeliveryLogRef = React.useRef(deliveryLog || []);
+  useEffect(() => {
+    latestDeliveryLogRef.current = deliveryLog || [];
+  }, [deliveryLog]);
 
   useEffect(() => {
     let isMounted = true;
@@ -61,7 +69,42 @@ export default function ScoringScreen() {
     };
     checkHydration();
     return () => { isMounted = false; };
-  }, [activeMatchId]);
+  }, [activeMatchId]); // intentionally excluding matchSetup to avoid loop
+
+  // Realtime listener for cross-device updates
+  useEffect(() => {
+    if (!activeMatchId) return;
+    let channel;
+    const setupRealtime = async () => {
+      const { supabase } = await import('../../lib/supabase.js');
+      if (!supabase) return;
+
+      channel = supabase.channel(`public:deliveries:${activeMatchId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'deliveries',
+          filter: `match_id=eq.${activeMatchId}`
+        }, async (payload) => {
+          // Check if this delivery is already in our local log (i.e. scored by THIS client)
+          const isLocal = latestDeliveryLogRef.current.some(d => d.id === payload.new.idempotency_key);
+          if (!isLocal) {
+            console.log('[ScoringScreen] Remote delivery detected, hydrating state...');
+            await hydrateMatchState(activeMatchId);
+          }
+        })
+        .subscribe();
+    };
+    setupRealtime();
+
+    return () => {
+      if (channel) {
+        import('../../lib/supabase.js').then(({ supabase }) => {
+          if (supabase) supabase.removeChannel(channel);
+        });
+      }
+    };
+  }, [activeMatchId, hydrateMatchState]);
 
   useEffect(() => {
     const unsubscribe = syncService.subscribe((state) => {
@@ -114,6 +157,63 @@ export default function ScoringScreen() {
     if (isOverComplete) setOverOpen(true);
   }, [isOverComplete]);
 
+  if (!activeMatchId) {
+    const activeTournaments = tournaments?.filter(t => t.status === 'ACTIVE' || t.status === 'UPCOMING') || [];
+    const filteredMatches = matches?.filter(m => {
+      if (m.status === 'COMPLETED' || m.status === 'FINISHED') return false;
+      return selectedTournament ? m.tournament_id === selectedTournament : true;
+    }) || [];
+
+    return (
+      <div className="flex-1 flex flex-col p-4 bg-slate-50 min-h-[80vh]">
+        <div className="flex flex-col items-center justify-center py-6 mb-2">
+          <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4 text-primary-600 shadow-sm border border-primary-200">
+             <Trophy size={32} />
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 text-center">Select Match to Score</h2>
+          <p className="text-sm text-gray-500 mt-2 text-center max-w-xs">
+            Choose a live or upcoming match from the list below to begin scoring.
+          </p>
+        </div>
+        
+        <div className="mb-6 relative">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Filter by Tournament</label>
+          <div className="relative">
+            <select 
+              value={selectedTournament} 
+              onChange={(e) => setSelectedTournament(e.target.value)}
+              className="w-full p-3 pl-4 pr-10 appearance-none rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 font-semibold text-gray-800 transition-all"
+            >
+              <option value="">All Tournaments</option>
+              {activeTournaments.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pb-20">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Available Matches ({filteredMatches.length})</label>
+          
+          {filteredMatches.length === 0 ? (
+             <div className="flex flex-col items-center justify-center py-12 bg-white rounded-xl border border-gray-100 shadow-sm border-dashed">
+               <Calendar className="h-10 w-10 text-gray-300 mb-3" />
+               <p className="text-gray-500 font-medium">No matches available to score.</p>
+               <p className="text-gray-400 text-xs mt-1">Try selecting a different tournament.</p>
+             </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredMatches.map(m => (
+                <MatchCard key={m.id} match={m} onClick={() => setActiveMatchId(m.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (isHydrating) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
@@ -141,6 +241,24 @@ export default function ScoringScreen() {
   }
 
   if (needsInitialization) {
+    if (battingXI.length === 0 || bowlingXI.length === 0) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] px-4 text-center bg-slate-50">
+          <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+          <h3 className="text-xl font-black text-gray-800">No Playing XI Found</h3>
+          <p className="text-gray-500 text-sm mt-2 mb-6">
+            This match is marked as in-progress, but no playing XI was found in the database. 
+            You need to set up the playing XI before you can start scoring.
+          </p>
+          <button 
+            onClick={() => navigateTo('match-setup')}
+            className="px-6 py-3 bg-[#2457D6] text-white rounded-[12px] font-bold shadow-md"
+          >
+            Go to Match Setup
+          </button>
+        </div>
+      );
+    }
     return <InningsInitScreen battingXI={battingXI} bowlingXI={bowlingXI} />;
   }
 

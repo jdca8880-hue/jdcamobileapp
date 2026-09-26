@@ -6,7 +6,7 @@ import { MatchStatusBadge } from '../ui/Badge';
 import { MatchCard } from '../ui/MatchCard';
 
 export default function MatchesScreen() {
-  const { matches = [], navigateTo, setActiveMatchId, userRole, userName } = useCricket();
+  const { matches = [], navigateTo, setActiveMatchId, userRole, userName, userEmail, userId } = useCricket();
   const [activeTab, setActiveTab] = useState(userRole === 'SCORER' ? 'my_matches' : 'all');
 
   const TABS = useMemo(() => {
@@ -24,8 +24,11 @@ export default function MatchesScreen() {
 
   const filtered = useMemo(() => matches.filter(m => {
     if (activeTab === 'my_matches') {
-      // Scorer assignment matching
-      return (m.scorer_name?.trim().toLowerCase() === userName?.trim().toLowerCase() && userName) || (m.scorer_id === userName);
+      // Scorer assignment matching (by name or email fallback)
+      const sName = m.scorer_name?.trim().toLowerCase();
+      const uName = userName?.trim().toLowerCase();
+      const uEmail = userEmail?.trim().toLowerCase();
+      return (sName === uName && !!uName) || (sName === uEmail && !!uEmail) || (m.scorer_id === userId);
     }
 
     const status = String(m.status || '').toUpperCase();
@@ -37,7 +40,7 @@ export default function MatchesScreen() {
     if (activeTab === 'upcoming') return upcoming;
     if (activeTab === 'completed') return completed;
     return true;
-  }), [matches, activeTab, userName]);
+  }), [matches, activeTab, userName, userEmail, userId]);
 
   const openMatch = (match) => {
     setActiveMatchId(match.id);

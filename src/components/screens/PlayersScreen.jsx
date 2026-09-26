@@ -74,7 +74,7 @@ export default function PlayersScreen() {
   const [showFilters, setShowFilters] = useState(false);
 
   const filteredPlayers = players.filter(p => {
-    const isWomen = String(p.category || '').toLowerCase().includes('women');
+    const isWomen = p.gender === 'Women' || String(p.category || '').toLowerCase().includes('women');
     if (genderTab === 'Men' && isWomen) return false;
     if (genderTab === 'Women' && !isWomen) return false;
 

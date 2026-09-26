@@ -269,6 +269,38 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                   <option value="CANCELLED">Cancelled</option>
                 </select>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Participating Teams</label>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-48 overflow-y-auto custom-scrollbar">
+                  {teams.length === 0 ? (
+                    <p className="text-xs text-slate-500">No teams available. Please create teams first.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {teams.map(team => (
+                        <label key={team.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-2 rounded-lg transition-colors">
+                          <input 
+                            type="checkbox"
+                            checked={formData.participatingTeams.includes(team.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setFormData(prev => ({
+                                ...prev,
+                                participatingTeams: checked 
+                                  ? [...prev.participatingTeams, team.id]
+                                  : prev.participatingTeams.filter(id => id !== team.id)
+                              }));
+                            }}
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-slate-700 truncate">{team.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">Select at least 2 teams to participate in this tournament.</p>
+              </div>
             </form>
           ) : (
             <div className="space-y-4">
@@ -406,6 +438,10 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
               onClick={(e) => {
                 if (!formData.name) {
                   alert('Tournament Name is required');
+                  return;
+                }
+                if (formData.participatingTeams.length < 2) {
+                  alert('Please select at least 2 participating teams.');
                   return;
                 }
                 setStep(2);
