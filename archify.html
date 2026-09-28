@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Architecture Diagram</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f4f4f9;
+        }
+        .diagram-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            overflow: auto;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>JDCA High-Level Runtime Architecture</h1>
+    <div class="diagram-container">
+        <pre class="mermaid">
+graph TD
+    %% Subgraph for Frontend (Vite/React)
+    subgraph Frontend [Client / React Application]
+        direction TB
+        UI["src/components<br/>(UI Screens & Modals)"]
+        Context["src/context<br/>(CricketContext - State)"]
+        Engine["src/engine<br/>(Cricket State Machine)"]
+        Lib["src/lib<br/>(API & Core Utils)"]
+        Sync["src/services<br/>(SyncService)"]
+        
+        UI -->|"Reads/Updates State"| Context
+        Context -->|"Uses Logic"| Engine
+        Context -->|"Calls APIs"| Lib
+        Context -->|"Queues actions"| Sync
+        Sync -->|"Uses"| Lib
+    end
+
+    %% Subgraph for Backend (Supabase)
+    subgraph Backend ["Supabase Backend"]
+        direction TB
+        Edge["Edge Functions<br/>(e.g., send-push)"]
+        DB[("PostgreSQL Database<br/>RLS & Schema")]
+        Storage["Cloudinary / Storage<br/>(Avatars/Assets)"]
+    end
+
+    %% Cross-boundary connections
+    Lib -->|CRUD Operations| DB
+    Sync -->|Offline Sync push| DB
+    UI -->|Uploads Images| Storage
+    Lib -->|Triggers| Edge
+    
+    %% Styling
+    classDef frontend fill:#E3F2FD,stroke:#1565C0,stroke-width:2px;
+    classDef backend fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px;
+    classDef storage fill:#FFF3E0,stroke:#E65100,stroke-width:2px;
+    
+    class UI,Context,Engine,Lib,Sync frontend;
+    class DB,Edge backend;
+    class Storage storage;
+        </pre>
+    </div>
+</body>
+</html>

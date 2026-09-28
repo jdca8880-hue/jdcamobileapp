@@ -262,9 +262,9 @@ export function CricketProvider({ children }) {
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes, batStatsRes, bowlStatsRes, fieldStatsRes] = await Promise.allSettled([
               supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null),
-              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
+              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)').is('deleted_at', null),
               supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null),
-              supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)'),
+              supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)').is('deleted_at', null),
               supabase.from('v_player_career_batting').select('*'),
               supabase.from('v_player_career_bowling').select('*'),
               supabase.from('v_player_career_fielding').select('*')

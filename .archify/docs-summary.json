@@ -1,0 +1,106 @@
+{
+  "artifact": "docs-summary.json",
+  "status": "ready",
+  "phase": "analyze",
+  "targetPath": "C:\\Users\\lenovo\\Desktop\\WEBBDEV\\JDCA",
+  "scanRoot": ".",
+  "semantic": {
+    "enabled": false,
+    "backend": "none",
+    "providerEnrichmentSkipped": true,
+    "message": "Semantic enrichment is disabled. This summary preserves document provenance for downstream synthesis."
+  },
+  "detectedDocs": [
+    {
+      "path": "README.md",
+      "fileType": "document",
+      "detectionReason": "extension:.md",
+      "evidence": [
+        "file:README.md"
+      ]
+    },
+    {
+      "path": "SUPABASE_AUDIT.md",
+      "fileType": "document",
+      "detectionReason": "extension:.md",
+      "evidence": [
+        "file:SUPABASE_AUDIT.md"
+      ]
+    },
+    {
+      "path": "design.md",
+      "fileType": "document",
+      "detectionReason": "extension:.md",
+      "evidence": [
+        "file:design.md"
+      ]
+    },
+    {
+      "path": "docs/DATABASE-RECOVERY.md",
+      "fileType": "document",
+      "detectionReason": "extension:.md",
+      "evidence": [
+        "file:docs/DATABASE-RECOVERY.md"
+      ]
+    },
+    {
+      "path": "src/try.md",
+      "fileType": "document",
+      "detectionReason": "extension:.md",
+      "evidence": [
+        "file:src/try.md"
+      ]
+    },
+    {
+      "path": "temp_extraction/README.md",
+      "fileType": "document",
+      "detectionReason": "extension:.md",
+      "evidence": [
+        "file:temp_extraction/README.md"
+      ]
+    }
+  ],
+  "confirmedFacts": {
+    "processedDocuments": [],
+    "skippedDocuments": [],
+    "readmeLikeDocs": [
+      {
+        "path": "README.md",
+        "fileType": "document",
+        "detectionReason": "extension:.md",
+        "evidence": [
+          "file:README.md"
+        ]
+      },
+      {
+        "path": "design.md",
+        "fileType": "document",
+        "detectionReason": "extension:.md",
+        "evidence": [
+          "file:design.md"
+        ]
+      },
+      {
+        "path": "temp_extraction/README.md",
+        "fileType": "document",
+        "detectionReason": "extension:.md",
+        "evidence": [
+          "file:temp_extraction/README.md"
+        ]
+      }
+    ]
+  },
+  "inferredAlignments": {
+    "docToSubsystem": [],
+    "architectureThemes": [],
+    "unresolvedDocuments": []
+  },
+  "summary": {
+    "detectedDocumentCount": 6,
+    "processedDocumentCount": 0,
+    "skippedDocumentCount": 0,
+    "alignedDocumentCount": 0,
+    "themeCount": 0,
+    "unresolvedDocumentCount": 0
+  }
+}

@@ -1,0 +1,3389 @@
+{
+  "artifact": "database.json",
+  "status": "ready",
+  "phase": "analyze",
+  "targetPath": "C:\\Users\\lenovo\\Desktop\\WEBBDEV\\JDCA",
+  "scanRoot": ".",
+  "tables": [
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_if",
+      "name": "IF",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_if"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_rls",
+      "name": "RLS",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_rls"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_selector",
+      "name": "SELECTOR",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_selector"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_get_eligible_players_for_process",
+      "name": "get_eligible_players_for_process",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_get_eligible_players_for_process"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_player_registrations",
+      "name": "player_registrations",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_player_registrations"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_players",
+      "name": "players",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_players"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "name": "profiles",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_profiles"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "name": "selection_processes",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_selection_processes"
+      ]
+    },
+    {
+      "id": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "name": "selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_02_selector_assignment_refactor_sql_table_selector_assignments"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_lateral",
+      "name": "LATERAL",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_lateral"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_age_categories",
+      "name": "age_categories",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_age_categories"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_deliveries",
+      "name": "deliveries",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_deliveries"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_its",
+      "name": "its",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_its"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_matches",
+      "name": "matches",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_matches"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_pg_constraint",
+      "name": "pg_constraint",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_pg_constraint"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_ranked_matches",
+      "name": "ranked_matches",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_ranked_matches"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_seasons",
+      "name": "seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_seasons"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_teams",
+      "name": "teams",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_teams"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_tournaments",
+      "name": "tournaments",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_tournaments"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_v_player_match_batting",
+      "name": "v_player_match_batting",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_v_player_match_batting"
+      ]
+    },
+    {
+      "id": "ref_03_season_management_architecture_sql_table_v_player_match_bowling",
+      "name": "v_player_match_bowling",
+      "sourcePath": "03_season_management_architecture.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_03_season_management_architecture_sql_table_v_player_match_bowling"
+      ]
+    },
+    {
+      "id": "ref_04_admin_delete_user_sql_table_supabase",
+      "name": "Supabase",
+      "sourcePath": "04_admin_delete_user.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_04_admin_delete_user_sql_table_supabase"
+      ]
+    },
+    {
+      "id": "ref_04_admin_delete_user_sql_table_auth_users",
+      "name": "auth.users",
+      "sourcePath": "04_admin_delete_user.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_04_admin_delete_user_sql_table_auth_users"
+      ]
+    },
+    {
+      "id": "ref_04_admin_delete_user_sql_table_public_profiles",
+      "name": "public.profiles",
+      "sourcePath": "04_admin_delete_user.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_04_admin_delete_user_sql_table_public_profiles"
+      ]
+    },
+    {
+      "id": "ref_05_team_types_sql_table_district",
+      "name": "district",
+      "sourcePath": "05_team_types.sql",
+      "subsystemIds": [
+        "subsystem-68-0-05-team-types-sql"
+      ],
+      "evidence": [
+        "node:ref_05_team_types_sql_table_district"
+      ]
+    },
+    {
+      "id": "ref_05_team_types_sql_table_final",
+      "name": "final",
+      "sourcePath": "05_team_types.sql",
+      "subsystemIds": [
+        "subsystem-68-0-05-team-types-sql"
+      ],
+      "evidence": [
+        "node:ref_05_team_types_sql_table_final"
+      ]
+    },
+    {
+      "id": "ref_05_team_types_sql_table_public_districts",
+      "name": "public.districts",
+      "sourcePath": "05_team_types.sql",
+      "subsystemIds": [
+        "subsystem-68-0-05-team-types-sql"
+      ],
+      "evidence": [
+        "node:ref_05_team_types_sql_table_public_districts"
+      ]
+    },
+    {
+      "id": "ref_05_team_types_sql_table_public_selection_processes",
+      "name": "public.selection_processes",
+      "sourcePath": "05_team_types.sql",
+      "subsystemIds": [
+        "subsystem-68-0-05-team-types-sql"
+      ],
+      "evidence": [
+        "node:ref_05_team_types_sql_table_public_selection_processes"
+      ]
+    },
+    {
+      "id": "ref_05_team_types_sql_table_public_teams",
+      "name": "public.teams",
+      "sourcePath": "05_team_types.sql",
+      "subsystemIds": [
+        "subsystem-68-0-05-team-types-sql"
+      ],
+      "evidence": [
+        "node:ref_05_team_types_sql_table_public_teams"
+      ]
+    },
+    {
+      "id": "ref_06_match_finalization_policies_sql_table_using",
+      "name": "using",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_06_match_finalization_policies_sql_table_using"
+      ]
+    },
+    {
+      "id": "ref_admin_password_reset_sql_table_the",
+      "name": "the",
+      "sourcePath": "admin_password_reset.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_admin_password_reset_sql_table_the"
+      ]
+    },
+    {
+      "id": "ref_dummy_data_sql_table_districts",
+      "name": "districts",
+      "sourcePath": "dummy_data.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_dummy_data_sql_table_districts"
+      ]
+    },
+    {
+      "id": "ref_dummy_data_sql_table_match_rosters",
+      "name": "match_rosters",
+      "sourcePath": "dummy_data.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_dummy_data_sql_table_match_rosters"
+      ]
+    },
+    {
+      "id": "ref_dummy_data_sql_table_team_players",
+      "name": "team_players",
+      "sourcePath": "dummy_data.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_dummy_data_sql_table_team_players"
+      ]
+    },
+    {
+      "id": "ref_dummy_data_sql_table_tournament_teams",
+      "name": "tournament_teams",
+      "sourcePath": "dummy_data.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_dummy_data_sql_table_tournament_teams"
+      ]
+    },
+    {
+      "id": "ref_dummy_data_sql_table_venues",
+      "name": "venues",
+      "sourcePath": "dummy_data.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_dummy_data_sql_table_venues"
+      ]
+    },
+    {
+      "id": "ref_fix_rls_sql_table_decisions",
+      "name": "decisions",
+      "sourcePath": "fix_rls.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_fix_rls_sql_table_decisions"
+      ]
+    },
+    {
+      "id": "ref_fix_rls_sql_table_innings",
+      "name": "innings",
+      "sourcePath": "fix_rls.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_fix_rls_sql_table_innings"
+      ]
+    },
+    {
+      "id": "ref_fix_rls_sql_table_processes",
+      "name": "processes",
+      "sourcePath": "fix_rls.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_fix_rls_sql_table_processes"
+      ]
+    },
+    {
+      "id": "ref_fix_rls_sql_table_selection",
+      "name": "selection",
+      "sourcePath": "fix_rls.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_fix_rls_sql_table_selection"
+      ]
+    },
+    {
+      "id": "ref_fix_rls_sql_table_selection_candidates",
+      "name": "selection_candidates",
+      "sourcePath": "fix_rls.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_fix_rls_sql_table_selection_candidates"
+      ]
+    },
+    {
+      "id": "ref_fix_rls_sql_table_selection_decisions",
+      "name": "selection_decisions",
+      "sourcePath": "fix_rls.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_fix_rls_sql_table_selection_decisions"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_audit_logs",
+      "name": "audit_logs",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_audit_logs"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_live",
+      "name": "live",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_live"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_official",
+      "name": "official",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_official"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_on",
+      "name": "on",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_on"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_or",
+      "name": "or",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_or"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_player_evaluations",
+      "name": "player_evaluations",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_player_evaluations"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_push_subscriptions",
+      "name": "push_subscriptions",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_push_subscriptions"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_selector_age_access",
+      "name": "selector_age_access",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_selector_age_access"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_selector_district_access",
+      "name": "selector_district_access",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_selector_district_access"
+      ]
+    },
+    {
+      "id": "ref_supabase_schema_sql_table_v_player_match_fielding",
+      "name": "v_player_match_fielding",
+      "sourcePath": "supabase_schema.sql",
+      "subsystemIds": [
+        "subsystem-4-0-02-selector-assignment-refactor-sql"
+      ],
+      "evidence": [
+        "node:ref_supabase_schema_sql_table_v_player_match_fielding"
+      ]
+    }
+  ],
+  "migrations": [],
+  "accessBoundaries": [
+    {
+      "subsystemId": "subsystem-4-0-02-selector-assignment-refactor-sql",
+      "paths": [
+        "02_selector_assignment_refactor.sql",
+        "03_season_management_architecture.sql",
+        "04_admin_delete_user.sql",
+        "06_match_finalization_policies.sql",
+        "admin_password_reset.sql",
+        "alter_table.sql",
+        "dummy_data.sql",
+        "fix_rls.sql",
+        "generate_teams.sql",
+        "supabase_schema.sql"
+      ],
+      "tableIds": [
+        "ref_02_selector_assignment_refactor_sql_table_if",
+        "ref_02_selector_assignment_refactor_sql_table_rls",
+        "ref_02_selector_assignment_refactor_sql_table_selector",
+        "ref_02_selector_assignment_refactor_sql_table_get_eligible_players_for_process",
+        "ref_02_selector_assignment_refactor_sql_table_player_registrations",
+        "ref_02_selector_assignment_refactor_sql_table_players",
+        "ref_02_selector_assignment_refactor_sql_table_profiles",
+        "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+        "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+        "ref_03_season_management_architecture_sql_table_lateral",
+        "ref_03_season_management_architecture_sql_table_age_categories",
+        "ref_03_season_management_architecture_sql_table_deliveries",
+        "ref_03_season_management_architecture_sql_table_its",
+        "ref_03_season_management_architecture_sql_table_matches",
+        "ref_03_season_management_architecture_sql_table_pg_constraint",
+        "ref_03_season_management_architecture_sql_table_ranked_matches",
+        "ref_03_season_management_architecture_sql_table_seasons",
+        "ref_03_season_management_architecture_sql_table_teams",
+        "ref_03_season_management_architecture_sql_table_tournaments",
+        "ref_03_season_management_architecture_sql_table_v_player_match_batting",
+        "ref_03_season_management_architecture_sql_table_v_player_match_bowling",
+        "ref_04_admin_delete_user_sql_table_supabase",
+        "ref_04_admin_delete_user_sql_table_auth_users",
+        "ref_04_admin_delete_user_sql_table_public_profiles",
+        "ref_06_match_finalization_policies_sql_table_using",
+        "ref_admin_password_reset_sql_table_the",
+        "ref_dummy_data_sql_table_districts",
+        "ref_dummy_data_sql_table_match_rosters",
+        "ref_dummy_data_sql_table_team_players",
+        "ref_dummy_data_sql_table_tournament_teams",
+        "ref_dummy_data_sql_table_venues",
+        "ref_fix_rls_sql_table_decisions",
+        "ref_fix_rls_sql_table_innings",
+        "ref_fix_rls_sql_table_processes",
+        "ref_fix_rls_sql_table_selection",
+        "ref_fix_rls_sql_table_selection_candidates",
+        "ref_fix_rls_sql_table_selection_decisions",
+        "ref_supabase_schema_sql_table_audit_logs",
+        "ref_supabase_schema_sql_table_live",
+        "ref_supabase_schema_sql_table_official",
+        "ref_supabase_schema_sql_table_on",
+        "ref_supabase_schema_sql_table_or",
+        "ref_supabase_schema_sql_table_player_evaluations",
+        "ref_supabase_schema_sql_table_push_subscriptions",
+        "ref_supabase_schema_sql_table_selector_age_access",
+        "ref_supabase_schema_sql_table_selector_district_access",
+        "ref_supabase_schema_sql_table_v_player_match_fielding"
+      ],
+      "summary": "02_selector_assignment_refactor.sql owns or touches database-oriented code paths.",
+      "confidence": "high",
+      "evidence": [
+        "file:02_selector_assignment_refactor.sql",
+        "file:03_season_management_architecture.sql",
+        "file:04_admin_delete_user.sql",
+        "file:06_match_finalization_policies.sql",
+        "file:admin_password_reset.sql",
+        "file:alter_table.sql",
+        "file:dummy_data.sql",
+        "file:fix_rls.sql",
+        "file:generate_teams.sql",
+        "file:supabase_schema.sql",
+        "node:ref_02_selector_assignment_refactor_sql_table_get_eligible_players_for_process",
+        "node:ref_02_selector_assignment_refactor_sql_table_if",
+        "node:ref_02_selector_assignment_refactor_sql_table_player_registrations",
+        "node:ref_02_selector_assignment_refactor_sql_table_players",
+        "node:ref_02_selector_assignment_refactor_sql_table_profiles",
+        "node:ref_02_selector_assignment_refactor_sql_table_rls",
+        "node:ref_02_selector_assignment_refactor_sql_table_selection_processes",
+        "node:ref_02_selector_assignment_refactor_sql_table_selector",
+        "node:ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+        "node:ref_03_season_management_architecture_sql_table_age_categories",
+        "node:ref_03_season_management_architecture_sql_table_deliveries",
+        "node:ref_03_season_management_architecture_sql_table_its",
+        "node:ref_03_season_management_architecture_sql_table_lateral",
+        "node:ref_03_season_management_architecture_sql_table_matches",
+        "node:ref_03_season_management_architecture_sql_table_pg_constraint",
+        "node:ref_03_season_management_architecture_sql_table_ranked_matches",
+        "node:ref_03_season_management_architecture_sql_table_seasons",
+        "node:ref_03_season_management_architecture_sql_table_teams",
+        "node:ref_03_season_management_architecture_sql_table_tournaments",
+        "node:ref_03_season_management_architecture_sql_table_v_player_match_batting",
+        "node:ref_03_season_management_architecture_sql_table_v_player_match_bowling",
+        "node:ref_04_admin_delete_user_sql_table_auth_users",
+        "node:ref_04_admin_delete_user_sql_table_public_profiles",
+        "node:ref_04_admin_delete_user_sql_table_supabase",
+        "node:ref_06_match_finalization_policies_sql_table_using",
+        "node:ref_admin_password_reset_sql_table_the",
+        "node:ref_dummy_data_sql_table_districts",
+        "node:ref_dummy_data_sql_table_match_rosters",
+        "node:ref_dummy_data_sql_table_team_players",
+        "node:ref_dummy_data_sql_table_tournament_teams",
+        "node:ref_dummy_data_sql_table_venues",
+        "node:ref_fix_rls_sql_table_decisions",
+        "node:ref_fix_rls_sql_table_innings",
+        "node:ref_fix_rls_sql_table_processes",
+        "node:ref_fix_rls_sql_table_selection",
+        "node:ref_fix_rls_sql_table_selection_candidates",
+        "node:ref_fix_rls_sql_table_selection_decisions",
+        "node:ref_supabase_schema_sql_table_audit_logs",
+        "node:ref_supabase_schema_sql_table_live",
+        "node:ref_supabase_schema_sql_table_official",
+        "node:ref_supabase_schema_sql_table_on",
+        "node:ref_supabase_schema_sql_table_or",
+        "node:ref_supabase_schema_sql_table_player_evaluations",
+        "node:ref_supabase_schema_sql_table_push_subscriptions",
+        "node:ref_supabase_schema_sql_table_selector_age_access",
+        "node:ref_supabase_schema_sql_table_selector_district_access",
+        "node:ref_supabase_schema_sql_table_v_player_match_fielding"
+      ]
+    },
+    {
+      "subsystemId": "subsystem-68-0-05-team-types-sql",
+      "paths": [
+        "05_team_types.sql"
+      ],
+      "tableIds": [
+        "ref_05_team_types_sql_table_district",
+        "ref_05_team_types_sql_table_final",
+        "ref_05_team_types_sql_table_public_districts",
+        "ref_05_team_types_sql_table_public_selection_processes",
+        "ref_05_team_types_sql_table_public_teams"
+      ],
+      "summary": "05_team_types.sql owns or touches database-oriented code paths.",
+      "confidence": "high",
+      "evidence": [
+        "file:05_team_types.sql",
+        "node:ref_05_team_types_sql_table_district",
+        "node:ref_05_team_types_sql_table_final",
+        "node:ref_05_team_types_sql_table_public_districts",
+        "node:ref_05_team_types_sql_table_public_selection_processes",
+        "node:ref_05_team_types_sql_table_public_teams"
+      ]
+    }
+  ],
+  "querySignals": [
+    {
+      "relation": "defines",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:02_selector_assignment_refactor.sql:10:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_player_registrations",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_player_registrations:02_selector_assignment_refactor.sql:90:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:02_selector_assignment_refactor.sql:47:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selection_processes:02_selector_assignment_refactor.sql:86:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selection_processes:02_selector_assignment_refactor.sql:128:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:55:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:110:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:118:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:127:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:135:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:143:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:150:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:158:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector_assignments",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:queries:ref_02_selector_assignment_refactor_sql_table_selector_assignments:02_selector_assignment_refactor.sql:165:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:02_selector_assignment_refactor.sql:12:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:references:ref_02_selector_assignment_refactor_sql_table_selection_processes:02_selector_assignment_refactor.sql:13:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_rls",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:updates:ref_02_selector_assignment_refactor_sql_table_rls:02_selector_assignment_refactor.sql:102:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_02_selector_assignment_refactor_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selector",
+      "sourcePath": "02_selector_assignment_refactor.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_02_selector_assignment_refactor_sql:updates:ref_02_selector_assignment_refactor_sql_table_selector:02_selector_assignment_refactor.sql:35:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:03_season_management_architecture.sql:9:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_player_registrations",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_02_selector_assignment_refactor_sql_table_player_registrations:03_season_management_architecture.sql:150:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_02_selector_assignment_refactor_sql_table_selection_processes:03_season_management_architecture.sql:141:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_deliveries:03_season_management_architecture.sql:187:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_deliveries:03_season_management_architecture.sql:192:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_deliveries:03_season_management_architecture.sql:214:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_deliveries:03_season_management_architecture.sql:231:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_its",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_its:03_season_management_architecture.sql:81:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_pg_constraint",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_pg_constraint:03_season_management_architecture.sql:53:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_ranked_matches",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_ranked_matches:03_season_management_architecture.sql:253:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:30:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:34:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:47:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:65:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:74:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:83:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:93:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:106:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:123:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:145:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_tournaments",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_tournaments:03_season_management_architecture.sql:84:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_v_player_match_batting",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_v_player_match_batting:03_season_management_architecture.sql:297:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_v_player_match_bowling",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:queries:ref_03_season_management_architecture_sql_table_v_player_match_bowling:03_season_management_architecture.sql:318:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:references:ref_03_season_management_architecture_sql_table_age_categories:03_season_management_architecture.sql:41:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:references:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:40:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:references:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:61:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:references:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:70:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:references:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:79:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:references:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:89:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_player_registrations",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:updates:ref_02_selector_assignment_refactor_sql_table_player_registrations:03_season_management_architecture.sql:45:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:updates:ref_02_selector_assignment_refactor_sql_table_selection_processes:03_season_management_architecture.sql:91:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:updates:ref_03_season_management_architecture_sql_table_matches:03_season_management_architecture.sql:82:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:updates:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:110:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:updates:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:111:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:updates:ref_03_season_management_architecture_sql_table_teams:03_season_management_architecture.sql:63:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_tournaments",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:updates:ref_03_season_management_architecture_sql_table_tournaments:03_season_management_architecture.sql:72:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:writes:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:28:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_03_season_management_architecture_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_seasons",
+      "sourcePath": "03_season_management_architecture.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_03_season_management_architecture_sql:writes:ref_03_season_management_architecture_sql_table_seasons:03_season_management_architecture.sql:32:0"
+      ]
+    },
+    {
+      "relation": "deletes",
+      "sourceId": "file_04_admin_delete_user_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_auth_users",
+      "sourcePath": "04_admin_delete_user.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_04_admin_delete_user_sql:deletes:ref_04_admin_delete_user_sql_table_auth_users:04_admin_delete_user.sql:22:0"
+      ]
+    },
+    {
+      "relation": "deletes",
+      "sourceId": "file_04_admin_delete_user_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_public_profiles",
+      "sourcePath": "04_admin_delete_user.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_04_admin_delete_user_sql:deletes:ref_04_admin_delete_user_sql_table_public_profiles:04_admin_delete_user.sql:21:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_04_admin_delete_user_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_auth_users",
+      "sourcePath": "04_admin_delete_user.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_04_admin_delete_user_sql:queries:ref_04_admin_delete_user_sql_table_auth_users:04_admin_delete_user.sql:19:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_04_admin_delete_user_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_auth_users",
+      "sourcePath": "04_admin_delete_user.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_04_admin_delete_user_sql:queries:ref_04_admin_delete_user_sql_table_auth_users:04_admin_delete_user.sql:22:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_04_admin_delete_user_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_public_profiles",
+      "sourcePath": "04_admin_delete_user.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_04_admin_delete_user_sql:queries:ref_04_admin_delete_user_sql_table_public_profiles:04_admin_delete_user.sql:12:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_04_admin_delete_user_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_public_profiles",
+      "sourcePath": "04_admin_delete_user.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_04_admin_delete_user_sql:queries:ref_04_admin_delete_user_sql_table_public_profiles:04_admin_delete_user.sql:21:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_04_admin_delete_user_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_supabase",
+      "sourcePath": "04_admin_delete_user.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_04_admin_delete_user_sql:queries:ref_04_admin_delete_user_sql_table_supabase:04_admin_delete_user.sql:1:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_05_team_types_sql",
+      "targetId": "ref_05_team_types_sql_table_district",
+      "sourcePath": "05_team_types.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_05_team_types_sql:queries:ref_05_team_types_sql_table_district:05_team_types.sql:17:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_05_team_types_sql",
+      "targetId": "ref_05_team_types_sql_table_final",
+      "sourcePath": "05_team_types.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_05_team_types_sql:queries:ref_05_team_types_sql_table_final:05_team_types.sql:2:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_05_team_types_sql",
+      "targetId": "ref_05_team_types_sql_table_public_districts",
+      "sourcePath": "05_team_types.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_05_team_types_sql:references:ref_05_team_types_sql_table_public_districts:05_team_types.sql:13:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_06_match_finalization_policies_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_06_match_finalization_policies_sql:queries:ref_03_season_management_architecture_sql_table_matches:06_match_finalization_policies.sql:16:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_06_match_finalization_policies_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_06_match_finalization_policies_sql:queries:ref_03_season_management_architecture_sql_table_matches:06_match_finalization_policies.sql:27:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_06_match_finalization_policies_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_06_match_finalization_policies_sql:queries:ref_03_season_management_architecture_sql_table_matches:06_match_finalization_policies.sql:42:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_06_match_finalization_policies_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_06_match_finalization_policies_sql:queries:ref_03_season_management_architecture_sql_table_matches:06_match_finalization_policies.sql:53:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_06_match_finalization_policies_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_06_match_finalization_policies_sql:updates:ref_06_match_finalization_policies_sql_table_using:06_match_finalization_policies.sql:3:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_06_match_finalization_policies_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_06_match_finalization_policies_sql:updates:ref_06_match_finalization_policies_sql_table_using:06_match_finalization_policies.sql:24:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_06_match_finalization_policies_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "06_match_finalization_policies.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_06_match_finalization_policies_sql:updates:ref_06_match_finalization_policies_sql_table_using:06_match_finalization_policies.sql:50:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_admin_password_reset_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_auth_users",
+      "sourcePath": "admin_password_reset.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_admin_password_reset_sql:updates:ref_04_admin_delete_user_sql_table_auth_users:admin_password_reset.sql:17:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_admin_password_reset_sql",
+      "targetId": "ref_admin_password_reset_sql_table_the",
+      "sourcePath": "admin_password_reset.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_admin_password_reset_sql:updates:ref_admin_password_reset_sql_table_the:admin_password_reset.sql:16:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:queries:ref_03_season_management_architecture_sql_table_age_categories:dummy_data.sql:23:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:queries:ref_dummy_data_sql_table_districts:dummy_data.sql:21:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:queries:ref_dummy_data_sql_table_districts:dummy_data.sql:22:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_02_selector_assignment_refactor_sql_table_players:dummy_data.sql:35:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_02_selector_assignment_refactor_sql_table_players:dummy_data.sql:39:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_02_selector_assignment_refactor_sql_table_players:dummy_data.sql:43:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_02_selector_assignment_refactor_sql_table_players:dummy_data.sql:47:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_03_season_management_architecture_sql_table_matches:dummy_data.sql:78:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_03_season_management_architecture_sql_table_teams:dummy_data.sql:52:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_03_season_management_architecture_sql_table_teams:dummy_data.sql:56:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_tournaments",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_03_season_management_architecture_sql_table_tournaments:dummy_data.sql:68:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_dummy_data_sql_table_match_rosters",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_dummy_data_sql_table_match_rosters:dummy_data.sql:83:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_dummy_data_sql_table_team_players",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_dummy_data_sql_table_team_players:dummy_data.sql:61:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_dummy_data_sql_table_tournament_teams",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_dummy_data_sql_table_tournament_teams:dummy_data.sql:73:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_dummy_data_sql",
+      "targetId": "ref_dummy_data_sql_table_venues",
+      "sourcePath": "dummy_data.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_dummy_data_sql:writes:ref_dummy_data_sql_table_venues:dummy_data.sql:30:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_public_profiles",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:queries:ref_04_admin_delete_user_sql_table_public_profiles:fix_rls.sql:9:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_public_profiles",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:queries:ref_04_admin_delete_user_sql_table_public_profiles:fix_rls.sql:16:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_02_selector_assignment_refactor_sql_table_players:fix_rls.sql:59:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_02_selector_assignment_refactor_sql_table_players:fix_rls.sql:64:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_deliveries:fix_rls.sql:71:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_deliveries:fix_rls.sql:76:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_matches:fix_rls.sql:35:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_matches:fix_rls.sql:40:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_teams:fix_rls.sql:47:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_teams:fix_rls.sql:52:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_tournaments",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_tournaments:fix_rls.sql:23:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_tournaments",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_03_season_management_architecture_sql_table_tournaments:fix_rls.sql:28:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:28:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:40:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:52:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:64:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:76:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:87:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:97:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:107:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_06_match_finalization_policies_sql_table_using:fix_rls.sql:117:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_decisions",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_decisions:fix_rls.sql:113:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_decisions",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_decisions:fix_rls.sql:117:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_innings",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_innings:fix_rls.sql:83:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_innings",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_innings:fix_rls.sql:87:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_processes",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_processes:fix_rls.sql:103:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_processes",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_processes:fix_rls.sql:107:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_selection",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_selection:fix_rls.sql:93:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_fix_rls_sql",
+      "targetId": "ref_fix_rls_sql_table_selection",
+      "sourcePath": "fix_rls.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_fix_rls_sql:updates:ref_fix_rls_sql_table_selection:fix_rls.sql:97:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_generate_teams_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "generate_teams.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_generate_teams_sql:queries:ref_03_season_management_architecture_sql_table_age_categories:generate_teams.sql:10:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_generate_teams_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "generate_teams.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_generate_teams_sql:queries:ref_dummy_data_sql_table_districts:generate_teams.sql:9:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_generate_teams_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "generate_teams.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_generate_teams_sql:writes:ref_03_season_management_architecture_sql_table_teams:generate_teams.sql:17:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:105:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:116:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:133:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:155:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:171:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:178:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:189:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:205:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:220:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:238:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:254:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:275:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:284:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:310:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:325:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:342:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:352:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:386:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:406:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:429:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:477:0"
+      ]
+    },
+    {
+      "relation": "defines",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_if",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:defines:ref_02_selector_assignment_refactor_sql_table_if:supabase_schema.sql:1612:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_player_registrations",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_player_registrations:supabase_schema.sql:1089:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1024:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1036:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1073:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1118:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1259:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1260:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1261:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1262:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1263:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:1264:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_selection_processes:supabase_schema.sql:1134:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_02_selector_assignment_refactor_sql_table_selection_processes:supabase_schema.sql:1354:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_deliveries:supabase_schema.sql:777:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_deliveries:supabase_schema.sql:808:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_deliveries",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_deliveries:supabase_schema.sql:836:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:639:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:668:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:983:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:1188:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:1207:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:1217:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:1458:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:1469:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:1484:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:1495:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_v_player_match_batting",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_v_player_match_batting:supabase_schema.sql:868:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_v_player_match_batting",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_v_player_match_batting:supabase_schema.sql:932:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_v_player_match_bowling",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_v_player_match_bowling:supabase_schema.sql:889:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_v_player_match_bowling",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_03_season_management_architecture_sql_table_v_player_match_bowling:supabase_schema.sql:956:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_match_rosters",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_dummy_data_sql_table_match_rosters:supabase_schema.sql:702:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_match_rosters",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_dummy_data_sql_table_match_rosters:supabase_schema.sql:710:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_match_rosters",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_dummy_data_sql_table_match_rosters:supabase_schema.sql:718:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_match_rosters",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_dummy_data_sql_table_match_rosters:supabase_schema.sql:738:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_fix_rls_sql_table_innings",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_fix_rls_sql_table_innings:supabase_schema.sql:695:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_official",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_official:supabase_schema.sql:1601:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_official",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_official:supabase_schema.sql:1602:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_official",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_official:supabase_schema.sql:1603:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_official",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_official:supabase_schema.sql:1604:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_official",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_official:supabase_schema.sql:1605:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_selector_age_access",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_selector_age_access:supabase_schema.sql:1079:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_selector_age_access",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_selector_age_access:supabase_schema.sql:1124:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_selector_district_access",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_selector_district_access:supabase_schema.sql:1146:0"
+      ]
+    },
+    {
+      "relation": "queries",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_v_player_match_fielding",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:queries:ref_supabase_schema_sql_table_v_player_match_fielding:supabase_schema.sql:903:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:207:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:241:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:278:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:287:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:313:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:367:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:390:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:436:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:437:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:438:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:444:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:445:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_players",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_players:supabase_schema.sql:446:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:172:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:179:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:266:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:288:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:315:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:449:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_profiles",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_profiles:supabase_schema.sql:482:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_selection_processes:supabase_schema.sql:277:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_selection_processes:supabase_schema.sql:286:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_02_selector_assignment_refactor_sql_table_selection_processes",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_02_selector_assignment_refactor_sql_table_selection_processes:supabase_schema.sql:312:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_age_categories:supabase_schema.sql:173:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_age_categories:supabase_schema.sql:226:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_age_categories:supabase_schema.sql:258:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_age_categories:supabase_schema.sql:330:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:388:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:408:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_matches",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_matches:supabase_schema.sql:431:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:240:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:261:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:344:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:356:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:357:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:362:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:364:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:389:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:410:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_teams",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_teams:supabase_schema.sql:411:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_tournaments",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_tournaments:supabase_schema.sql:343:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_tournaments",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_03_season_management_architecture_sql_table_tournaments:supabase_schema.sql:354:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_04_admin_delete_user_sql_table_auth_users",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_04_admin_delete_user_sql_table_auth_users:supabase_schema.sql:134:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_dummy_data_sql_table_districts:supabase_schema.sql:118:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_dummy_data_sql_table_districts:supabase_schema.sql:138:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_dummy_data_sql_table_districts:supabase_schema.sql:180:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_dummy_data_sql_table_districts:supabase_schema.sql:209:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_dummy_data_sql_table_districts:supabase_schema.sql:225:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_districts",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_dummy_data_sql_table_districts:supabase_schema.sql:260:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_dummy_data_sql_table_venues",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_dummy_data_sql_table_venues:supabase_schema.sql:355:0"
+      ]
+    },
+    {
+      "relation": "references",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_fix_rls_sql_table_innings",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:references:ref_fix_rls_sql_table_innings:supabase_schema.sql:432:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_06_match_finalization_policies_sql_table_using:supabase_schema.sql:1256:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_06_match_finalization_policies_sql_table_using:supabase_schema.sql:1269:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_06_match_finalization_policies_sql_table_using:supabase_schema.sql:1439:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_06_match_finalization_policies_sql_table_using:supabase_schema.sql:1466:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_06_match_finalization_policies_sql_table_using",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_06_match_finalization_policies_sql_table_using:supabase_schema.sql:1492:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_live",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_live:supabase_schema.sql:1449:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:583:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:587:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:591:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:595:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:599:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:603:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:607:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:611:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:615:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:619:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:623:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:656:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:680:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_on",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_on:supabase_schema.sql:754:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_or",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_or:supabase_schema.sql:1554:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_or",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_or:supabase_schema.sql:1559:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_or",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_or:supabase_schema.sql:1564:0"
+      ]
+    },
+    {
+      "relation": "updates",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_or",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:updates:ref_supabase_schema_sql_table_or:supabase_schema.sql:1569:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_03_season_management_architecture_sql_table_age_categories",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:writes:ref_03_season_management_architecture_sql_table_age_categories:supabase_schema.sql:1598:0"
+      ]
+    },
+    {
+      "relation": "writes",
+      "sourceId": "file_supabase_schema_sql",
+      "targetId": "ref_supabase_schema_sql_table_audit_logs",
+      "sourcePath": "supabase_schema.sql",
+      "confidence": "high",
+      "evidence": [
+        "edge:file_supabase_schema_sql:writes:ref_supabase_schema_sql_table_audit_logs:supabase_schema.sql:1532:0"
+      ]
+    }
+  ],
+  "summary": {
+    "tableCount": 52,
+    "migrationCount": 0,
+    "boundaryCount": 2
+  }
+}
