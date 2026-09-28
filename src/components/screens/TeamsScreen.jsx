@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useCricket } from '../../context/CricketContext';
 import { PageHeader } from '../ui/PageHeader';
 import StatCard from '../ui/StatCard';
-
+import TeamManagerModal from '../ui/TeamManagerModal';
 
 const ROLE_COLORS = {
   'Batter': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', tag: 'bg-amber-500' },
@@ -74,6 +74,18 @@ export default function TeamsScreen() {
       alert('Failed to rebuild teams.');
     } finally {
       setIsRebuildingTeams(false);
+    }
+  };
+
+  const handleCreateTeam = async (data) => {
+    try {
+      const { api } = await import('../../lib/api');
+      await api.createTeam(data);
+      alert('Team created successfully!');
+      window.location.reload();
+    } catch (err) {
+      console.error("Create Team Error:", err);
+      alert('Failed to create team: ' + (err.message || err));
     }
   };
 
@@ -167,7 +179,7 @@ export default function TeamsScreen() {
 
       return true;
     });
-  }, [activeTab, selectedGender, searchQuery]);
+  }, [activeTab, selectedGender, searchQuery, mappedTeams]);
 
   // Filter District Teams
   const filteredDistrictTeams = useMemo(() => {
@@ -181,7 +193,7 @@ export default function TeamsScreen() {
         (team.homeGround || '').toLowerCase().includes(q)
       );
     });
-  }, [searchQuery]);
+  }, [searchQuery, mappedTeams]);
 
   // Aggregate metrics
   const totalPlayersCount = useMemo(() => {
@@ -240,6 +252,16 @@ export default function TeamsScreen() {
               >
                 <Sparkles className="w-3.5 h-3.5 text-white" />
                 <span>{isRebuildingTeams ? 'Building...' : 'Rebuild Teams'}</span>
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsTeamManagerOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Create Team</span>
               </button>
             )}
             <button
@@ -539,10 +561,19 @@ export default function TeamsScreen() {
                     </span>
 
                     <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => navigateTo('selection')}
+                          className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-600 transition shadow-2xs cursor-pointer"
+                        >
+                          <span>Add Players</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setActiveRosterTeam(team)}
-                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition shadow-2xs"
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition shadow-2xs cursor-pointer"
                       >
                         <span>View Players</span>
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -848,6 +879,11 @@ export default function TeamsScreen() {
       </AnimatePresence>
 
 
+      <TeamManagerModal 
+        isOpen={isTeamManagerOpen} 
+        onClose={() => setIsTeamManagerOpen(false)} 
+        onSave={handleCreateTeam} 
+      />
     </div>
   );
 }

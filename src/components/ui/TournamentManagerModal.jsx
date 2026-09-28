@@ -17,6 +17,8 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
       startDate: '',
       endDate: '',
       status: 'UPCOMING',
+      age_category_id: '',
+      gender: 'Men',
       participatingTeams: [],
       venues: [],
       customMatches: []
@@ -24,22 +26,35 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
   );
 
   const [seasons, setSeasons] = useState([]);
+  const [ageCategories, setAgeCategories] = useState([]);
 
   React.useEffect(() => {
-    const fetchSeasons = async () => {
+    const fetchData = async () => {
       try {
-        const data = await api.getSeasons();
-        setSeasons(data || []);
-        if (!initialData?.season_id && data?.length > 0) {
-          const active = data.find(s => s.is_current_active);
-          setFormData(prev => ({ ...prev, season_id: active ? active.id : data[0].id }));
-        }
+        const [seasonData, categoryData] = await Promise.all([
+          api.getSeasons(),
+          api.getAgeCategories()
+        ]);
+        setSeasons(seasonData || []);
+        setAgeCategories(categoryData || []);
+        
+        setFormData(prev => {
+          const newData = { ...prev };
+          if (!initialData?.season_id && seasonData?.length > 0) {
+            const active = seasonData.find(s => s.is_current_active);
+            newData.season_id = active ? active.id : seasonData[0].id;
+          }
+          if (!initialData?.age_category_id && categoryData?.length > 0) {
+            newData.age_category_id = categoryData[0].id;
+          }
+          return newData;
+        });
       } catch (err) {
-        console.error('Failed to fetch seasons:', err);
+        console.error('Failed to fetch modal data:', err);
       }
     };
     if (isOpen) {
-      fetchSeasons();
+      fetchData();
     }
   }, [isOpen, initialData]);
 
@@ -99,6 +114,7 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
           homeTeamId: '',
           awayTeamId: '',
           date: '',
+          format: 'T20',
           venueId: null,
           umpireName: '',
           scorerName: '',
@@ -193,30 +209,29 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Format</label>
+                  <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Age Category</label>
                   <select 
-                    name="format"
-                    value={formData.format}
+                    name="age_category_id"
+                    value={formData.age_category_id}
                     onChange={handleChange}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none"
+                    required
                   >
-                    <option value="T20">T20</option>
-                    <option value="One Day">One Day (50 Overs)</option>
-                    <option value="Multi-Day">Multi-Day (Test)</option>
-                    <option value="T10">T10</option>
+                    {ageCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
-                
                 <div className="space-y-1.5">
-                  <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Category</label>
+                  <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Gender</label>
                   <select 
                     name="gender"
                     value={formData.gender || 'Men'}
                     onChange={handleChange}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   >
-                    <option value="Men">Men's Tournament</option>
-                    <option value="Women">Women's Tournament</option>
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
                   </select>
                 </div>
               </div>
@@ -357,7 +372,7 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                           </select>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-4 gap-3">
                           <input 
                             type="datetime-local" 
                             value={match.date}
@@ -373,6 +388,16 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
                           />
                           <select 
+                            value={match.format} 
+                            onChange={(e) => updateMatchRow(match.id, 'format', e.target.value)}
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
+                          >
+                            <option value="T20">T20</option>
+                            <option value="One Day">One Day (50)</option>
+                            <option value="Multi-Day">Multi-Day</option>
+                            <option value="T10">T10</option>
+                          </select>
+                          <select 
                             value={match.ballType} 
                             onChange={(e) => updateMatchRow(match.id, 'ballType', e.target.value)}
                             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
@@ -383,13 +408,18 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                         </div>
                         
                         <div className="grid grid-cols-2 gap-3">
-                          <input 
-                            type="text" 
-                            placeholder="Umpire Name"
+                          <select 
                             value={match.umpireName}
                             onChange={(e) => updateMatchRow(match.id, 'umpireName', e.target.value)}
                             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
-                          />
+                          >
+                            <option value="">Select Umpire</option>
+                            {registeredUsers
+                              .filter(u => ['UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()))
+                              .map(u => (
+                                <option key={u.id} value={u.name}>{u.name}</option>
+                              ))}
+                          </select>
                           <select 
                             value={match.scorerName}
                             onChange={(e) => updateMatchRow(match.id, 'scorerName', e.target.value)}

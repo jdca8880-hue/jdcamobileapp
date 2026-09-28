@@ -3,6 +3,7 @@ import { Trophy, ChevronDown, ChevronUp, ChevronRight, Plus, Edit2, Trash2 } fro
 import { useCricket } from '../../context/CricketContext';
 import { MatchCard } from '../ui/MatchCard';
 import TournamentManagerModal from '../ui/TournamentManagerModal';
+import MatchCreationModal from '../ui/MatchCreationModal';
 import { api } from '../../lib/api';
 
 const TOURNAMENT_THEMES = [
@@ -140,7 +141,7 @@ const PointsTableUI = ({ pointsTable }) => {
   );
 };
 
-const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail }) => {
+const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, onEditMatch, isAdmin }) => {
   const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
   const isCompleted = match.status === 'COMPLETED' || match.status === 'FINISHED';
 
@@ -197,13 +198,33 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail }
           </div>
         </div>
       </div>
-      <ChevronDown size={16} className="text-[#d2d8e2] group-hover:text-blue-500" />
+      <div className="flex items-center gap-2">
+        {isAdmin && (
+          <>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEditMatch(match, 'edit'); }}
+              className="p-1.5 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+              title="Edit Match Details"
+            >
+              <Edit2 size={14} />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEditMatch(match, 'setup'); }}
+              className="p-1.5 rounded-full text-amber-500 hover:bg-amber-100 hover:text-amber-700 transition-colors"
+              title="Setup / Score Match"
+            >
+              <Trophy size={14} />
+            </button>
+          </>
+        )}
+        <ChevronDown size={16} className="text-[#d2d8e2] group-hover:text-blue-500" />
+      </div>
     </div>
   );
 };
 
 export default function TournamentsScreen() {
-  const { matches = [], tournaments = [], pointsTable = [], teams = [], navigateTo, setActiveMatchId, userRole } = useCricket();
+  const { matches = [], tournaments = [], pointsTable = [], teams = [], navigateTo, setActiveMatchId, userRole, refreshAdminData } = useCricket();
   const [activeTab, setActiveTab] = useState('Matches'); // 'Matches' | 'Standings'
   const [expandedTournament, setExpandedTournament] = useState(null);
   const [expandedMatchId, setExpandedMatchId] = useState(null);
@@ -211,6 +232,8 @@ export default function TournamentsScreen() {
   // Tournament Manager state
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [editingTournament, setEditingTournament] = useState(null);
+  const [activeTournamentForMatch, setActiveTournamentForMatch] = useState(null);
+  const [editingMatchData, setEditingMatchData] = useState(null);
   const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || userRole === 'Admin' || userRole === 'SuperAdmin';
   
   // Fallback group matches by tournament ID in case they don't match a tournament
@@ -415,7 +438,7 @@ export default function TournamentsScreen() {
                         <div className="flex gap-2 items-center">
                            {isAdmin && (
                              <button 
-                               onClick={(e) => handleEditTournament(e, tournament)} 
+                               onClick={(e) => { e.stopPropagation(); setActiveTournamentForMatch(tournament); }} 
                                className="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition-colors cursor-pointer flex items-center gap-1"
                              >
                                <Plus size={12}/> Create Match
@@ -434,6 +457,16 @@ export default function TournamentsScreen() {
                             isExpanded={expandedMatchId === m.id}
                             onToggle={() => toggleMatch(m.id)}
                             onOpenDetail={() => openMatch(m)}
+                            onEditMatch={(matchToEdit, action) => { 
+                              if (action === 'edit') {
+                                setEditingMatchData(matchToEdit);
+                                setActiveTournamentForMatch(tournament);
+                              } else {
+                                setActiveMatchId(matchToEdit.id); 
+                                navigateTo('/match-setup'); 
+                              }
+                            }}
+                            isAdmin={isAdmin}
                           />
                         ))}
                       </div>
@@ -468,12 +501,27 @@ export default function TournamentsScreen() {
                 }
                 alert('Tournament created successfully!');
               }
-              window.location.reload(); // Quickest way to refresh for now
+              if (refreshAdminData) {
+                await refreshAdminData();
+              }
             } catch (err) {
               console.error('Failed to save tournament:', err);
               alert('Error saving tournament: ' + err.message);
             }
           }}
+        />
+      )}
+
+      {isAdmin && (
+        <MatchCreationModal 
+          isOpen={!!activeTournamentForMatch}
+          onClose={() => {
+            setActiveTournamentForMatch(null);
+            setEditingMatchData(null);
+          }}
+          tournament={activeTournamentForMatch}
+          teams={teams}
+          initialData={editingMatchData}
         />
       )}
     </div>

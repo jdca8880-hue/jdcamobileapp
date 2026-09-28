@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   RotateCcw, FileText, ShieldAlert, AlertTriangle, X,
   ChevronRight, RefreshCw, Radio, CircleHelp, WifiOff,
-  MoreHorizontal, Users, Trophy, Calendar, ChevronDown
+  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { syncService } from '../../services/SyncService';
 import InningsInitScreen from './InningsInitScreen';
 import { MatchCard } from '../ui/MatchCard';
+import MatchInterruptionModal from '../ui/MatchInterruptionModal';
 
 const DISMISSALS = ['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket', 'Other'];
 const QUICK_RUNS = [0, 1, 2, 3, 4, 6];
@@ -45,13 +46,27 @@ export default function ScoringScreen() {
   const [showHelp, setShowHelp] = useState(false);
   const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
   const [isHydrating, setIsHydrating] = useState(false);
-  const [hydrationError, setHydrationError] = useState(false);
+  const [hydrationError, setHydrationError] = useState(null);
   const [selectedTournament, setSelectedTournament] = useState('');
+  const [interruptionModalOpen, setInterruptionModalOpen] = useState(false);
 
   const latestDeliveryLogRef = React.useRef(deliveryLog || []);
   useEffect(() => {
     latestDeliveryLogRef.current = deliveryLog || [];
   }, [deliveryLog]);
+
+  // Guard: if the stored activeMatchId is no longer a valid match in the DB list, clear it
+  // This prevents the scorer from getting stuck on a "no network" error after a stale session
+  useEffect(() => {
+    if (!activeMatchId || !matches) return;
+    if (matches.length === 0) return; // still loading
+    const exists = matches.some(m => m.id === activeMatchId);
+    if (!exists) {
+      console.warn('[ScoringScreen] Stored activeMatchId not found in match list. Clearing stale session.');
+      setActiveMatchId(null);
+      setHydrationError(null);
+    }
+  }, [activeMatchId, matches]);
 
   useEffect(() => {
     let isMounted = true;
@@ -59,11 +74,13 @@ export default function ScoringScreen() {
       // If we have an active match but no Team A Playing XI in state, we must have refreshed.
       if (activeMatchId && (!matchSetup?.teamAXI || matchSetup.teamAXI.length === 0)) {
         setIsHydrating(true);
-        setHydrationError(false);
-        const success = await hydrateMatchState(activeMatchId);
+        setHydrationError(null);
+        const result = await hydrateMatchState(activeMatchId);
         if (isMounted) {
           setIsHydrating(false);
-          if (!success) setHydrationError(true);
+          if (!result?.success) {
+            setHydrationError(result?.error || 'Unknown error');
+          }
         }
       }
     };
@@ -116,6 +133,7 @@ export default function ScoringScreen() {
   const activeMatch = matches?.find(m => m.id === activeMatchId);
   const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'TBA';
   const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'TBA';
+  const matchTournament = tournaments?.find(t => t.id === activeMatch?.tournament_id);
   const tournamentName = activeMatch?.tournament || 'JDCA District Cricket';
   
   // Resolve XIs based on innings
@@ -229,7 +247,8 @@ export default function ScoringScreen() {
       <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
         <WifiOff className="h-12 w-12 text-red-500 mb-4" />
         <h3 className="text-xl font-bold text-gray-800 dark:text-white">Failed to Load Match</h3>
-        <p className="text-gray-500 dark:text-gray-400 mt-2">Please check your network connection and try again.</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">Error: {hydrationError}</p>
+        <p className="text-gray-400 text-sm mt-1">Please check your network connection and try again.</p>
         <button 
           onClick={() => navigateTo('home')}
           className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold"
@@ -381,6 +400,7 @@ export default function ScoringScreen() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+               <button onClick={() => setInterruptionModalOpen(true)} className="px-3 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs gap-1 hover:bg-red-100 transition-colors"><Clock size={16}/> End/Interrupt</button>
                <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18}/></button>
                <button onClick={() => navigateTo('match-detail')} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><X size={18}/></button>
             </div>
@@ -774,6 +794,33 @@ export default function ScoringScreen() {
           </div>
         )}
 
+        {interruptionModalOpen && (
+          <MatchInterruptionModal
+            isOpen={interruptionModalOpen}
+            onClose={() => setInterruptionModalOpen(false)}
+            activeMatch={activeMatch}
+            tournament={matchTournament}
+            innings={innings}
+            onApplyRevisedOvers={async (revisedOvers) => {
+               try {
+                 await api.updateMatch(activeMatchId, { max_overs: revisedOvers });
+                 setMatchSetup(prev => ({ ...prev, maxOvers: revisedOvers }));
+                 alert(`Match overs revised to ${revisedOvers}`);
+               } catch (err) {
+                 alert("Failed to revise overs: " + err.message);
+               }
+            }}
+            onEndMatchNow={async () => {
+               try {
+                 await api.updateMatch(activeMatchId, { status: 'COMPLETED', result_text: 'Match Ended Early / Abandoned' });
+                 alert("Match has been ended.");
+                 navigateTo('matches');
+               } catch (err) {
+                 alert("Failed to end match: " + err.message);
+               }
+            }}
+          />
+        )}
       </div>
     </div>
   );

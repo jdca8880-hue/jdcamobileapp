@@ -226,6 +226,8 @@ export function CricketProvider({ children }) {
               setUserEmail('');
               setUserRole('VIEWER');
               setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
+              // Clear stale match ID so scorer doesn't land on hydration error next login
+              setActiveMatchId(null);
             }
           });
         }
@@ -262,7 +264,7 @@ export function CricketProvider({ children }) {
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes, batStatsRes, bowlStatsRes, fieldStatsRes] = await Promise.allSettled([
               supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name, avatar_url)').is('deleted_at', null),
-              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)').is('deleted_at', null),
+              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
               supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null),
               supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)').is('deleted_at', null),
               supabase.from('v_player_career_batting').select('*'),
@@ -530,7 +532,7 @@ export function CricketProvider({ children }) {
   const hydrateMatchState = async (matchId) => {
     try {
       const { match, teamAXI, teamBXI, currentInning, deliveries } = await api.hydrateLiveMatch(matchId);
-      if (!match) return false;
+      if (!match) return { success: false, error: 'Match not found' };
 
       setMatchSetup({
         teamA: match.home_team?.name || '',
@@ -668,10 +670,10 @@ export function CricketProvider({ children }) {
           }
         }
       }
-      return true;
+      return { success: true };
     } catch (e) {
       console.error('Failed to hydrate match state', e);
-      return false;
+      return { success: false, error: e.message || 'Unknown hydration error' };
     }
   };
 

@@ -105,7 +105,7 @@ export const api = {
         season_id: tournamentData.season_id,
         season: seasonData?.name || '2024-25',
         format: tournamentData.format || 'T20',
-        age_category_id: defaults.age_category_id,
+        age_category_id: tournamentData.age_category_id || defaults.age_category_id,
         gender: tournamentData.gender || 'Men',
         start_date: tournamentData.startDate || null,
         end_date: tournamentData.endDate || null,
@@ -138,6 +138,7 @@ export const api = {
         season_id: tournamentData.season_id,
         season: seasonData?.name || '2024-25',
         format: tournamentData.format,
+        age_category_id: tournamentData.age_category_id,
         gender: tournamentData.gender,
         start_date: tournamentData.startDate || null,
         end_date: tournamentData.endDate || null,
@@ -201,15 +202,17 @@ export const api = {
   // ==========================================
   async getRecycleBinItems() {
     // We run these in parallel
-    const [tRes, mRes, pRes] = await Promise.all([
+    const [tRes, mRes, pRes, teamRes] = await Promise.all([
       supabase.from('tournaments').select('id, name, deleted_at').not('deleted_at', 'is', null),
       supabase.from('matches').select('id, match_format, scheduled_at, deleted_at, home_team:home_team_id(name), away_team:away_team_id(name)').not('deleted_at', 'is', null),
-      supabase.from('players').select('id, full_name, deleted_at').not('deleted_at', 'is', null)
+      supabase.from('players').select('id, full_name, deleted_at').not('deleted_at', 'is', null),
+      supabase.from('teams').select('id, name, deleted_at').not('deleted_at', 'is', null)
     ]);
 
     if (tRes.error) throw tRes.error;
     if (mRes.error) throw mRes.error;
     if (pRes.error) throw pRes.error;
+    if (teamRes.error) throw teamRes.error;
 
     const items = [];
 
@@ -227,6 +230,9 @@ export const api = {
     if (pRes.data) {
       pRes.data.forEach(p => items.push({ id: p.id, type: 'PLAYER', name: p.full_name || 'Unknown Player', deleted_at: p.deleted_at }));
     }
+    if (teamRes.data) {
+      teamRes.data.forEach(team => items.push({ id: team.id, type: 'TEAM', name: team.name, deleted_at: team.deleted_at }));
+    }
     
     // Sort by deleted_at descending
     return items.sort((a, b) => new Date(b.deleted_at) - new Date(a.deleted_at));
@@ -237,6 +243,7 @@ export const api = {
     if (type === 'TOURNAMENT') table = 'tournaments';
     else if (type === 'MATCH') table = 'matches';
     else if (type === 'PLAYER') table = 'players';
+    else if (type === 'TEAM') table = 'teams';
     else throw new Error("Invalid type");
 
     const { error } = await supabase.from(table).update({ deleted_at: null }).eq('id', id);
@@ -249,6 +256,7 @@ export const api = {
     if (type === 'TOURNAMENT') table = 'tournaments';
     else if (type === 'MATCH') table = 'matches';
     else if (type === 'PLAYER') table = 'players';
+    else if (type === 'TEAM') table = 'teams';
     else throw new Error("Invalid type");
 
     const { error } = await supabase.from(table).delete().eq('id', id);
@@ -328,18 +336,25 @@ export const api = {
   async createTeam(teamData) {
     const defaults = await this.getDefaults();
     
-    if (!defaults.age_category_id) {
-      throw new Error("No age categories found in the database.");
+    // Resolve the age category based on teamData.age_category_id
+    const ageCategoryId = teamData.age_category_id || defaults.age_category_id;
+
+    if (!ageCategoryId) {
+      throw new Error("No age categories provided.");
     }
+
+    const { data: seasonData } = await supabase.from('seasons').select('name').eq('id', teamData.season_id).single();
+    const seasonName = seasonData?.name || 'Season 2026';
 
     const { data, error } = await supabase
       .from('teams')
       .insert({
         name: teamData.name,
         short_name: teamData.shortName || teamData.name.substring(0, 3).toUpperCase(),
+        season: seasonName,
         season_id: teamData.season_id,
         district_id: defaults.district_id,
-        age_category_id: defaults.age_category_id,
+        age_category_id: ageCategoryId,
         gender: teamData.gender === 'Women' ? 'Women' : 'Men',
         is_active: true
       })
@@ -363,14 +378,16 @@ export const api = {
       if (!m.homeTeamId || !m.awayTeamId) {
         throw new Error("Please select both Home and Away teams for all matches.");
       }
+      const matchFmt = m.format || format || 'T20';
+      const scheduledVal = m.date || m.scheduledAt;
       return {
         tournament_id: tournamentId,
         home_team_id: m.homeTeamId || null,
         away_team_id: m.awayTeamId || null,
-        scheduled_at: m.date ? new Date(m.date).toISOString() : new Date().toISOString(),
+        scheduled_at: scheduledVal ? new Date(scheduledVal).toISOString() : new Date().toISOString(),
       status: 'SCHEDULED',
-      match_format: format,
-      max_overs: format === 'T20' ? 20 : (format === 'T10' ? 10 : 50),
+      match_format: matchFmt,
+      max_overs: matchFmt === 'T20' ? 20 : (matchFmt === 'T10' ? 10 : 50),
       venue_name: m.venueName || null,
       umpire_name: m.umpireName || null,
       scorer_name: m.scorerName || null,
@@ -389,6 +406,28 @@ export const api = {
       }
       throw error;
     }
+    return data;
+  },
+
+  async updateMatchDetails(matchId, matchData) {
+    const matchFmt = matchData.format || 'T20';
+    const scheduledVal = matchData.scheduledAt || matchData.date;
+    const { data, error } = await supabase
+      .from('matches')
+      .update({
+        home_team_id: matchData.homeTeamId || null,
+        away_team_id: matchData.awayTeamId || null,
+        scheduled_at: scheduledVal ? new Date(scheduledVal).toISOString() : new Date().toISOString(),
+        match_format: matchFmt,
+        max_overs: matchFmt === 'T20' ? 20 : (matchFmt === 'T10' ? 10 : 50),
+        venue_name: matchData.venueName || null,
+        umpire_name: matchData.umpireName || null,
+        scorer_name: matchData.scorerName || null
+      })
+      .eq('id', matchId)
+      .select();
+
+    if (error) throw error;
     return data;
   },
 

@@ -6,28 +6,42 @@ export default function TeamManagerModal({ isOpen, onClose, onSave }) {
     name: '',
     shortName: '',
     season_id: '',
-    category: 'Senior',
+    age_category_id: '',
     gender: 'Men'
   });
 
   const [seasons, setSeasons] = useState([]);
+  const [ageCategories, setAgeCategories] = useState([]);
 
   React.useEffect(() => {
-    const fetchSeasons = async () => {
+    const fetchData = async () => {
       try {
         const { api } = await import('../../lib/api');
-        const data = await api.getSeasons();
-        setSeasons(data || []);
-        if (data?.length > 0) {
-          const active = data.find(s => s.is_current_active);
-          setFormData(prev => ({ ...prev, season_id: active ? active.id : data[0].id }));
-        }
+        const [seasonData, categoryData] = await Promise.all([
+          api.getSeasons(),
+          api.getAgeCategories()
+        ]);
+        
+        setSeasons(seasonData || []);
+        setAgeCategories(categoryData || []);
+        
+        setFormData(prev => {
+          const newData = { ...prev };
+          if (!prev.season_id && seasonData?.length > 0) {
+            const active = seasonData.find(s => s.is_current_active);
+            newData.season_id = active ? active.id : seasonData[0].id;
+          }
+          if (!prev.age_category_id && categoryData?.length > 0) {
+            newData.age_category_id = categoryData[0].id;
+          }
+          return newData;
+        });
       } catch (err) {
-        console.error('Failed to fetch seasons:', err);
+        console.error('Failed to fetch modal data:', err);
       }
     };
     if (isOpen) {
-      fetchSeasons();
+      fetchData();
     }
   }, [isOpen]);
 
@@ -118,17 +132,15 @@ export default function TeamManagerModal({ isOpen, onClose, onSave }) {
               <div className="space-y-1.5">
                 <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Category</label>
                 <select 
-                  name="category"
-                  value={formData.category}
+                  name="age_category_id"
+                  value={formData.age_category_id}
                   onChange={handleChange}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  required
                 >
-                  <option value="Senior">Senior</option>
-                  <option value="Under-23">Under-23</option>
-                  <option value="Under-19">Under-19</option>
-                  <option value="Under-17">Under-17</option>
-                  <option value="Under-15">Under-15</option>
-                  <option value="Under-13">Under-13</option>
+                  {ageCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">
