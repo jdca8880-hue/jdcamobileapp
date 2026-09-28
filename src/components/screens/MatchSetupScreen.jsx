@@ -377,7 +377,7 @@ export default function MatchSetupScreen() {
   }, [tossWinnerTeamId, matchSetup]);
 
   return (
-    <div className="pb-[120px] bg-slate-50 min-h-screen">
+    <div className="pb-[160px] bg-slate-50 min-h-screen">
       
       {/* HEADER */}
       <div className="bg-white px-4 pt-[60px] pb-4 border-b border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] sticky top-0 z-20">
@@ -722,7 +722,7 @@ export default function MatchSetupScreen() {
       </div>
 
       {/* BOTTOM ACTIONS */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] z-30">
+      <div className="fixed bottom-[68px] lg:bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] z-30">
         <div className="flex gap-3">
           {currentStep > 1 && (
             <button onClick={() => setCurrentStep(c => c - 1)} className="flex-1 py-4 rounded-[16px] bg-slate-50 text-[#101827] text-[14px] font-bold border border-gray-200 active:bg-gray-100">
