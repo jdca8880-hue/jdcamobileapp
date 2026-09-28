@@ -753,9 +753,8 @@ export default function MatchSetupScreen() {
                     {players.filter(p => {
                       const isAvailable = !activeXI.find(xi => xi.id === p.id);
                       const matchesSearch = (p.full_name || p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase());
-                      const activeTeamId = activeTeamTab === 'A' ? matchSetup.teamAId : matchSetup.teamBId;
-                      const isAssignedToTeam = !activeTeamId || (p.team_players && p.team_players.some(tp => tp.team_id === activeTeamId));
-                      return isAvailable && matchesSearch && isAssignedToTeam;
+                      // All registered players are shown — team_players assignment not required for grassroots matches
+                      return isAvailable && matchesSearch;
                     }).map(p => (
                        <button key={p.id} onClick={() => { addPlayerToXI(p); setIsAddPlayerModalOpen(false); }} className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-[12px] active:bg-gray-50">
                           <div className="text-left">
