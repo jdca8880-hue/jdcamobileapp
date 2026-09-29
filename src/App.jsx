@@ -8,6 +8,7 @@ import DrawerMenu from './components/DrawerMenu';
 import Sidebar  from './components/Sidebar';
 import ProtectedRoute, { ROLE_HOME } from './components/ProtectedRoute';
 import AnimatedPage from './components/AnimatedPage';
+import LiveMatchesShowcase from './components/ui/LiveMatchesShowcase';
 import NotificationPrompt from './components/NotificationPrompt';
 
 // ── Screens ────────────────────────────────────────────────────
@@ -175,3 +176,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

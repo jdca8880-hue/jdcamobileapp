@@ -278,8 +278,58 @@ export const api = {
     else if (type === 'TEAM') table = 'teams';
     else throw new Error("Invalid type");
 
+    let avatarUrlToDelete = null;
+
+    // If it's a player, grab the avatar_url before we wipe the row
+    if (type === 'PLAYER') {
+      const { data: pData } = await supabase
+        .from('players')
+        .select('avatar_url')
+        .eq('id', id)
+        .single();
+      if (pData && pData.avatar_url) {
+        avatarUrlToDelete = pData.avatar_url;
+      }
+    }
+
+    // Manual Cascade for safety
+    if (type === 'TEAM') {
+      await supabase.from('team_players').delete().eq('team_id', id);
+    } else if (type === 'PLAYER') {
+      await supabase.from('team_players').delete().eq('player_id', id);
+      await supabase.from('player_registrations').delete().eq('player_id', id);
+    } else if (type === 'MATCH') {
+      // Find innings first to delete deliveries if no DB cascade exists
+      const { data: innings } = await supabase.from('innings').select('id').eq('match_id', id);
+      if (innings && innings.length > 0) {
+        for (const inning of innings) {
+          await supabase.from('deliveries').delete().eq('innings_id', inning.id);
+        }
+      }
+      await supabase.from('innings').delete().eq('match_id', id);
+    } else if (type === 'TOURNAMENT') {
+      // Matches should theoretically be deleted or we don't allow it. 
+      // But let's let DB handle it or fail safely.
+    }
+
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) throw error;
+
+    // After successful hard delete, remove photo from Cloudinary
+    if (avatarUrlToDelete) {
+      try {
+        const { deleteCloudinaryImage } = await import('./cloudinary.js');
+        await deleteCloudinaryImage(
+          avatarUrlToDelete,
+          import.meta.env.VITE_CLOUDINARY_API_KEY,
+          import.meta.env.VITE_CLOUDINARY_API_SECRET,
+          import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+        );
+      } catch (err) {
+        console.error('[api] Failed to delete Cloudinary image during hard delete:', err);
+      }
+    }
+
     return true;
   },
 
@@ -962,11 +1012,30 @@ export const api = {
     const defaults = await this.getDefaults();
     const activeSeason = await this.getActiveSeason();
     if (defaults.district_id && activeSeason) {
+       // Resolve district: could be a UUID, a name string, or absent (use default)
+       let finalDistrictId = defaults.district_id;
+       if (playerData.district) {
+         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+         if (uuidRegex.test(playerData.district)) {
+           finalDistrictId = playerData.district;
+         } else {
+           const { data: dData, error: dError } = await supabase
+             .from('districts')
+             .select('id')
+             .eq('name', playerData.district)
+             .single();
+            if (dError || !dData) {
+              throw new Error("District \"" + playerData.district + "\" was not found.");
+            }
+            finalDistrictId = dData.id;
+         }
+       }
+
        await supabase.from('player_registrations').insert({
          player_id: data.id,
          season_id: playerData.season_id || activeSeason.id,
          season: activeSeason.name,
-         district_id: defaults.district_id,
+         district_id: finalDistrictId,
          age_category_id: defaults.age_category_id
        });
     }

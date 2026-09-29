@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCricket } from '../../context/CricketContext';
-import { Users, Shield, Plus, X, Search, CheckCircle2, AlertTriangle, UserPlus, Camera } from 'lucide-react';
+import { Users, Shield, Plus, X, Search, CheckCircle2, AlertTriangle, UserPlus, Camera, Trash2 } from 'lucide-react';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
 import { api, calculatePlayerAge } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
@@ -202,6 +202,19 @@ export default function TeamRegistrationTab({ userRole }) {
     }
   };
 
+  const handleDeleteTeam = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this team?')) return;
+    try {
+      await supabase.from("teams").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+      setTeams(prev => prev.filter(t => t.id !== id));
+      if (activeTeamId === id) setActiveTeamId(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete team.');
+    }
+  };
+
   const handleTogglePlayer = async (playerId) => {
     if (!activeTeamId) return;
     
@@ -285,8 +298,9 @@ export default function TeamRegistrationTab({ userRole }) {
                     className={`p-3 rounded-xl border cursor-pointer transition ${activeTeamId === team.id ? 'border-cobalt bg-blue-50/50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
                   >
                     <div className="font-bold text-sm text-slate-900">{team.name}</div>
-                    <div className="text-xs text-slate-500 flex justify-between mt-1">
-                      <span>{team.age_category?.name || 'Category'} â€¢ {team.gender}</span>
+                    <div className="text-xs text-slate-500 flex justify-between mt-1 items-center">
+                      <span>{team.age_category?.name || "Category"} • {team.gender}</span>
+                      <button onClick={(e) => handleDeleteTeam(team.id, e)} className="text-slate-400 hover:text-rose-500 p-1 hover:bg-rose-50 rounded transition-colors" title="Delete Team"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
@@ -546,8 +560,6 @@ export default function TeamRegistrationTab({ userRole }) {
     </div>
   );
 }
-
-
 
 
 

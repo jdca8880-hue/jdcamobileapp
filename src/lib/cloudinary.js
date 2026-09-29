@@ -9,7 +9,7 @@ export async function deleteCloudinaryImage(imageUrl, apiKey, apiSecret, cloudNa
     const publicId = lastPart.split('.')[0]; // remove extension
 
     const timestamp = Math.floor(Date.now() / 1000);
-    const stringToSign = "public_id=${publicId}&timestamp=${timestamp}${apiSecret}";
+    const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
 
     // Create SHA-1 signature
     const encoder = new TextEncoder();
@@ -24,7 +24,7 @@ export async function deleteCloudinaryImage(imageUrl, apiKey, apiSecret, cloudNa
     formData.append('api_key', apiKey);
     formData.append('timestamp', timestamp);
 
-    const res = await fetch("https://api.cloudinary.com/v1_1/${cloudName}/image/destroy", {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
       method: 'POST',
       body: formData
     });

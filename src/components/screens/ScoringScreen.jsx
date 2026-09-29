@@ -482,7 +482,7 @@ export default function ScoringScreen() {
               <div className="mt-4 bg-jade-50 border border-jade-100 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-jade-700">
                 <div className="text-[12px] font-bold uppercase tracking-widest opacity-80 mb-0.5">Target: {target}</div>
                 <div className="text-[15px] font-black">
-                  Need {Math.max(0, target - runs)} runs from {Math.max(0, (totalMatchOvers * 6) - balls)} balls
+                  Need {Math.max(0, target - runs)} runs from {Math.max(0, ((matchSetup?.maxOvers || 20) * 6) - balls)} balls
                 </div>
               </div>
             )}
@@ -834,3 +834,4 @@ export default function ScoringScreen() {
     </div>
   );
 }
+
