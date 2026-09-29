@@ -31,6 +31,7 @@ import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 import BottomSheet from '../ui/BottomSheet';
 import PlayerDetail from './PlayerDetail';
+import { calculatePlayerAge } from '../../lib/api';
 
 const ROLE_BADGES = {
   'Batter': { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' },
@@ -40,13 +41,13 @@ const ROLE_BADGES = {
 };
 
 const CATEGORY_OPTIONS = [
-  { id: 'team_2026_senior_men', name: 'Senior Men', category: 'Senior', gender: 'Men' },
-  { id: 'team_2026_u23_men', name: 'Under-23 Boys', category: 'Under 23', gender: 'Men' },
-  { id: 'team_2026_u19_men', name: 'Under-19 Boys', category: 'Under 19', gender: 'Men' },
-  { id: 'team_2026_u17_men', name: 'Under-17 Boys', category: 'Under 17', gender: 'Men' },
-  { id: 'team_2026_u15_men', name: 'Under-15 Boys', category: 'Under 15', gender: 'Men' },
-  { id: 'team_2026_u13_men', name: 'Under-13 Boys', category: 'Under 13', gender: 'Men' },
-  { id: 'team_2026_u19_women', name: 'Under-19 Girls', category: 'Under 19', gender: 'Women' },
+  { id: 'team_2026_senior_men', name: 'Senior Men', category: 'Senior', gender: 'Men', maxAge: 99 },
+  { id: 'team_2026_u23_men', name: 'Under-23 Boys', category: 'Under 23', gender: 'Men', maxAge: 23 },
+  { id: 'team_2026_u19_men', name: 'Under-19 Boys', category: 'Under 19', gender: 'Men', maxAge: 19 },
+  { id: 'team_2026_u17_men', name: 'Under-17 Boys', category: 'Under 17', gender: 'Men', maxAge: 17 },
+  { id: 'team_2026_u15_men', name: 'Under-15 Boys', category: 'Under 15', gender: 'Men', maxAge: 15 },
+  { id: 'team_2026_u13_men', name: 'Under-13 Boys', category: 'Under 13', gender: 'Men', maxAge: 13 },
+  { id: 'team_2026_u19_women', name: 'Under-19 Girls', category: 'Under 19', gender: 'Women', maxAge: 19 },
 ];
 
 export default function SelectionWorkspace() {
@@ -395,13 +396,21 @@ export default function SelectionWorkspace() {
               const inTeam = isSelected(player.id);
               const badgeStyle = ROLE_BADGES[player.role] || { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200' };
 
+              // Age eligibility check
+              const activeCat = CATEGORY_OPTIONS.find(opt => opt.id === activeTeamId);
+              const maxAge = activeCat?.maxAge;
+              const playerAge = calculatePlayerAge(player.date_of_birth || player.dob);
+              const isIneligible = maxAge && playerAge > maxAge;
+
               return (
                 <div
                   key={player.id}
                   className={`bg-white rounded-[16px] border transition-all flex flex-col justify-between overflow-hidden ${
                     inTeam
                       ? 'border-[#0FA968] ring-1 ring-[#0FA968] shadow-md bg-emerald-50/10'
-                      : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                      : isIneligible
+                        ? 'border-slate-200 bg-slate-50 opacity-70'
+                        : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
                   }`}
                 >
                   {/* Top Header */}
@@ -448,30 +457,36 @@ export default function SelectionWorkspace() {
                       onClick={() => setPlayerDetails(player)}
                       className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                     >
-                      View Profile
+                      Profile
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleTogglePlayer(player.id)}
-                      className={`inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm ${
-                        inTeam
-                          ? 'bg-[#0FA968] hover:bg-[#0a7d4e] text-white ring-2 ring-[#0FA968]/30 ring-offset-1'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
-                      }`}
-                    >
-                      {inTeam ? (
-                        <>
-                          <Check size={14} strokeWidth={3} />
-                          <span>Selected</span>
-                        </>
-                      ) : (
-                        <>
-                          <Plus size={14} strokeWidth={2.5} />
-                          <span>Select Player</span>
-                        </>
-                      )}
-                    </button>
+                    {isIneligible ? (
+                      <div className="text-[10px] text-coral-600 font-bold bg-coral-50 px-2 py-1.5 rounded-lg border border-coral-100 flex-1 text-center leading-tight">
+                        Ineligible (Age {playerAge} &gt; {maxAge})
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePlayer(player.id)}
+                        className={`inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm ${
+                          inTeam
+                            ? 'bg-[#0FA968] hover:bg-[#0a7d4e] text-white ring-2 ring-[#0FA968]/30 ring-offset-1'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        {inTeam ? (
+                          <>
+                            <Check size={14} strokeWidth={3} />
+                            <span>Selected</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={14} strokeWidth={2.5} />
+                            <span>Select</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               );

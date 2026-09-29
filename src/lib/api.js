@@ -1,5 +1,16 @@
 import { supabase } from './supabase';
 
+export const calculatePlayerAge = (dob, referenceDate = new Date()) => {
+  if (!dob) return 99;
+  const birthDate = new Date(dob);
+  let age = referenceDate.getFullYear() - birthDate.getFullYear();
+  const m = referenceDate.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && referenceDate.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
 export const api = {
   // ANNOUNCEMENTS
   // ==========================================

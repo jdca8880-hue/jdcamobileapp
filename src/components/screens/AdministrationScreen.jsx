@@ -63,7 +63,13 @@ const INITIAL_FORMATS = [
 ];
 export default function AdministrationScreen() {
   const { registeredUsers, setRegisteredUsers, userRole, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
-  const [activeTab, setActiveTab] = useState('staff');
+  
+  const filteredTabs = TABS.filter(tab => {
+    if (userRole === 'SCORER') return tab.id === 'teams';
+    return true;
+  });
+
+  const [activeTab, setActiveTab] = useState(userRole === 'SCORER' ? 'teams' : 'staff');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   
   // Add User State
@@ -262,7 +268,7 @@ export default function AdministrationScreen() {
 
       {/* Tabs */}
       <div className="mb-5">
-        <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
+        <TabBar tabs={filteredTabs} active={activeTab} onChange={setActiveTab} />
       </div>
 
       {/* ── TAB 1: STAFF & USERS ─────────────────────────────────────────── */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCricket } from '../../context/CricketContext';
-import { Users, Shield, Plus, X, Search, CheckCircle2 } from 'lucide-react';
-import { api } from '../../lib/api';
+import { Users, Shield, Plus, X, Search, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { api, calculatePlayerAge } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 
 const JDCA_DISTRICTS = [
@@ -265,28 +265,52 @@ export default function TeamRegistrationTab({ userRole }) {
                 <div className="flex-1 overflow-y-auto pr-2 space-y-2">
                   {filteredPlayers.map(player => {
                     const isAssigned = teamPlayers.includes(player.id);
+                    
+                    // Age eligibility check
+                    const maxAge = activeTeam?.age_category?.maximum_age;
+                    const playerAge = calculatePlayerAge(player.date_of_birth || player.dob);
+                    const isIneligible = maxAge && playerAge > maxAge;
+
                     return (
                       <div 
                         key={player.id}
-                        className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:bg-slate-50 transition"
+                        className={`flex flex-col p-3 border rounded-xl transition ${isIneligible ? 'bg-slate-50 border-slate-200 opacity-70' : 'bg-white border-slate-100 hover:bg-slate-50'}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <img 
-                            src={player.avatar || player.avatar_url || ''} 
-                            alt={player.name || player.full_name}
-                            className="w-10 h-10 rounded-full bg-slate-200 object-cover"
-                          />
-                          <div>
-                            <div className="font-bold text-sm text-slate-900">{player.name || player.full_name || 'Unknown Player'}</div>
-                            <div className="text-xs text-slate-500">{player.district || 'Unknown District'} • {player.primary_role || player.primaryRole || 'Player'}</div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={player.avatar || player.avatar_url || ''} 
+                              alt={player.name || player.full_name}
+                              className="w-10 h-10 rounded-full bg-slate-200 object-cover"
+                            />
+                            <div>
+                              <div className="font-bold text-sm text-slate-900">{player.name || player.full_name || 'Unknown Player'}</div>
+                              <div className="text-xs text-slate-500">
+                                {player.district || 'Unknown District'} • Age: {playerAge !== 99 ? playerAge : 'N/A'}
+                              </div>
+                            </div>
                           </div>
+                          
+                          {isIneligible ? (
+                            <div className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-500 cursor-not-allowed">
+                              Ineligible
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleTogglePlayer(player.id)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isAssigned ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                              {isAssigned ? <><CheckCircle2 size={14} /> Assigned</> : <><Plus size={14} /> Assign</>}
+                            </button>
+                          )}
                         </div>
-                        <button
-                          onClick={() => handleTogglePlayer(player.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isAssigned ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                        >
-                          {isAssigned ? <><CheckCircle2 size={14} /> Assigned</> : <><Plus size={14} /> Assign</>}
-                        </button>
+                        
+                        {isIneligible && (
+                          <div className="mt-2 text-[11px] font-medium text-coral-600 flex items-start gap-1.5 bg-coral-50/50 p-2 rounded-lg border border-coral-100">
+                            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                            <span>Player age ({playerAge}) exceeds the limit ({maxAge}) for {activeTeam.age_category?.name}. Older players cannot play down.</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

@@ -53,6 +53,7 @@ export default function HomeScreen() {
     tournaments = [],
     districtStats = [],
     announcements = [],
+    ageCategories = [],
     navigateTo,
     setActiveMatchId,
     setSelectedPlayer,
@@ -67,6 +68,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState('overview'); // overview, live, districts, standings
   const [selectedTournamentTab, setSelectedTournamentTab] = useState(null);
   const [districtFilter, setDistrictFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
   // Update selected tournament tab if not set and tournaments are loaded
   useEffect(() => {
@@ -75,12 +77,23 @@ export default function HomeScreen() {
     }
   }, [tournaments, selectedTournamentTab]);
 
+  // Apply Category Filter
+  const filteredMatches = categoryFilter === 'All' ? matches : matches.filter(m => m.age_category_id === categoryFilter);
+  const filteredTournaments = categoryFilter === 'All' ? tournaments : tournaments.filter(t => t.age_category_id === categoryFilter);
+  
+  // For players, we check if their primary 'category' matches the selected category's name.
+  // We look up the category name from the id.
+  const filteredPlayers = categoryFilter === 'All' ? players : players.filter(p => {
+    const selectedCat = ageCategories.find(c => c.id === categoryFilter);
+    return selectedCat && p.category === selectedCat.name;
+  });
+
   const activeTournamentPointsTable = useStandings(
-    matches.filter(m => m.tournament_id === selectedTournamentTab || m.tournament === selectedTournamentTab)
+    filteredMatches.filter(m => m.tournament_id === selectedTournamentTab || m.tournament === selectedTournamentTab)
   );
 
-  const liveMatches = matches.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
-  const upcomingMatches = matches.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
+  const liveMatches = filteredMatches.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
+  const upcomingMatches = filteredMatches.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
 
   // Filtered districts
   const filteredDistricts = districtFilter === 'All'
@@ -181,7 +194,7 @@ export default function HomeScreen() {
                 <ChevronRight size={13} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-blue-600" />
               </div>
               <div className="text-xl sm:text-3xl font-black text-slate-900 mt-1.5 sm:mt-2 tabular-nums">
-                {players.length}
+                {filteredPlayers.length}
               </div>
               <div className="text-xs sm:text-xs text-blue-600 font-medium mt-0.5 flex items-center gap-1 truncate">
                 <TrendingUp size={11} />
@@ -203,7 +216,7 @@ export default function HomeScreen() {
                 <ChevronRight size={13} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-amber-600" />
               </div>
               <div className="text-xl sm:text-3xl font-black text-slate-900 mt-1.5 sm:mt-2 tabular-nums">
-                {tournaments.length}
+                {filteredTournaments.length}
               </div>
               <div className="text-xs sm:text-xs text-amber-600 font-medium mt-0.5 flex items-center gap-1 truncate">
                 <Flame size={11} />
@@ -265,6 +278,19 @@ export default function HomeScreen() {
                 </button>
               );
             })}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500 font-semibold text-slate-700 shadow-sm"
+            >
+              <option value="All">All Categories</option>
+              {ageCategories?.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 

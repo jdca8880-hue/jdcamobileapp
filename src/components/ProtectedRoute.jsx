@@ -9,7 +9,7 @@ const PLAYER_ROUTES = [
 
 const SCORER_ROUTES = [
   ...PLAYER_ROUTES,
-  '/match-setup', '/scoring', '/innings-break', '/match-result'
+  '/match-setup', '/scoring', '/innings-break', '/match-result', '/administration'
 ];
 
 const SELECTOR_ROUTES = [
