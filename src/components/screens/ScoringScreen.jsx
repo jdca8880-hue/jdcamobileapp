@@ -312,7 +312,7 @@ export default function ScoringScreen() {
       wk = bowlingXI.find(p => /wicket/i.test(p.role))?.name || fielder;
     }
 
-    setReplacingBatterType(outName === nonstriker?.name ? 'nonStriker' : 'striker');
+    setReplacingBatterType(outName === nonStriker?.name ? 'nonStriker' : 'striker');
     recordWicket(selectedDismissal, outName, fielder, wk);
     
     // Trigger push notification for wicket
@@ -513,8 +513,8 @@ export default function ScoringScreen() {
             
             <button onClick={() => toggleStriker?.()} className="bg-slate-50 rounded-[12px] p-4 text-left border border-slate-200 active:bg-slate-100 transition-colors">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Non-Striker</div>
-              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonstriker?.name}</div>
-              <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonstriker?.runs} <span className="text-[12px] text-slate-500">({nonstriker?.balls})</span></div>
+              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonStriker?.name}</div>
+              <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonStriker?.runs} <span className="text-[12px] text-slate-500">({nonStriker?.balls})</span></div>
             </button>
           </div>
 
@@ -625,7 +625,7 @@ export default function ScoringScreen() {
               <div className="mb-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Caught by</label>
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  {bowlingXI.filter(p => p.name !== striker?.name && p.name !== nonstriker?.name).map(p => (
+                  {bowlingXI.filter(p => p.name !== striker?.name && p.name !== nonStriker?.name).map(p => (
                     <button 
                       key={p.id} 
                       className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === p.name ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
@@ -667,7 +667,7 @@ export default function ScoringScreen() {
                   onClick={() => setRetiringBatter('nonStriker')}
                   className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${retiringBatter === 'nonStriker' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                 >
-                  {nonstriker?.name} (Non-Striker)
+                  {nonStriker?.name} (Non-Striker)
                 </button>
               </div>
             </div>
