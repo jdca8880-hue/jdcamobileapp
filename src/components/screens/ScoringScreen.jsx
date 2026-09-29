@@ -508,13 +508,13 @@ export default function ScoringScreen() {
               <div className="absolute top-0 right-0 w-2 h-full bg-jade" />
               <div className="text-xs font-bold text-jade uppercase tracking-wider mb-1 flex items-center gap-1">Striker <span>*</span></div>
               <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker?.name}</div>
-              <div className="text-[18px] font-black tabular-nums leading-none text-slate-900">{striker.runs} <span className="text-[12px] text-slate-500">({striker.balls})</span></div>
+              <div className="text-[18px] font-black tabular-nums leading-none text-slate-900">{striker?.runs} <span className="text-[12px] text-slate-500">({striker?.balls})</span></div>
             </button>
             
             <button onClick={() => toggleStriker?.()} className="bg-slate-50 rounded-[12px] p-4 text-left border border-slate-200 active:bg-slate-100 transition-colors">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Non-Striker</div>
               <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonstriker?.name}</div>
-              <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonStriker.runs} <span className="text-[12px] text-slate-500">({nonStriker.balls})</span></div>
+              <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonstriker?.runs} <span className="text-[12px] text-slate-500">({nonstriker?.balls})</span></div>
             </button>
           </div>
 
@@ -525,7 +525,7 @@ export default function ScoringScreen() {
              </div>
              <div className="text-right">
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
-               <div className="text-[16px] font-black tabular-nums text-slate-900">{currentBowler.overs}-{currentBowler.maidens}-{currentBowler.runs}-{currentBowler.wickets}</div>
+               <div className="text-[16px] font-black tabular-nums text-slate-900">{currentBowler?.overs}-{currentBowler?.maidens}-{currentBowler?.runs}-{currentBowler?.wickets}</div>
              </div>
           </div>
 
