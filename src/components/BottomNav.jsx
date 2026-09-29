@@ -37,7 +37,7 @@ export default function BottomNav() {
     };
   }, []);
 
-  if (currentScreen === 'welcome') return null;
+  if (currentScreen === 'welcome' || currentScreen === 'scoring') return null;
 
   // Active Map ensures active states highlight correctly
   const ACTIVE_MAP = {
