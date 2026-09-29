@@ -78,6 +78,7 @@ export const PlayerRegistrationSchema = z.object({
   district: z.string().min(2, { message: 'District name is required' }),
   category: z.string().min(2),
   gender: z.enum(['Men', 'Women']),
+  phone: z.string().optional(),
   dob: z.string().refine((date) => {
     return new Date(date).getTime() > 0;
   }, { message: 'Invalid Date of Birth' }),
@@ -98,3 +99,4 @@ export const MatchSetupSchema = z.object({
   pitchType: z.string().optional(),
   venue: z.string().optional(),
 });
+

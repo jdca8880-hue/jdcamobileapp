@@ -351,7 +351,7 @@ create table if not exists tournament_teams (
 
 create table if not exists matches (
   id uuid primary key default gen_random_uuid(),
-  tournament_id uuid references tournaments(id) on delete set null,
+  tournament_id uuid not null references tournaments(id) on delete cascade,
   venue_id uuid references venues(id) on delete set null,
   home_team_id uuid not null references teams(id) on delete restrict,
   away_team_id uuid not null references teams(id) on delete restrict,

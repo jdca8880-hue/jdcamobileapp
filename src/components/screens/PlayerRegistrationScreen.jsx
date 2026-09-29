@@ -22,6 +22,7 @@ export default function PlayerRegistrationScreen() {
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState('Men');
   const [avatar, setAvatar] = useState('');
+  const [phone, setPhone] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
 
@@ -70,7 +71,7 @@ export default function PlayerRegistrationScreen() {
     setFormErrors({});
 
     const formData = {
-      name, role, battingStyle, bowlingStyle, district, category, dob, gender, avatar
+      name, role, battingStyle, bowlingStyle, district, category, dob, gender, avatar, phone
     };
 
     const validation = PlayerRegistrationSchema.safeParse(formData);
@@ -229,3 +230,6 @@ export default function PlayerRegistrationScreen() {
     </div>
   );
 }
+
+
+

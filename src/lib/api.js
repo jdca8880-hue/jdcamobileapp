@@ -177,12 +177,20 @@ export const api = {
   },
 
   async deleteTournament(id) {
+    const timestamp = new Date().toISOString();
     const { error } = await supabase
       .from('tournaments')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: timestamp })
       .eq('id', id);
 
     if (error) throw error;
+
+    await supabase
+      .from('matches')
+      .update({ deleted_at: timestamp })
+      .eq('tournament_id', id)
+      .is('deleted_at', null);
+
     return true;
   },
 
@@ -935,7 +943,8 @@ export const api = {
       primary_role: playerData.role || 'Batter',
       batting_style: playerData.battingStyle || 'Right-Hand Bat',
       bowling_style: playerData.bowlingStyle || 'None (Pure Batter)',
-      avatar_url: playerData.avatar || null
+      avatar_url: playerData.avatar || null,
+      phone: playerData.phone || null
     };
 
     const { data, error } = await supabase
@@ -1177,3 +1186,8 @@ export const api = {
     return true;
   }
 };
+
+
+
+
+
