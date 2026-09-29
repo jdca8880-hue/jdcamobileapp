@@ -289,7 +289,7 @@ export default function ScoringScreen() {
     const isBoundary = value === 4 || value === 6;
     let title = isBoundary ? (value === 6 ? 'SIX! What a shot!' : 'FOUR!') : 'Live Score Update';
     let bodyText = isBoundary 
-      ? `${striker.name} hit a ${value}! ${teamAName} is ${runs + value}/${wickets}`
+      ? `${striker?.name} hit a ${value}! ${teamAName} is ${runs + value}/${wickets}`
       : `${teamAName} is ${runs + value}/${wickets} (Last: ${value} run${value !== 1 ? 's' : ''})`;
 
     supabase.functions.invoke('send-push', {
@@ -304,15 +304,15 @@ export default function ScoringScreen() {
   };
 
   const submitWicket = () => {
-    let outName = striker.name;
-    if (selectedDismissal === 'Run Out') outName = runOutPlayer || striker.name;
+    let outName = striker?.name;
+    if (selectedDismissal === 'Run Out') outName = runOutPlayer || striker?.name;
 
     let wk = '';
     if (selectedDismissal === 'Stumped') {
       wk = bowlingXI.find(p => /wicket/i.test(p.role))?.name || fielder;
     }
 
-    setReplacingBatterType(outName === nonStriker.name ? 'nonStriker' : 'striker');
+    setReplacingBatterType(outName === nonstriker?.name ? 'nonStriker' : 'striker');
     recordWicket(selectedDismissal, outName, fielder, wk);
     
     // Trigger push notification for wicket
@@ -507,13 +507,13 @@ export default function ScoringScreen() {
             <button onClick={() => toggleStriker?.()} className="bg-white rounded-[12px] p-4 text-left border border-slate-200 shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors">
               <div className="absolute top-0 right-0 w-2 h-full bg-jade" />
               <div className="text-xs font-bold text-jade uppercase tracking-wider mb-1 flex items-center gap-1">Striker <span>*</span></div>
-              <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker.name}</div>
+              <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker?.name}</div>
               <div className="text-[18px] font-black tabular-nums leading-none text-slate-900">{striker.runs} <span className="text-[12px] text-slate-500">({striker.balls})</span></div>
             </button>
             
             <button onClick={() => toggleStriker?.()} className="bg-slate-50 rounded-[12px] p-4 text-left border border-slate-200 active:bg-slate-100 transition-colors">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Non-Striker</div>
-              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonStriker.name}</div>
+              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonstriker?.name}</div>
               <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonStriker.runs} <span className="text-[12px] text-slate-500">({nonStriker.balls})</span></div>
             </button>
           </div>
@@ -521,7 +521,7 @@ export default function ScoringScreen() {
           <div className="bg-white rounded-[12px] p-4 border border-slate-200 flex items-center justify-between mb-3 shadow-sm">
              <div>
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10}/> Bowler</div>
-               <div className="text-[15px] font-black text-slate-900">{currentBowler.name}</div>
+               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name}</div>
              </div>
              <div className="text-right">
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
@@ -534,7 +534,7 @@ export default function ScoringScreen() {
                <RefreshCw size={14} /> Change Bowler
              </button>
              <button onClick={() => setChangeWkOpen(true)} className="flex-1 bg-white rounded-[10px] py-2.5 text-xs font-bold uppercase tracking-wider border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-               <Users size={14} /> Edit WK {currentWk ? `(${currentWk.name.split(' ')[0]})` : ''}
+               <Users size={14} /> Edit WK {currentWk ? `(${currentWk?.name.split(' ')[0]})` : ''}
              </button>
           </div>
         </div>
@@ -597,7 +597,7 @@ export default function ScoringScreen() {
         {dismissalOpen && (
           <Modal title="Record Wicket" danger onClose={() => setDismissalOpen(false)}>
             <div className="bg-white border border-slate-100 rounded-[12px] p-3 mb-4 text-center">
-              <span className="text-[14px] font-bold text-slate-900">{striker.name}</span> <span className="text-[12px] text-slate-500">is on strike</span>
+              <span className="text-[14px] font-bold text-slate-900">{striker?.name}</span> <span className="text-[12px] text-slate-500">is on strike</span>
             </div>
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">How out?</div>
             <div className="grid grid-cols-2 gap-2 mb-4">
@@ -625,7 +625,7 @@ export default function ScoringScreen() {
               <div className="mb-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Caught by</label>
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  {bowlingXI.filter(p => p.name !== striker.name && p.name !== nonStriker.name).map(p => (
+                  {bowlingXI.filter(p => p.name !== striker?.name && p.name !== nonstriker?.name).map(p => (
                     <button 
                       key={p.id} 
                       className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === p.name ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
@@ -661,13 +661,13 @@ export default function ScoringScreen() {
                   onClick={() => setRetiringBatter('striker')}
                   className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${retiringBatter === 'striker' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                 >
-                  {striker.name} (Striker)
+                  {striker?.name} (Striker)
                 </button>
                 <button 
                   onClick={() => setRetiringBatter('nonStriker')}
                   className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${retiringBatter === 'nonStriker' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                 >
-                  {nonStriker.name} (Non-Striker)
+                  {nonstriker?.name} (Non-Striker)
                 </button>
               </div>
             </div>

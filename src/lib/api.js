@@ -1090,18 +1090,28 @@ export const api = {
     
     const allRoster = [...homeRoster, ...awayRoster];
 
-    if (allRoster.length === 0) {
+    // Deduplicate roster by player_id
+    const seenPlayerIds = new Set();
+    const deduplicatedRoster = [];
+    for (const player of allRoster) {
+      if (!seenPlayerIds.has(player.player_id)) {
+        seenPlayerIds.add(player.player_id);
+        deduplicatedRoster.push(player);
+      }
+    }
+
+    if (deduplicatedRoster.length === 0) {
        console.warn("No playing XI provided, creating match without roster.");
     }
 
     // Delete existing rosters for this match to ensure clean state
     await supabase.from('match_rosters').delete().eq('match_id', matchId);
 
-    // Insert new rosters
-    if (allRoster.length > 0) {
+    // Insert new rosters safely using upsert
+    if (deduplicatedRoster.length > 0) {
       const { error: rosterError } = await supabase
         .from('match_rosters')
-        .insert(allRoster);
+        .upsert(deduplicatedRoster, { onConflict: 'match_id, player_id' });
         
       if (rosterError) throw rosterError;
     }

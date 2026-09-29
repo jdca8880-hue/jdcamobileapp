@@ -197,8 +197,8 @@ export default function TeamsScreen() {
 
   // Aggregate metrics
   const totalPlayersCount = useMemo(() => {
-    return mappedTeams.reduce((acc, t) => acc + (t.squad?.length || 0), 0);
-  }, [mappedTeams]);
+    return contextPlayers.length;
+  }, [contextPlayers]);
 
   const handlePlayerClick = (player) => {
     // Find player in context or construct player object

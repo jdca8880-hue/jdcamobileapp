@@ -176,16 +176,55 @@ export default function MatchSetupScreen() {
   React.useEffect(() => {
     const activeMatch = matches.find(m => m.id === activeMatchId);
     if (activeMatch) {
-      setMatchSetup(prev => ({
-        ...prev,
-        teamA: activeMatch.home_team?.name || activeMatch.teamA?.name || prev.teamA || 'Team A',
-        teamAId: activeMatch.home_team_id || activeMatch.teamA?.id || prev.teamAId,
-        teamB: activeMatch.away_team?.name || activeMatch.teamB?.name || prev.teamB || 'Team B',
-        teamBId: activeMatch.away_team_id || activeMatch.teamB?.id || prev.teamBId,
-        assignedScorerId: activeMatch.scorer_id || prev.assignedScorerId,
-      }));
+      setMatchSetup(prev => {
+        const nextTeamA = activeMatch.home_team?.name || activeMatch.teamA?.name || prev.teamA || 'Team A';
+        const nextTeamAId = activeMatch.home_team_id || activeMatch.teamA?.id || prev.teamAId;
+        const nextTeamB = activeMatch.away_team?.name || activeMatch.teamB?.name || prev.teamB || 'Team B';
+        const nextTeamBId = activeMatch.away_team_id || activeMatch.teamB?.id || prev.teamBId;
+        const nextScorerId = activeMatch.scorer_id || prev.assignedScorerId;
+
+        let newTeamAXI = prev.teamAXI;
+        let newTeamBXI = prev.teamBXI;
+
+        if (newTeamAXI.length === 0 && nextTeamAId && players.length > 0) {
+          const aSquad = players.filter(p => p.team_players?.some(tp => tp.team_id === nextTeamAId));
+          if (aSquad.length > 0) {
+            newTeamAXI = aSquad.map(p => ({ ...p, isCaptain: false, role: p.role || 'Batter' })).slice(0, 20);
+          }
+        }
+
+        if (newTeamBXI.length === 0 && nextTeamBId && players.length > 0) {
+          const bSquad = players.filter(p => p.team_players?.some(tp => tp.team_id === nextTeamBId));
+          if (bSquad.length > 0) {
+            newTeamBXI = bSquad.map(p => ({ ...p, isCaptain: false, role: p.role || 'Batter' })).slice(0, 20);
+          }
+        }
+
+        if (
+          prev.teamA === nextTeamA &&
+          prev.teamAId === nextTeamAId &&
+          prev.teamB === nextTeamB &&
+          prev.teamBId === nextTeamBId &&
+          prev.assignedScorerId === nextScorerId &&
+          prev.teamAXI.length === newTeamAXI.length &&
+          prev.teamBXI.length === newTeamBXI.length
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          teamA: nextTeamA,
+          teamAId: nextTeamAId,
+          teamB: nextTeamB,
+          teamBId: nextTeamBId,
+          teamAXI: newTeamAXI,
+          teamBXI: newTeamBXI,
+          assignedScorerId: nextScorerId,
+        };
+      });
     }
-  }, [activeMatchId, matches, setMatchSetup]);
+  }, [activeMatchId, matches, players, setMatchSetup]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [activeTeamTab, setActiveTeamTab] = useState('A');
@@ -238,7 +277,7 @@ export default function MatchSetupScreen() {
   const openersReady = selectedStriker && selectedNonStriker && selectedBowler && !hasDuplicate;
 
   const addPlayerToXI = (player) => {
-    if (activeXI.length >= 11) return alert(`Maximum 11 players allowed in ${activeTeamTab === 'A' ? matchSetup.teamA : matchSetup.teamB} XI.`);
+    if (activeXI.length >= 20) return alert(`Maximum 20 players allowed in ${activeTeamTab === 'A' ? matchSetup.teamA : matchSetup.teamB} XI.`);
     if (activeXI.find(p => p.id === player.id)) return alert("Player already in Playing XI.");
     
     setMatchSetup(prev => ({

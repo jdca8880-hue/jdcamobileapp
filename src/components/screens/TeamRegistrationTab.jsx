@@ -113,7 +113,7 @@ export default function TeamRegistrationTab({ userRole }) {
           season_id: 1, // Default to first season or similar
           age_category_id: newTeamCategory,
           gender: newTeamGender,
-          target_squad_size: 15,
+          target_squad_size: 20,
           status: 'UPCOMING',
           process_type: 'DISTRICT_TEAM',
           target_district_id: newTeamDistrict.startsWith('mock-') ? defaults.district_id : newTeamDistrict

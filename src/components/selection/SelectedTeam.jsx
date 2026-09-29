@@ -18,7 +18,7 @@ export default function SelectedTeam({
   onRemovePlayerFromTeam,
   onUpdateTeamRoles,
 }) {
-  const targetSize = team.targetSize || 15;
+  const targetSize = team.targetSize || 20;
   const count = selectedPlayers.length;
 
   const batters = selectedPlayers.filter(p => p.role === 'Batter');
@@ -27,11 +27,11 @@ export default function SelectedTeam({
   const fastBowlers = selectedPlayers.filter(p => p.role === 'Bowler' && (p.bowlingStyle?.toLowerCase().includes('fast') || p.bowlingStyle?.toLowerCase().includes('medium')));
   const spinners = selectedPlayers.filter(p => p.role === 'Bowler' && !p.bowlingStyle?.toLowerCase().includes('fast') && !p.bowlingStyle?.toLowerCase().includes('medium'));
 
-  const minBatters = team.minBatters || 4;
-  const minAllRounders = team.minAllRounders || 2;
-  const minWKs = team.minWKs || 1;
-  const minFastBowlers = team.minFastBowlers || 3;
-  const minSpinners = team.minSpinners || 2;
+  const minBatters = team.minBatters || 0;
+  const minAllRounders = team.minAllRounders || 0;
+  const minWKs = team.minWKs || 0;
+  const minFastBowlers = team.minFastBowlers || 0;
+  const minSpinners = team.minSpinners || 0;
 
   const isCompositionValid =
     batters.length >= minBatters &&

@@ -59,7 +59,7 @@ export default function SelectionWorkspace() {
     category: opt.category,
     gender: opt.gender,
     name: opt.name,
-    targetSize: 15,
+    targetSize: 20,
     status: 'Draft',
     selectedPlayerIds: [],
     shortlistedPlayerIds: [],
@@ -180,8 +180,8 @@ export default function SelectionWorkspace() {
         };
       } else {
         // Add (max 15)
-        if (currentList.length >= 15) {
-          alert('You already have 15 players selected for this team. Please remove a player before adding a new one.');
+        if (currentList.length >= 20) {
+          alert('You already have 20 players selected for this team. Please remove a player before adding a new one.');
           return t;
         }
         return {
@@ -260,10 +260,10 @@ export default function SelectionWorkspace() {
               >
                 <div className="flex flex-col items-start">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-[#2457D6]">Current Team</span>
-                  <span className="text-sm font-black text-slate-900 group-hover:text-[#1b41a8]">{selectedCount} / 15 Selected</span>
+                  <span className="text-sm font-black text-slate-900 group-hover:text-[#1b41a8]">{selectedCount} / 20 Selected</span>
                 </div>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-colors ${selectedCount >= 15 ? 'bg-[#0FA968] text-white' : 'bg-[#2457D6] text-white'}`}>
-                  {selectedCount >= 15 ? <CheckCircle2 size={20} /> : <Users size={20} />}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-colors ${selectedCount >= 20 ? 'bg-[#0FA968] text-white' : 'bg-[#2457D6] text-white'}`}>
+                  {selectedCount >= 20 ? <CheckCircle2 size={20} /> : <Users size={20} />}
                 </div>
               </button>
               {selectedCount >= 11 && (
@@ -495,7 +495,7 @@ export default function SelectionWorkspace() {
           <div className="min-w-0">
             <div className="text-xs font-bold flex items-center gap-1.5 truncate">
               <span>{selectedCount}/15 Selected</span>
-              <span className="text-xs text-slate-400 font-normal">({15 - selectedCount > 0 ? `Need ${15 - selectedCount}` : 'Full'})</span>
+              <span className="text-xs text-slate-400 font-normal">({20 - selectedCount > 0 ? `Need ${20 - selectedCount}` : 'Full'})</span>
             </div>
             <div className="text-xs text-slate-300 flex items-center gap-2 mt-0.5">
               <span>🏏 {roleCounts.batters}</span>
@@ -564,12 +564,12 @@ export default function SelectionWorkspace() {
                 <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-100 text-xs">
                   <div className="flex items-center justify-between font-bold text-slate-800">
                     <span>Total Selected:</span>
-                    <span>{selectedCount} of 15</span>
+                    <span>{selectedCount} of 20</span>
                   </div>
                   <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
                     <div
                       className="bg-blue-600 h-full rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, (selectedCount / 15) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (selectedCount / 20) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -659,7 +659,7 @@ export default function SelectionWorkspace() {
                     Choose Captain & Save Team
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Select the leaders for {activeTeam.name} and save the final 15 players.
+                    Select the leaders for {activeTeam.name} and save the final 20 players.
                   </p>
                 </div>
                 <button onClick={() => setIsSaveModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">

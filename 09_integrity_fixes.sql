@@ -87,3 +87,11 @@ DROP TRIGGER IF EXISTS trg_matches_immutable ON public.matches;
 CREATE TRIGGER trg_matches_immutable
 BEFORE UPDATE OR DELETE ON public.matches
 FOR EACH ROW EXECUTE FUNCTION check_match_immutable();
+
+
+-- 3. Prevent orphaned matches by enforcing team existence
+ALTER TABLE public.matches DROP CONSTRAINT IF EXISTS matches_home_team_id_fkey;
+ALTER TABLE public.matches ADD CONSTRAINT matches_home_team_id_fkey FOREIGN KEY (home_team_id) REFERENCES public.teams(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.matches DROP CONSTRAINT IF EXISTS matches_away_team_id_fkey;
+ALTER TABLE public.matches ADD CONSTRAINT matches_away_team_id_fkey FOREIGN KEY (away_team_id) REFERENCES public.teams(id) ON DELETE RESTRICT;
