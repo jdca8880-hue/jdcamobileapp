@@ -140,15 +140,15 @@ export function CricketProvider({ children }) {
   // Matches State
   const [matches, setMatches] = useState([]);
   const [activeMatchId, setActiveMatchIdState] = useState(() => {
-    try { return sessionStorage.getItem('jdca-active-match-id') || null; }
+    try { return localStorage.getItem('jdca-active-match-id') || null; }
     catch { return null; }
   });
 
   const setActiveMatchId = (id) => {
     setActiveMatchIdState(id);
     try {
-      if (id) sessionStorage.setItem('jdca-active-match-id', id);
-      else sessionStorage.removeItem('jdca-active-match-id');
+      if (id) localStorage.setItem('jdca-active-match-id', id);
+      else localStorage.removeItem('jdca-active-match-id');
     } catch {}
   };
   

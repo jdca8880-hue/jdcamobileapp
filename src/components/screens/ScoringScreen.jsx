@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   RotateCcw, FileText, ShieldAlert, AlertTriangle, X,
   ChevronRight, RefreshCw, Radio, CircleHelp, WifiOff,
-  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock
+  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock, Pause
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -411,7 +411,7 @@ export default function ScoringScreen() {
             <div className="flex items-center gap-2">
                <button onClick={() => setInterruptionModalOpen(true)} className="px-3 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs gap-1 hover:bg-red-100 transition-colors"><Clock size={16}/> End/Interrupt</button>
                <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18}/></button>
-               <button onClick={() => navigateTo('match-detail')} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><X size={18}/></button>
+               <button onClick={() => navigateTo('match-detail')} className="px-3 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs gap-1 hover:bg-slate-200 transition-colors" title="Pause scoring and return to matches"><Pause size={16}/> Pause</button>
             </div>
           </div>
 
