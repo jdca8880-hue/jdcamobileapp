@@ -540,7 +540,7 @@ export default function ScoringScreen() {
         </div>
 
         {/* SCORING PAD */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 border-t border-slate-200 p-3 sm:p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] pb-safe pt-4">
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-slate-50 border-t border-x border-slate-200 p-3 sm:p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] pb-safe pt-4">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-[16px] font-black text-slate-900">Record Ball</h3>
