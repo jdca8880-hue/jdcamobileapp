@@ -951,8 +951,8 @@ export function CricketProvider({ children }) {
         let text = '';
         
         const activeMatch = matches?.find(m => m.id === activeMatchId);
-        const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'TBA';
-        const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'TBA';
+        const teamAName = activeMatch?.teamA?.name || 'TBA';
+        const teamBName = activeMatch?.teamB?.name || 'TBA';
         
         // Find team names based on battingTeamId
         const isBattingTeamA = battingTeamId === matchSetup?.teamAId;

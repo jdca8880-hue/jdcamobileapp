@@ -9,8 +9,8 @@ export default function ScorecardScreen() {
   const [activeInningsTab, setActiveInningsTab] = useState('1st');
 
   const activeMatch = matches?.find((m) => m.id === activeMatchId);
-  const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'Jabalpur District XI';
-  const teamBName = activeMatch?.teamB?.name || activeMatch?.teamB || 'Katni District XI';
+  const teamAName = activeMatch?.teamA?.name || 'Jabalpur District XI';
+  const teamBName = activeMatch?.teamB?.name || 'Katni District XI';
   const tournamentName = activeMatch?.tournament || 'JDCA Senior District Trophy 2026';
   const venue = activeMatch?.venue || 'Wright Town Stadium, Jabalpur';
 
