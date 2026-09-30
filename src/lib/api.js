@@ -503,20 +503,25 @@ export const api = {
   },
 
   async updateMatchDetails(matchId, matchData) {
-    const matchFmt = matchData.format || 'T20';
-    const scheduledVal = matchData.scheduledAt || matchData.date;
+    const updatePayload = {};
+    if (matchData.homeTeamId !== undefined) updatePayload.home_team_id = matchData.homeTeamId;
+    if (matchData.awayTeamId !== undefined) updatePayload.away_team_id = matchData.awayTeamId;
+    if (matchData.scheduledAt !== undefined || matchData.date !== undefined) updatePayload.scheduled_at = matchData.scheduledAt ? new Date(matchData.scheduledAt).toISOString() : (matchData.date ? new Date(matchData.date).toISOString() : new Date().toISOString());
+    if (matchData.format !== undefined) updatePayload.match_format = matchData.format;
+    if (matchData.max_overs !== undefined) {
+      updatePayload.max_overs = matchData.max_overs;
+    } else if (matchData.format !== undefined) {
+      updatePayload.max_overs = matchData.format === 'T20' ? 20 : (matchData.format === 'T10' ? 10 : 50);
+    }
+    if (matchData.venueName !== undefined) updatePayload.venue_name = matchData.venueName;
+    if (matchData.umpireName !== undefined) updatePayload.umpire_name = matchData.umpireName;
+    if (matchData.scorerName !== undefined) updatePayload.scorer_name = matchData.scorerName;
+    if (matchData.status !== undefined) updatePayload.status = matchData.status;
+    if (matchData.result_text !== undefined) updatePayload.result_text = matchData.result_text;
+
     const { data, error } = await supabase
       .from('matches')
-      .update({
-        home_team_id: matchData.homeTeamId || null,
-        away_team_id: matchData.awayTeamId || null,
-        scheduled_at: scheduledVal ? new Date(scheduledVal).toISOString() : new Date().toISOString(),
-        match_format: matchFmt,
-        max_overs: matchFmt === 'T20' ? 20 : (matchFmt === 'T10' ? 10 : 50),
-        venue_name: matchData.venueName || null,
-        umpire_name: matchData.umpireName || null,
-        scorer_name: matchData.scorerName || null
-      })
+      .update(updatePayload)
       .eq('id', matchId)
       .select();
 
