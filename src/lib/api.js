@@ -750,7 +750,7 @@ export const api = {
         // Batter Stats
         if (d.striker_id) {
           if (!batters[d.striker_id]) {
-            batters[d.striker_id] = { id: d.striker_id, name: d.striker?.name || 'Unknown', runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: 'not out' };
+            batters[d.striker_id] = { id: d.striker_id, name: d.striker?.full_name || d.striker?.name || 'Unknown', runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: 'not out' };
           }
           if (d.extra_type === 'NONE' || d.extra_type === 'NO_BALL' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
             batters[d.striker_id].balls += 1;
@@ -768,7 +768,7 @@ export const api = {
         // Bowler Stats
         if (d.bowler_id) {
           if (!bowlers[d.bowler_id]) {
-            bowlers[d.bowler_id] = { id: d.bowler_id, name: d.bowler?.name || 'Unknown', balls: 0, runs: 0, wickets: 0, maidens: 0 };
+            bowlers[d.bowler_id] = { id: d.bowler_id, name: d.bowler?.full_name || d.bowler?.name || 'Unknown', balls: 0, runs: 0, wickets: 0, maidens: 0 };
           }
           if (d.extra_type === 'NONE' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
             bowlers[d.bowler_id].balls += 1;
