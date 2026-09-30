@@ -981,6 +981,8 @@ export function CricketProvider({ children }) {
     } else if (newState.matchStatus === MATCH_STATES.MATCH_FINISHED) {
       // Calculate and finalize match
       try {
+        // firstInningsScore is the score set in innings 1. Target = firstInningsScore + 1.
+        // newState.target is set as firstInningsScore + 1 via setTarget().
         const firstInningsScore = newState.target ? newState.target - 1 : 0;
         let winnerId = null;
         let margin = null;
@@ -990,30 +992,53 @@ export function CricketProvider({ children }) {
         const teamAName = activeMatch?.teamA?.name || 'TBA';
         const teamBName = activeMatch?.teamB?.name || 'TBA';
         
-        // Find team names based on battingTeamId
-        const isBattingTeamA = battingTeamId === matchSetup?.teamAId;
+        // Determine which team was batting in this innings (innings 2/4)
+        const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
+        const electedTo = matchSetup?.electedTo;
+        let battingTId = matchSetup?.teamAId;
+        let bowlingTId = matchSetup?.teamBId;
+        if (tossWinnerTeamId) {
+          if (tossWinnerTeamId === matchSetup?.teamAId) {
+            battingTId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+            bowlingTId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+          } else {
+            battingTId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+            bowlingTId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+          }
+        }
+        // In innings 2, teams are swapped (the team that bowled first now bats)
+        if (newState.innings === 2 || newState.innings === 3) {
+          const tmpId = battingTId;
+          battingTId = bowlingTId;
+          bowlingTId = tmpId;
+        }
+
+        const isBattingTeamA = battingTId === matchSetup?.teamAId;
         const battingName = isBattingTeamA ? teamAName : teamBName;
         const bowlingName = isBattingTeamA ? teamBName : teamAName;
         
-        if (newState.runs > firstInningsScore) {
-           winnerId = battingTeamId; 
-           const wktsLeft = 10 - newState.wickets;
-           margin = `${wktsLeft} wickets`;
-           text = `${battingName} won by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
+        if (newState.target && newState.runs >= newState.target) {
+          // Chasing team won
+          winnerId = battingTId; 
+          const wktsLeft = 10 - newState.wickets;
+          margin = `${wktsLeft} wickets`;
+          text = `${battingName} won by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
         } else if (newState.runs < firstInningsScore) {
-           winnerId = bowlingTeamId;
-           const runsDiff = firstInningsScore - newState.runs;
-           margin = `${runsDiff} runs`;
-           text = `${bowlingName} won by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
+          // Defending team won (chasing team bowled out or overs done without reaching target)
+          winnerId = bowlingTId;
+          const runsDiff = firstInningsScore - newState.runs;
+          margin = `${runsDiff} runs`;
+          text = `${bowlingName} won by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
         } else {
-           winnerId = null;
-           margin = 'Tie';
-           text = 'Match tied';
+          // Scores level = Tie
+          winnerId = null;
+          margin = 'Tie';
+          text = 'Match tied';
         }
         
         api.finalizeMatch(activeMatchId, winnerId, margin, text).catch(console.error);
       } catch (e) {
-        console.error(e);
+        console.error('[CricketContext] Match finalization error:', e);
       }
       setTimeout(() => navigateTo('match-result'), 600);
     }
@@ -1171,17 +1196,24 @@ export function CricketProvider({ children }) {
 
   const continueAfterOver = (bowler) => {
     if (!bowler) return;
-    setCurrentBowler((prev) => ({
-      id: bowler.id,
-      name: bowler.name,
-      overs: 0,
-      ballsBowled: 0,
-      maidens: 0,
-      runs: 0,
-      wickets: 0,
-      economy: '0.00',
-      wk: '',
-    }));
+    setCurrentBowler((prev) => {
+      // If the same bowler is selected again (returning for another spell), preserve their cumulative stats
+      if (prev && prev.id === bowler.id) {
+        return { ...prev };
+      }
+      // New bowler - start fresh
+      return {
+        id: bowler.id,
+        name: bowler.name,
+        overs: 0,
+        ballsBowled: 0,
+        maidens: 0,
+        runs: 0,
+        wickets: 0,
+        economy: '0.00',
+        wk: '',
+      };
+    });
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
     setCurrentOverBalls([]);
   };
@@ -1218,6 +1250,7 @@ export function CricketProvider({ children }) {
       isFreeHit,
       innings,
       totalMatchOvers: matchSetup.totalOvers,
+      target,
       scorecard,
       lastOverBowlerId,
     };
@@ -1258,6 +1291,7 @@ export function CricketProvider({ children }) {
       isFreeHit,
       innings,
       totalMatchOvers: matchSetup.totalOvers,
+      target,
       scorecard,
       lastOverBowlerId,
     };
@@ -1291,6 +1325,7 @@ export function CricketProvider({ children }) {
       isFreeHit,
       innings,
       totalMatchOvers: matchSetup.totalOvers,
+      target,
       scorecard,
       lastOverBowlerId,
     };
