@@ -36,7 +36,7 @@ export default function MatchDetailScreen() {
       goBack();
     } catch (err) {
       console.error(err);
-      alert('Failed to delete match.');
+      alert(err.message || 'Failed to delete match.');
     } finally {
       setIsDeleting(false);
     }

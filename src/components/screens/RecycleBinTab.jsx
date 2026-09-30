@@ -37,7 +37,7 @@ export default function RecycleBinTab({ userRole, userId }) {
       alert("Item restored successfully! You may need to refresh the page to see it in the main views.");
     } catch (err) {
       console.error(err);
-      alert("Failed to restore item.");
+      alert(err.message || "Failed to restore item.");
     } finally {
       setProcessingId(null);
     }
@@ -51,7 +51,7 @@ export default function RecycleBinTab({ userRole, userId }) {
       setItems(items.filter(item => item.id !== id));
     } catch (err) {
       console.error(err);
-      alert("Failed to permanently delete item.");
+      alert(err.message || "Failed to permanently delete item.");
     } finally {
       setProcessingId(null);
     }
