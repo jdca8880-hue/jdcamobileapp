@@ -185,11 +185,12 @@ export const api = {
 
     if (error) throw error;
 
-    await supabase
+    const { error: matchError } = await supabase
       .from('matches')
       .update({ deleted_at: timestamp })
-      .eq('tournament_id', id)
-      .is('deleted_at', null);
+      .eq('tournament_id', id);
+      
+    if (matchError) console.error("Failed to soft-delete matches:", matchError);
 
     return true;
   },
