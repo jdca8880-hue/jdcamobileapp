@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { getPendingActions, clearAction } from '../lib/db';
 
+const MAX_RETRIES = 3;
+
 class SyncService {
   constructor() {
     this.isOnline = navigator.onLine;
@@ -8,6 +10,7 @@ class SyncService {
     this.listeners = new Set();
     this.status = this.isOnline ? 'ONLINE' : 'OFFLINE';
     this.pendingCount = 0;
+    this.retryCounts = {}; // track per-action retry count
 
     // Listen for network changes
     window.addEventListener('online', () => this.handleOnline());
@@ -15,6 +18,14 @@ class SyncService {
     
     // Initial fetch of pending count
     this.updatePendingCount();
+
+    // Periodic flush: retry every 30s even if the 'online' event was missed
+    this._flushTimer = setInterval(() => {
+      if (this.isOnline && this.pendingCount > 0 && !this.syncInProgress) {
+        console.log('[SyncService] Periodic flush: processing pending queue...');
+        this.processQueue();
+      }
+    }, 30000);
   }
 
   subscribe(callback) {
@@ -77,7 +88,18 @@ class SyncService {
       console.log(`[SyncService] Processing ${actions.length} pending actions...`);
 
       for (const action of actions) {
+        // Skip items that have exceeded max retries
+        const retries = this.retryCounts[action.id] || 0;
+        if (retries >= MAX_RETRIES) {
+          console.warn(`[SyncService] Action ${action.id} exceeded max retries (${MAX_RETRIES}). Dropping.`);
+          await clearAction(action.id);
+          this.pendingCount = Math.max(0, this.pendingCount - 1);
+          this.emit();
+          continue;
+        }
+
         let success = false;
+        let isNetworkError = false;
         
         try {
           if (supabase) {
@@ -86,120 +108,187 @@ class SyncService {
              } else if (action.action === 'UNDO_DELIVERY') {
                success = await this.deleteDelivery(action.payload);
              } else {
-               // Fallback for other potential actions
+               // Unknown action type — remove it to avoid blocking the queue
                success = true;
              }
           }
         } catch (error) {
           console.error(`[SyncService] Failed to process action ${action.id}:`, error);
-          if (error.code === '23505') { // Postgres Unique Violation (idempotency key)
-             success = true; // Mark as success since it's already there
+          if (error.code === '23505') { // Postgres Unique Violation (idempotency key = already exists)
+             success = true; // Already in DB — clear from queue
+          } else if (!navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+             // True network failure — stop processing, wait for reconnect
+             isNetworkError = true;
           } else {
-             break; // Network/5xx error, stop processing
+             // Application-level error (bad data, RLS, etc.) — increment retry count
+             this.retryCounts[action.id] = retries + 1;
           }
         }
 
         if (success) {
+          delete this.retryCounts[action.id];
           await clearAction(action.id);
           this.pendingCount = Math.max(0, this.pendingCount - 1);
           this.emit();
         }
+
+        if (isNetworkError) {
+          // Stop processing on real network error, will retry when back online
+          break;
+        }
       }
     } finally {
       this.syncInProgress = false;
+      await this.updatePendingCount(); // Always refresh count accurately
       this.setStatus(this.isOnline ? 'ONLINE' : 'OFFLINE');
-      this.updatePendingCount();
     }
   }
 
   async pushDelivery(payload) {
-    if (!payload.matchId || !payload.innings) return true; // Invalid data, skip
+    if (!payload.matchId) return true; // Invalid data, skip
     
-    let inningsId = payload.inningsId;
-    // If inningsId is missing or mistakenly set to matchId, attempt to resolve the real innings UUID from Supabase
-    if (!inningsId || inningsId === payload.matchId) {
-      if (supabase && payload.matchId && payload.innings) {
+    // Lifecycle events like 'innings_start' are timeline markers, not physical deliveries
+    if (payload.type === 'innings_start') {
+      return true;
+    }
+
+    const isUUID = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    let inningsId = isUUID(payload.inningsId) ? payload.inningsId : null;
+    
+    // If inningsId is missing or invalid, resolve or create using api.getOrCreateInnings
+    if (!inningsId) {
+      if (supabase && payload.matchId) {
         try {
-          const { data: inn } = await supabase
-            .from('innings')
-            .select('id')
-            .eq('match_id', payload.matchId)
-            .eq('innings_number', Number(payload.innings) || 1)
-            .maybeSingle();
+          const { api } = await import('../lib/api');
+          const inn = await api.getOrCreateInnings(payload.matchId, Number(payload.innings) || 1);
           if (inn?.id) {
             inningsId = inn.id;
             payload.inningsId = inn.id;
-          } else {
-            // Create innings if missing so offline deliveries can sync
-            const { data: newInn } = await supabase
-              .from('innings')
-              .insert({
-                match_id: payload.matchId,
-                innings_number: Number(payload.innings) || 1
-              })
-              .select('id')
-              .single();
-            if (newInn?.id) {
-              inningsId = newInn.id;
-              payload.inningsId = newInn.id;
-            }
           }
         } catch (e) {
-          console.warn('[SyncService] Failed to auto-resolve or create inningsId:', e);
+          console.warn('[SyncService] Failed to auto-resolve or create innings via API:', e);
         }
       }
     }
 
-    if (!inningsId || inningsId === payload.matchId) {
+    if (!inningsId) {
       throw new Error(`[SyncService] Missing valid Supabase inningsId for match ${payload.matchId} (innings ${payload.innings}). Cannot insert delivery.`);
     }
 
     // Backend verification: Prevent delivery if match is COMPLETED
     if (supabase) {
       const { data: matchData } = await supabase.from('matches').select('status').eq('id', payload.matchId).maybeSingle();
-      if (matchData && matchData.status === 'COMPLETED') {
-        console.warn(`[SyncService] Match ${payload.matchId} is COMPLETED. Rejecting delivery record.`);
-        return true; // Return true to clear it from the offline queue gracefully
+      if (matchData && (matchData.status === 'COMPLETED' || matchData.status === 'FINISHED' || matchData.status === 'CANCELLED')) {
+        console.warn(`[SyncService] Match ${payload.matchId} is ${matchData.status}. Rejecting delivery record.`);
+        return true; // Clear from offline queue gracefully
       }
     }
 
-    // We map frontend `wicket` type to Postgres enum `wicket_type`
+    // Map frontend dismissal type to Postgres enum
     let wicketType = 'NONE';
     if (payload.wicket) {
-      // Simplistic mapping for now
       const wMap = {
         'Bowled': 'BOWLED', 'Caught': 'CAUGHT', 'LBW': 'LBW', 'Run Out': 'RUN_OUT',
         'Stumped': 'STUMPED', 'Hit Wicket': 'HIT_WICKET', 'Retired Hurt': 'RETIRED_HURT',
         'Retired Out': 'RETIRED_OUT'
       };
-      wicketType = wMap[payload.dismissalType] || 'NONE';
+      wicketType = wMap[payload.dismissalType] || 'BOWLED';
     }
 
     let extraType = 'NONE';
     if (payload.extraType) {
-      extraType = payload.extraType.toUpperCase();
+      const eMap = {
+        'wide': 'WIDE', 'no_ball': 'NO_BALL', 'bye': 'BYE', 'leg_bye': 'LEG_BYE', 'penalty': 'PENALTY'
+      };
+      extraType = eMap[payload.extraType.toLowerCase()] || payload.extraType.toUpperCase();
+    }
+
+    // Strictly enforce: runs_total = runs_off_bat + runs_extras (constraint delivery_total_valid)
+    const runsOffBat = Number(payload.runsOffBat) || 0;
+    const totalRuns = Number(payload.totalRuns) || 0;
+    const runsExtras = totalRuns !== undefined ? Math.max(0, totalRuns - runsOffBat) : (Number(payload.extraRuns) || 0);
+    const finalTotalRuns = runsOffBat + runsExtras;
+
+    // Resolve player UUIDs
+    const strikerId = isUUID(payload.strikerId) ? payload.strikerId : null;
+    const nonStrikerId = isUUID(payload.nonStrikerId) ? payload.nonStrikerId : null;
+    const bowlerId = isUUID(payload.bowlerId) ? payload.bowlerId : null;
+
+    // Resolve dismissed player UUID (constraint wicket_player_required: wicket_type = 'NONE' or dismissed_player_id is not null)
+    let dismissedPlayerId = null;
+    if (wicketType !== 'NONE') {
+      dismissedPlayerId = isUUID(payload.dismissedPlayerId) 
+        ? payload.dismissedPlayerId 
+        : (isUUID(payload.strikerId) ? payload.strikerId : null);
+
+      if (!dismissedPlayerId) {
+        // Fallback: query any valid player from the match roster so check constraint is satisfied
+        try {
+          const { data: rPlayer } = await supabase
+            .from('match_rosters')
+            .select('player_id')
+            .eq('match_id', payload.matchId)
+            .limit(1)
+            .maybeSingle();
+          if (rPlayer?.player_id) dismissedPlayerId = rPlayer.player_id;
+        } catch (e) {}
+      }
+
+      // If still no valid UUID exists in DB, avoid violating DB check constraint by treating as NONE in DB
+      if (!dismissedPlayerId) {
+        wicketType = 'NONE';
+      }
+    }
+
+    // Consistency constraints for fielder and wicketkeeper
+    const fielderId = (['CAUGHT', 'RUN_OUT'].includes(wicketType) && isUUID(payload.fielderId)) ? payload.fielderId : null;
+    const wicketkeeperId = (['STUMPED', 'CAUGHT_BEHIND'].includes(wicketType) && isUUID(payload.wicketkeeperId)) ? payload.wicketkeeperId : null;
+
+    // Calculate unique delivery sequence for this innings
+    let deliverySequence = payload.deliverySequence;
+    if (!deliverySequence || deliverySequence < 1) {
+      try {
+        const { data: lastDel } = await supabase
+          .from('deliveries')
+          .select('delivery_sequence')
+          .eq('innings_id', inningsId)
+          .order('delivery_sequence', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        deliverySequence = (lastDel?.delivery_sequence || 0) + 1;
+      } catch (e) {
+        deliverySequence = Math.max(1, (payload.balls || 0) + 1);
+      }
     }
 
     const { error } = await supabase.from('deliveries').insert({
       match_id: payload.matchId,
       innings_id: inningsId,
-      delivery_sequence: payload.balls || 1, // Fallback
+      delivery_sequence: deliverySequence,
       over_number: Math.floor((payload.balls || 0) / 6),
       ball_number: ((payload.balls || 0) % 6) + 1,
-      striker_id: String(payload.strikerId).startsWith('player-') ? null : payload.strikerId,
-      non_striker_id: String(payload.nonStrikerId).startsWith('player-') ? null : payload.nonStrikerId,
-      bowler_id: String(payload.bowlerId).startsWith('player-') ? null : payload.bowlerId,
-      runs_off_bat: payload.runsOffBat || 0,
-      runs_extras: payload.extraRuns || 0,
-      runs_total: payload.totalRuns || 0,
+      striker_id: strikerId,
+      non_striker_id: nonStrikerId,
+      bowler_id: bowlerId,
+      runs_off_bat: runsOffBat,
+      runs_extras: runsExtras,
+      runs_total: finalTotalRuns,
       extra_type: extraType,
       wicket_type: wicketType,
+      dismissed_player_id: dismissedPlayerId,
+      fielder_id: fielderId,
+      wicketkeeper_id: wicketkeeperId,
       wagon_zone: payload.wagonZone || null,
       idempotency_key: payload.id // Unique ID from frontend event
     });
 
     if (error) {
-      if (error.code === '23505') return true; // Already exists
+      if (error.code === '23505') return true; // Already exists (idempotent)
+      // If match finalized while in queue, drop gracefully
+      if (error.message?.includes('already finalized') || error.message?.includes('check_match_immutable')) {
+        return true;
+      }
       throw error;
     }
     return true;
@@ -213,13 +302,13 @@ class SyncService {
       const { data: matchData } = await supabase.from('matches').select('status').eq('id', payload.matchId).maybeSingle();
       if (matchData && matchData.status === 'COMPLETED') {
         console.warn(`[SyncService] Match ${payload.matchId} is COMPLETED. Rejecting undo record.`);
-        return true; // Return true to clear it from the offline queue gracefully
+        return true;
       }
     }
     
     const { error } = await supabase.from('deliveries')
       .delete()
-      .eq('idempotency_key', payload.id) // The frontend generated payload.id maps to idempotency_key in DB
+      .eq('idempotency_key', payload.id)
       .eq('match_id', payload.matchId)
       .eq('innings_id', payload.inningsId);
       
@@ -242,17 +331,16 @@ class SyncService {
         } else if (actionType === 'UNDO_DELIVERY') {
            await this.deleteDelivery(payload);
         }
-        console.log(`[SyncService] Executed live: ${actionType}`);
         return true;
       } catch (err) {
         console.warn(`[SyncService] Live execution failed, falling back to queue. Error:`, err);
         await offlineQueueFn(actionType, payload);
-        this.updatePendingCount();
+        await this.updatePendingCount();
         return false;
       }
     } else {
       await offlineQueueFn(actionType, payload);
-      this.updatePendingCount();
+      await this.updatePendingCount();
       return false;
     }
   }

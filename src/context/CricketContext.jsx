@@ -583,7 +583,10 @@ export function CricketProvider({ children }) {
             const supabaseKeys = new Set(deliveries.map(d => d.idempotency_key));
             
             const offlineDeliveries = pendingActions
-              .filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.inningsId === currentInning.id)
+              .filter(a => a.action === 'RECORD_DELIVERY' && 
+                (a.payload?.inningsId === currentInning.id || 
+                 (a.payload?.matchId === matchId && Number(a.payload?.innings || 1) === currentInning.innings_number))
+              )
               .filter(a => !supabaseKeys.has(a.payload.id))
               .map(a => {
                 const p = a.payload;
@@ -671,7 +674,12 @@ export function CricketProvider({ children }) {
         setCurrentOverBalls(currentOverBallsArr);
 
         if (mergedDeliveries.length > 0) {
-          const scorecard = await api.getMatchScorecard(matchId);
+          let scorecard = null;
+          try {
+            scorecard = await api.getMatchScorecard(matchId);
+          } catch (e) {
+            console.warn('[CricketContext] Offline: could not fetch remote scorecard, using local data:', e);
+          }
           
           // Hydrate target for 2nd/4th innings
           if (scorecard && scorecard.innings) {
@@ -1047,6 +1055,19 @@ export function CricketProvider({ children }) {
   };
 
   const recordDeliveryEvent = async (event) => {
+    // If it's just a timeline marker like 'innings_start' or 'match_start', store locally but don't treat as a delivery
+    if (event.type === 'innings_start' || event.type === 'match_start') {
+      const markerPayload = {
+        id: `marker-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        timestamp: new Date().toISOString(),
+        matchId: activeMatchId,
+        innings,
+        ...event,
+      };
+      setDeliveryLog((prev) => [...prev, markerPayload]);
+      return;
+    }
+
     const eventId = `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     
     // Ensure inningsId is always populated with the actual innings UUID
@@ -1055,20 +1076,26 @@ export function CricketProvider({ children }) {
       resolvedInningsId = await resolveInningsId(activeMatchId, innings);
     }
 
+    // Determine unique delivery sequence for this innings
+    const currentInningsDeliveries = deliveryLog.filter(d => (d.innings || 1) === innings && d.type !== 'innings_start' && d.type !== 'match_start');
+    const deliverySequence = currentInningsDeliveries.length + 1;
+
     const payload = {
       id: eventId,
       timestamp: new Date().toISOString(),
       matchId: activeMatchId,
       inningsId: resolvedInningsId || null,
       innings,
+      deliverySequence,
       over: formatOvers(balls),
       balls,
-      strikerId: striker.id,
-      striker: striker.name,
-      nonStrikerId: nonStriker.id,
-      nonStriker: nonStriker.name,
-      bowlerId: currentBowler.id,
-      bowler: currentBowler.name,
+      strikerId: striker?.id || null,
+      striker: striker?.name || 'Striker',
+      nonStrikerId: nonStriker?.id || null,
+      nonStriker: nonStriker?.name || 'Non-Striker',
+      bowlerId: currentBowler?.id || null,
+      bowler: currentBowler?.name || 'Bowler',
+      dismissedPlayerId: event.dismissedPlayerId || (event.wicket ? (striker?.id || null) : null),
       ...event,
     };
 
@@ -1305,7 +1332,14 @@ export function CricketProvider({ children }) {
     const ok = applyStateResult(result);
     if (ok) {
       const totalRuns = type === 'wide' || type === 'no_ball' ? 1 + runsWithExtra : runsWithExtra;
-      recordDeliveryEvent({ type: 'extra', extraType: type, extraRuns: runsWithExtra, totalRuns, label: type === 'wide' ? `${totalRuns}Wd` : type === 'no_ball' ? `${totalRuns}Nb` : `${totalRuns}${type === 'bye' ? 'B' : 'Lb'}` });
+      recordDeliveryEvent({ 
+        type: 'extra', 
+        extraType: type, 
+        extraRuns: totalRuns, 
+        runsOffBat: 0,
+        totalRuns, 
+        label: type === 'wide' ? `${totalRuns}Wd` : type === 'no_ball' ? `${totalRuns}Nb` : `${totalRuns}${type === 'bye' ? 'B' : 'Lb'}` 
+      });
     }
   };
 
@@ -1387,13 +1421,27 @@ export function CricketProvider({ children }) {
         await db.deliveries.where('id').equals(undoneDelivery.id).delete();
       }
       
-      const undoPayload = {
-        id: undoneDelivery.id,
-        matchId: undoneDelivery.matchId,
-        inningsId: undoneDelivery.inningsId
-      };
-      
-      await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
+      // If this delivery is still pending in sync_queue, cancel it directly without sending undo to server
+      let wasPending = false;
+      if (db.sync_queue) {
+        const pendingItem = await db.sync_queue
+          .filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.id === undoneDelivery.id)
+          .first();
+        if (pendingItem) {
+          await db.sync_queue.delete(pendingItem.id);
+          await syncService.updatePendingCount();
+          wasPending = true;
+        }
+      }
+
+      if (!wasPending) {
+        const undoPayload = {
+          id: undoneDelivery.id,
+          matchId: undoneDelivery.matchId,
+          inningsId: undoneDelivery.inningsId
+        };
+        await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
+      }
     } catch (err) {
       console.error('[CricketContext] Failed to persist undo:', err);
     }

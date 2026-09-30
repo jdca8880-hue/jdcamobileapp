@@ -101,15 +101,19 @@ export default function ScoringScreen() {
 
       channel = supabase.channel(`public:deliveries:${activeMatchId}`)
         .on('postgres_changes', {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'deliveries',
           filter: `match_id=eq.${activeMatchId}`
         }, async (payload) => {
-          // Check if this delivery is already in our local log (i.e. scored by THIS client)
-          const isLocal = latestDeliveryLogRef.current.some(d => d.id === payload.new.idempotency_key);
-          if (!isLocal) {
-            console.log('[ScoringScreen] Remote delivery detected, hydrating state...');
+          if (payload.eventType === 'INSERT') {
+            const isLocal = latestDeliveryLogRef.current.some(d => d.id === payload.new?.idempotency_key);
+            if (!isLocal) {
+              console.log('[ScoringScreen] Remote delivery detected, hydrating state...');
+              await hydrateMatchState(activeMatchId);
+            }
+          } else if (payload.eventType === 'DELETE') {
+            console.log('[ScoringScreen] Remote delivery delete/undo detected, hydrating state...');
             await hydrateMatchState(activeMatchId);
           }
         })
