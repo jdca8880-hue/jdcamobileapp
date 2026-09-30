@@ -536,6 +536,7 @@ export function CricketProvider({ children }) {
 
   // Hydrate Match State on refresh
   const hydrateMatchState = async (matchId) => {
+    try {
       let match, teamAXI, teamBXI, currentInning, deliveries;
       try {
         const result = await api.hydrateLiveMatch(matchId);
