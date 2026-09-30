@@ -1,4 +1,4 @@
-import { BallEventSchema, FREE_HIT_ALLOWED_DISMISSALS } from './validationSchemas';
+import { BallEventSchema, FREE_HIT_ALLOWED_DISMISSALS } from './validationSchemas.js';
 
 export const MATCH_STATES = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -65,7 +65,8 @@ export function processDelivery(currentState, ballInput) {
   const isWide = ball.extraType === 'wide';
   const isNoBall = ball.extraType === 'no_ball';
   const isLegByeOrBye = ball.extraType === 'leg_bye' || ball.extraType === 'bye';
-  const isLegalDelivery = !isWide && !isNoBall;
+  const isPenalty = ball.extraType === 'penalty';
+  const isLegalDelivery = !isWide && !isNoBall && !isPenalty;
 
   // Clone current state for deterministic update
   const state = {
@@ -114,6 +115,10 @@ export function processDelivery(currentState, ballInput) {
         state.extras.legByes = (state.extras.legByes || 0) + extraRunsAdded;
       }
       runsThisBall = extraRunsAdded;
+    } else if (isPenalty) {
+      extraRunsAdded = ball.extraRuns || 5;
+      state.extras.penalty = (state.extras.penalty || 0) + extraRunsAdded;
+      runsThisBall = extraRunsAdded;
     }
   } else if (ball.type === 'wicket') {
     runsThisBall = ball.runs || 0;
@@ -124,7 +129,7 @@ export function processDelivery(currentState, ballInput) {
   state.runs += runsThisBall;
 
   // 3. Update Bowler Stats
-  const bowlerRunsConceded = isLegByeOrBye ? 0 : runsThisBall;
+  const bowlerRunsConceded = (isLegByeOrBye || isPenalty) ? 0 : runsThisBall;
   state.currentBowler.runs = (state.currentBowler.runs || 0) + bowlerRunsConceded;
 
   if (isLegalDelivery) {

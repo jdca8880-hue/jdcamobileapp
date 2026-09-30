@@ -3,7 +3,7 @@ import {
   Users, Trophy, MapPin, Radio, Calendar, Plus,
   TrendingUp, Megaphone, ChevronRight, Activity,
   Award, Clipboard, Flame, Shield, Eye, Star,
-  Zap, BarChart3, UserCheck, Sparkles
+  Zap, BarChart3, UserCheck, Sparkles, Play
 } from 'lucide-react';
 import { useStandings } from '../../lib/standings';
 import { useCricket } from '../../context/CricketContext';
@@ -62,7 +62,9 @@ export default function HomeScreen() {
     balls,
     formatOvers,
     striker,
-    currentBowler
+    currentBowler,
+    isPaused,
+    resumeMatch
   } = useCricket();
 
   const [activeTab, setActiveTab] = useState('overview'); // overview, live, districts, standings
@@ -451,12 +453,15 @@ export default function HomeScreen() {
                       <button
                         onClick={() => {
                           setActiveMatchId(liveMatches[0].id);
+                          if (isPaused) resumeMatch();
                           navigateTo('scoring');
                         }}
-                        className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                        className={`px-5 py-2.5 rounded-xl text-slate-950 font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer ${
+                          isPaused ? 'bg-emerald-400 hover:bg-emerald-300 animate-pulse' : 'bg-emerald-500 hover:bg-emerald-400'
+                        }`}
                       >
-                        <Radio size={15} />
-                        <span>Open Live Scoring Desk</span>
+                        {isPaused ? <Play size={15} fill="currentColor" /> : <Radio size={15} />}
+                        <span>{isPaused ? 'Resume Scoring to Continue' : 'Open Live Scoring Desk'}</span>
                       </button>
                       <button
                         onClick={() => {

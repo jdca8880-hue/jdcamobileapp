@@ -731,7 +731,7 @@ export const api = {
     // 1. Fetch match and teams
     const { data: matchData, error: matchError } = await supabase
       .from('matches')
-      .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
+      .select('*, home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name)')
       .eq('id', matchId)
       .single();
 
@@ -1263,8 +1263,9 @@ export const api = {
       result_margin: resultMargin,
       result_text: resultText,
     };
-    // man_of_the_match_id is not yet in the live schema — omit to avoid PGRST200
-    // Add it back once the column is created via SQL Editor
+    if (manOfTheMatchId) {
+      updatePayload.man_of_the_match_id = manOfTheMatchId;
+    }
 
     const { error } = await supabase
       .from('matches')
@@ -1280,9 +1281,19 @@ export const api = {
   },
 
   async assignManOfTheMatch(matchId, playerId) {
-    // man_of_the_match_id column not yet in live schema — no-op until column is added
-    console.warn('[api] assignManOfTheMatch: column man_of_the_match_id does not exist in live DB. Skipping.');
-    return true;
+    if (!matchId) throw new Error("Match ID required");
+    const { data, error } = await supabase
+      .from('matches')
+      .update({ man_of_the_match_id: playerId || null })
+      .eq('id', matchId)
+      .select('id, man_of_the_match_id')
+      .single();
+
+    if (error) {
+      console.error('[api] Failed to assign man of the match:', error);
+      throw error;
+    }
+    return data;
   }
 };
 

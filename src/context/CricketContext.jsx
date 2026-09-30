@@ -857,6 +857,83 @@ export function CricketProvider({ children }) {
   const [isFreeHit, setIsFreeHit] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [matchStatus, setMatchStatus] = useState('IN_PROGRESS');
+  const [isPaused, setIsPaused] = useState(() => {
+    try {
+      return activeMatchId ? localStorage.getItem(`jdca_match_paused_${activeMatchId}`) === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (activeMatchId) {
+      try {
+        setIsPaused(localStorage.getItem(`jdca_match_paused_${activeMatchId}`) === 'true');
+      } catch {
+        setIsPaused(false);
+      }
+    } else {
+      setIsPaused(false);
+    }
+  }, [activeMatchId]);
+
+  const pauseMatch = () => {
+    setIsPaused(true);
+    if (activeMatchId) {
+      try {
+        localStorage.setItem(`jdca_match_paused_${activeMatchId}`, 'true');
+      } catch {}
+    }
+  };
+
+  const resumeMatch = () => {
+    setIsPaused(false);
+    if (activeMatchId) {
+      try {
+        localStorage.removeItem(`jdca_match_paused_${activeMatchId}`);
+      } catch {}
+    }
+  };
+
+  const togglePauseMatch = () => {
+    if (isPaused) {
+      resumeMatch();
+    } else {
+      pauseMatch();
+    }
+  };
+
+  const resetScoringSession = async () => {
+    if (activeMatchId) {
+      try {
+        localStorage.removeItem(`jdca_match_paused_${activeMatchId}`);
+        localStorage.removeItem(`jdca_active_match`);
+      } catch {}
+    }
+    setActiveMatchId(null);
+    setRuns(0);
+    setWickets(0);
+    setBalls(0);
+    setCurrentOverBalls([]);
+    setStriker(null);
+    setNonStriker(null);
+    setCurrentBowler(null);
+    setDeliveryLog([]);
+    setBallHistory([]);
+    setIsFreeHit(false);
+    setIsPaused(false);
+    setExtras({ total: 0, byes: 0, legByes: 0, wides: 0, noBalls: 0, penalty: 0 });
+    setScorecard(INITIAL_SCORECARD);
+    setMatchStatus('IN_PROGRESS');
+    setMatchSetup(INITIAL_MATCH_SETUP);
+    setCurrentInningsId(null);
+    setInnings(1);
+    try {
+      await refreshAdminData?.();
+    } catch (e) {
+      console.error('[CricketContext] Failed to refresh admin data on reset:', e);
+    }
+  };
 
   // Modals & Sheets
   const [dismissalModalOpen, setDismissalModalOpen] = useState(false);
@@ -1251,6 +1328,10 @@ export function CricketProvider({ children }) {
       setValidationError("Match has already been completed.");
       return false;
     }
+    if (isPaused) {
+      setValidationError("Match is currently paused. Please tap 'Resume' to continue scoring.");
+      return false;
+    }
     if (!striker?.id || !nonStriker?.id || !currentBowler?.id) {
       setValidationError("Missing active player IDs. Please initialize the innings.");
       return false;
@@ -1331,14 +1412,22 @@ export function CricketProvider({ children }) {
 
     const ok = applyStateResult(result);
     if (ok) {
-      const totalRuns = type === 'wide' || type === 'no_ball' ? 1 + runsWithExtra : runsWithExtra;
+      const totalRuns = type === 'wide' || type === 'no_ball' ? 1 + runsWithExtra : (type === 'penalty' ? (runsWithExtra || 5) : runsWithExtra);
+      const extraLabel = type === 'wide'
+        ? `${totalRuns}Wd`
+        : type === 'no_ball'
+        ? `${totalRuns}Nb`
+        : type === 'penalty'
+        ? `${totalRuns}Pen`
+        : `${totalRuns}${type === 'bye' ? 'B' : 'Lb'}`;
+
       recordDeliveryEvent({ 
         type: 'extra', 
         extraType: type, 
         extraRuns: totalRuns, 
         runsOffBat: 0,
         totalRuns, 
-        label: type === 'wide' ? `${totalRuns}Wd` : type === 'no_ball' ? `${totalRuns}Nb` : `${totalRuns}${type === 'bye' ? 'B' : 'Lb'}` 
+        label: extraLabel 
       });
     }
   };
@@ -1644,6 +1733,11 @@ export function CricketProvider({ children }) {
         startSuperOver,
         startSuperOverSecondInnings,
         isAppLoading,
+        isPaused,
+        pauseMatch,
+        resumeMatch,
+        togglePauseMatch,
+        resetScoringSession,
         officials: [],
         districtStats: [],
         selectionHistory: [],

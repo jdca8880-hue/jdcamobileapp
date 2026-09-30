@@ -1,15 +1,16 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Radio, MapPin, Eye, Trophy, ChevronRight, Activity, Zap } from 'lucide-react';
+import { Radio, MapPin, Eye, Trophy, ChevronRight, Activity, Zap, Play, Pause } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
 
 export function LiveMatchCard({ match, variant = 'card', className = '', onClick }) {
-  const { setActiveMatchId, navigateTo, userRole, userId, userName, userEmail } = useCricket();
+  const { setActiveMatchId, activeMatchId, navigateTo, userRole, userId, userName, userEmail, isPaused, resumeMatch } = useCricket();
   const haptics = useHaptics();
 
   if (!match) return null;
 
+  const matchIsPaused = (isPaused && activeMatchId === match.id) || (typeof localStorage !== 'undefined' && localStorage.getItem(`jdca_match_paused_${match.id}`) === 'true');
   const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
   const teamAName = match.home_team?.name || match.teamA?.name || match.team1?.name || 'Home Team';
   const teamBName = match.away_team?.name || match.teamB?.name || match.team2?.name || 'Away Team';
@@ -67,9 +68,11 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500 text-white shadow-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                LIVE
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black shadow-xs ${
+                matchIsPaused ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${matchIsPaused ? 'bg-white' : 'bg-white animate-ping'}`} />
+                {matchIsPaused ? 'PAUSED' : 'LIVE'}
               </span>
               <span className="text-xs font-bold text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-md border border-white/10 uppercase tracking-wider">
                 {matchFormat}
@@ -146,9 +149,11 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
       {/* Header: Tournament + Live Badge */}
       <div className="flex items-center justify-between mb-3 pt-1">
         <div className="flex items-center gap-1.5">
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-black uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-            LIVE
+          <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+            matchIsPaused ? 'bg-amber-50 border border-amber-300 text-amber-800' : 'bg-rose-50 border border-rose-200 text-rose-700'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${matchIsPaused ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'}`} />
+            {matchIsPaused ? 'PAUSED' : 'LIVE'}
           </span>
           <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
             {matchFormat}
@@ -217,11 +222,16 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
 
         {isAssignedScorer ? (
           <button
-            onClick={handleOpenScoring}
-            className="w-full py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-xs"
+            onClick={(e) => {
+              if (matchIsPaused) resumeMatch();
+              handleOpenScoring(e);
+            }}
+            className={`w-full py-1.5 px-2 rounded-xl text-white font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-xs ${
+              matchIsPaused ? 'bg-emerald-600 hover:bg-emerald-500 animate-pulse' : 'bg-emerald-600 hover:bg-emerald-500'
+            }`}
           >
-            <Radio size={12} className="animate-pulse" />
-            <span>Score Live</span>
+            {matchIsPaused ? <Play size={12} fill="currentColor" /> : <Radio size={12} className="animate-pulse" />}
+            <span>{matchIsPaused ? 'Resume to Continue' : 'Score Live'}</span>
           </button>
         ) : (
           <button

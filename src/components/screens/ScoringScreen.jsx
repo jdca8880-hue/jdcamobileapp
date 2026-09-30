@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   RotateCcw, FileText, ShieldAlert, AlertTriangle, X,
   ChevronRight, RefreshCw, Radio, CircleHelp, WifiOff,
-  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock, Pause
+  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock, Pause, Play
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -28,7 +28,8 @@ export default function ScoringScreen() {
     matchSetup, setMatchSetup, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
-    tournaments, setActiveMatchId, isAppLoading
+    tournaments, setActiveMatchId, isAppLoading,
+    isPaused, pauseMatch, resumeMatch, togglePauseMatch, resetScoringSession
   } = useCricket();
 
   const haptics = useHaptics();
@@ -45,6 +46,8 @@ export default function ScoringScreen() {
   const [overOpen, setOverOpen] = useState(false);
   const [changeWkOpen, setChangeWkOpen] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false);
+  const [extraCategory, setExtraCategory] = useState('wide');
+  const [extraRuns, setExtraRuns] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
   const [isHydrating, setIsHydrating] = useState(false);
@@ -416,12 +419,49 @@ export default function ScoringScreen() {
             <div className="flex items-center gap-2">
                <button onClick={() => setInterruptionModalOpen(true)} className="px-3 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs gap-1 hover:bg-red-100 transition-colors"><Clock size={16}/> End/Interrupt</button>
                <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18}/></button>
-               <button onClick={() => navigateTo('match-detail')} className="px-3 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs gap-1 hover:bg-slate-200 transition-colors" title="Pause scoring and return to matches"><Pause size={16}/> Pause</button>
+               {isPaused ? (
+                 <button 
+                   onClick={() => { haptics.medium(); resumeMatch(); }} 
+                   className="px-3.5 h-10 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold text-xs gap-1.5 shadow-sm transition-all animate-pulse" 
+                   title="Resume scoring to continue"
+                 >
+                   <Play size={15} fill="currentColor"/> Resume
+                 </button>
+               ) : (
+                 <button 
+                   onClick={() => { haptics.light(); pauseMatch(); }} 
+                   className="px-3 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs gap-1 hover:bg-slate-200 transition-colors" 
+                   title="Pause scoring"
+                 >
+                   <Pause size={16}/> Pause
+                 </button>
+               )}
             </div>
           </div>
 
           <div className="text-xs font-bold tracking-widest uppercase text-slate-500 mb-1">{tournamentName}</div>
           <div className="text-[16px] font-black text-slate-900">{teamAName} <span className="text-slate-400">vs</span> {teamBName}</div>
+
+          {isPaused && (
+            <div className="mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <Pause size={16} />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-black text-amber-900">Match Scoring is Paused</div>
+                  <div className="text-[11px] font-medium text-amber-700">Scoring controls are on hold. Tap resume to continue.</div>
+                </div>
+              </div>
+              <button
+                onClick={() => { haptics.medium(); resumeMatch(); }}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer"
+              >
+                <Play size={14} fill="currentColor" />
+                <span>Resume to Continue</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {validationError && (
@@ -788,6 +828,100 @@ export default function ScoringScreen() {
           </Modal>
         )}
 
+        {/* EXTRAS MODAL */}
+        {extrasOpen && (
+          <Modal title="Record Extras" onClose={() => setExtrasOpen(false)}>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Select Extra Type</div>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { id: 'wide', label: 'Wide (WD)' },
+                { id: 'no_ball', label: 'No Ball (NB)' },
+                { id: 'bye', label: 'Bye (B)' },
+                { id: 'leg_bye', label: 'Leg Bye (LB)' },
+                { id: 'penalty', label: 'Penalty (5)' },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    haptics.light();
+                    setExtraCategory(item.id);
+                    if (item.id === 'wide' || item.id === 'no_ball') setExtraRuns(0);
+                    else if (item.id === 'bye' || item.id === 'leg_bye') setExtraRuns(1);
+                    else if (item.id === 'penalty') setExtraRuns(5);
+                  }}
+                  className={`py-3 px-2 rounded-[10px] text-xs font-black border transition-all ${
+                    extraCategory === item.id 
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm scale-[1.02]' 
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+              {extraCategory === 'wide' ? 'Runs in Addition to 1 Wide (+runs)' :
+               extraCategory === 'no_ball' ? 'Runs Scored Off No-Ball (+runs)' :
+               extraCategory === 'penalty' ? 'Penalty Runs Awarded' :
+               'Runs Scored (Byes/Leg Byes)'}
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              {(extraCategory === 'wide' ? [0, 1, 2, 3, 4] :
+                extraCategory === 'no_ball' ? [0, 1, 2, 3, 4, 6] :
+                extraCategory === 'penalty' ? [5] :
+                [1, 2, 3, 4]
+              ).map(num => (
+                <button
+                  key={num}
+                  onClick={() => {
+                    haptics.light();
+                    setExtraRuns(num);
+                  }}
+                  className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${
+                    extraRuns === num
+                      ? 'bg-jade text-white border-jade shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {extraCategory === 'wide' || extraCategory === 'no_ball' ? `+${num}` : num}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-[12px] p-3 mb-5 text-center">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Recording Summary</div>
+              <div className="text-sm font-extrabold text-slate-900">
+                {extraCategory === 'wide' && `${1 + extraRuns} Wide Run${(1 + extraRuns) > 1 ? 's' : ''} (Re-bowled)`}
+                {extraCategory === 'no_ball' && `${1 + extraRuns} No-Ball Run${(1 + extraRuns) > 1 ? 's' : ''} (Free Hit Next)`}
+                {extraCategory === 'bye' && `${extraRuns} Bye Run${extraRuns > 1 ? 's' : ''} (Legal ball counted)`}
+                {extraCategory === 'leg_bye' && `${extraRuns} Leg Bye Run${extraRuns > 1 ? 's' : ''} (Legal ball counted)`}
+                {extraCategory === 'penalty' && `${extraRuns} Penalty Runs (No delivery bowled)`}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button 
+                className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" 
+                onClick={() => setExtrasOpen(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="flex-1 py-3 rounded-[10px] font-bold bg-jade text-white shadow-sm hover:bg-emerald-600 transition-colors" 
+                onClick={() => {
+                  haptics.medium();
+                  recordExtra(extraCategory, extraRuns);
+                  setExtrasOpen(false);
+                }}
+              >
+                Record Extra
+              </button>
+            </div>
+          </Modal>
+        )}
+
         {matchStatus === 'INNINGS_BREAK' && (innings === 1 || innings === 3) && (
           <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
@@ -826,20 +960,18 @@ export default function ScoringScreen() {
                    `Defended the total of ${target - 1}`}
                 </div>
                 <button 
-                  onClick={async () => {
-                     try {
-                       const resultText = runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won` : runs === target - 1 ? 'Match Tied' : `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won`;
-                       await api.updateMatchDetails(activeMatchId, { status: 'COMPLETED', result_text: resultText });
-                       alert("Match has been ended successfully.");
-                       navigateTo('matches');
-                     } catch (err) {
-                       alert("Failed to end match: " + err.message);
-                     }
+                  onClick={() => {
+                    haptics.medium();
+                    navigateTo('match-result');
                   }}
-                  className="w-full py-4 rounded-xl font-bold bg-jade text-white shadow-lg active:scale-95 transition-transform mb-3"
+                  className="w-full py-4 rounded-xl font-bold bg-[#2457D6] hover:bg-[#1d47b0] text-white shadow-lg active:scale-95 transition-all mb-3 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  End Match
+                  <Trophy size={18} />
+                  <span>Review Match & Finalize</span>
                 </button>
+                <div className="text-[11px] text-slate-500 mb-3 font-medium">
+                  Review Top Performers, award Player of the Match, and permanently lock official records.
+                </div>
                 {runs === target - 1 && (
                   <button 
                     onClick={() => {

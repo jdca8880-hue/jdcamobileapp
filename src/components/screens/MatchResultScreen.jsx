@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { Trophy, ArrowRight, Newspaper, ShieldCheck } from 'lucide-react';
+import { Trophy, ArrowRight, Newspaper, ShieldCheck, Lock, CheckCircle2 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
 import MatchScorecard from '../ui/MatchScorecard';
@@ -7,11 +7,12 @@ import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
 
 export default function MatchResultScreen() {
-  const { matches = [], activeMatchId, navigateTo, userRole } = useCricket();
+  const { matches = [], activeMatchId, navigateTo, userRole, resetScoringSession } = useCricket();
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedMotm, setSelectedMotm] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
 
   useEffect(() => {
     async function fetchReport() {
@@ -53,6 +54,7 @@ export default function MatchResultScreen() {
   if (!matchData) return null;
 
   const canAssignMotm = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
+  const isMatchPermanentlyLocked = matchData.status === 'COMPLETED' && (!activeMatchId || activeMatchId !== matchData.id);
 
   const handleAssignMotm = async (e) => {
     const playerId = e.target.value;
@@ -69,6 +71,29 @@ export default function MatchResultScreen() {
       } finally {
         setIsAssigning(false);
       }
+    }
+  };
+
+  const handleFinalEndAndLock = async () => {
+    if (!window.confirm("Are you sure you want to permanently lock this match? All match statistics, scores, and player awards will be officially sealed, and the scorer screen will be refreshed.")) {
+      return;
+    }
+
+    setIsLocking(true);
+    try {
+      if (selectedMotm) {
+        await api.assignManOfTheMatch(matchData.id, selectedMotm);
+      }
+      const finalResultText = matchData.resultText || matchData.result || 'Match Completed';
+      await api.finalizeMatch(matchData.id, null, null, finalResultText, selectedMotm || null);
+      await resetScoringSession();
+      alert("Match has been successfully finalized and permanently locked! Scorer console is refreshed and ready.");
+      navigateTo('scoring');
+    } catch (err) {
+      console.error("Failed to finalize and lock match:", err);
+      alert("Error locking match: " + (err.message || 'Please check network'));
+    } finally {
+      setIsLocking(false);
     }
   };
 
@@ -107,7 +132,69 @@ export default function MatchResultScreen() {
       </div>
       <div><small>RESULT</small><b>{matchData.resultText || matchData.result || 'Match completed'}</b><span>Official Final Status</span></div>
     </div></div>
+
     <div className="result-section"><div className="section-kicker"><Newspaper size={15}/> MEDIA REPORT</div><MatchMediaReport match={matchData}/></div>
-    <div className="result-actions"><button onClick={() => navigateTo('matches')} className="btn-secondary">Back to Matches Directory</button><button onClick={() => navigateTo('scorecard')} className="btn-primary">Open Official Scorecard <ArrowRight size={15}/></button></div>
+
+    {canAssignMotm && (
+      <div className="result-section">
+        <div className="section-kicker"><Lock size={15}/> OFFICIAL MATCH CLOSURE & LOCK</div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900">Official Match Finalization</h3>
+                {isMatchPermanentlyLocked ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-wider border border-emerald-200">
+                    <CheckCircle2 size={12} /> Permanently Locked
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[11px] font-black uppercase tracking-wider border border-amber-200">
+                    <Lock size={12} /> Ready for Final End
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1 max-w-xl">
+                {isMatchPermanentlyLocked
+                  ? 'This match has been officially concluded and permanently locked in the JDCA registry.'
+                  : 'Review the score, winners, and assign Player of the Match above. Clicking "Final End Match" will permanently lock this fixture and refresh the scorer screen for next games.'}
+              </p>
+            </div>
+
+            {!isMatchPermanentlyLocked && (
+              <button
+                onClick={handleFinalEndAndLock}
+                disabled={isLocking}
+                className="px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 shrink-0"
+              >
+                <Lock size={16} />
+                <span>{isLocking ? 'Locking Match...' : 'Final End Match & Permanently Lock'}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Verified Result</span>
+              <span className="font-extrabold text-slate-900">{matchData.resultText || matchData.result || 'Match Completed'}</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Player of the Match</span>
+              <span className="font-extrabold text-slate-900">{allMatchPlayers.find(p => p.id === selectedMotm)?.name || matchData.manOfTheMatch?.name || 'Not yet selected'}</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Scorer Screen Status</span>
+              <span className={`font-extrabold ${isMatchPermanentlyLocked ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {isMatchPermanentlyLocked ? 'Refreshed & Ready' : 'Awaiting Final Lock'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <div className="result-actions">
+      <button onClick={() => navigateTo('matches')} className="btn-secondary">Back to Matches Directory</button>
+      <button onClick={() => navigateTo('scorecard')} className="btn-primary">Open Official Scorecard <ArrowRight size={15}/></button>
+    </div>
   </div>;
 }

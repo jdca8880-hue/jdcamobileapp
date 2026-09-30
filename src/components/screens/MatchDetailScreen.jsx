@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText, Trash2, Play, Pause } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import MatchScorecard from '../ui/MatchScorecard';
 import MatchMediaReport from '../ui/MatchMediaReport';
@@ -20,7 +20,7 @@ const MatchTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function MatchDetailScreen() {
-  const { matches = [], activeMatchId, navigateTo, goBack, userRole, registeredUsers = [] } = useCricket();
+  const { matches = [], activeMatchId, navigateTo, goBack, userRole, registeredUsers = [], isPaused, resumeMatch } = useCricket();
   const [activeTab, setActiveTab] = useState('info');
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedScorer, setSelectedScorer] = useState('');
@@ -99,9 +99,11 @@ export default function MatchDetailScreen() {
           </div>
 
           {live && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold mb-4">
-              <span className="w-2 h-2 rounded-full bg-[#0FA968] animate-pulse" />
-              LIVE MATCH
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-4 ${
+              isPaused && activeMatchId === match.id ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' : 'bg-white/20 text-white'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${isPaused && activeMatchId === match.id ? 'bg-amber-400' : 'bg-[#0FA968] animate-pulse'}`} />
+              {isPaused && activeMatchId === match.id ? 'PAUSED' : 'LIVE MATCH'}
             </div>
           )}
 
@@ -214,12 +216,24 @@ export default function MatchDetailScreen() {
                     </button>
                   )}
                   {live && isAuthorizedScorer && (
-                    <button 
-                      onClick={() => navigateTo('scoring')}
-                      className="w-full bg-[#0FA968] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#0a7d4e] transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Radio size={20} /> LIVE SCORING CONSOLE
-                    </button>
+                    isPaused && activeMatchId === match.id ? (
+                      <button 
+                        onClick={() => {
+                          resumeMatch();
+                          navigateTo('scoring');
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 animate-pulse cursor-pointer"
+                      >
+                        <Play size={20} fill="currentColor" /> RESUME SCORING TO CONTINUE
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => navigateTo('scoring')}
+                        className="w-full bg-[#0FA968] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#0a7d4e] transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Radio size={20} /> LIVE SCORING CONSOLE
+                      </button>
+                    )
                   )}
                 </>
               );
