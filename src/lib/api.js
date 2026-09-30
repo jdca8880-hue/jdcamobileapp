@@ -200,12 +200,14 @@ export const api = {
 
   async deleteMatch(id) {
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('matches')
       .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
 
     if (error) throw error;
+    if (!data || data.length === 0) throw new Error("Permission denied. You cannot delete this match (it might be locked or completed).");
     return true;
   },
 
@@ -272,8 +274,9 @@ export const api = {
     else if (type === 'TEAM') table = 'teams';
     else throw new Error("Invalid type");
 
-    const { error } = await supabase.from(table).update({ deleted_at: null, deleted_by: null }).eq('id', id);
+    const { data, error } = await supabase.from(table).update({ deleted_at: null, deleted_by: null }).eq('id', id).select();
     if (error) throw error;
+    if (!data || data.length === 0) throw new Error("Permission denied. You cannot restore this item.");
     return true;
   },
 
@@ -319,8 +322,9 @@ export const api = {
       // But let's let DB handle it or fail safely.
     }
 
-    const { error } = await supabase.from(table).delete().eq('id', id);
+    const { data, error } = await supabase.from(table).delete().eq('id', id).select();
     if (error) throw error;
+    if (!data || data.length === 0) throw new Error("Permission denied. You can only permanently delete items that you deleted.");
 
     // After successful hard delete, remove photo from Cloudinary
     if (avatarUrlToDelete) {

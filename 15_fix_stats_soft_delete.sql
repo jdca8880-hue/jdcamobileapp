@@ -32,17 +32,17 @@ select
   d.innings_id,
   d.bowler_id as player_id,
   count(*) filter (
-    where d.extra_type not in ('BYES', 'LEG_BYES', 'PENALTY')
+    where d.extra_type not in ('BYE', 'LEG_BYE', 'PENALTY')
   )::bigint as balls_bowled,
   sum(
     case
-      when d.extra_type not in ('BYES', 'LEG_BYES', 'PENALTY')
+      when d.extra_type not in ('BYE', 'LEG_BYE', 'PENALTY')
       then d.runs_total
       else 0
     end
   )::bigint as runs_conceded,
   count(*) filter (
-    where d.wicket_type not in ('NONE', 'RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT', 'OBSTRUCTING_THE_FIELD')
+    where d.wicket_type not in ('NONE', 'RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT', 'OBSTRUCTING_FIELD')
   )::bigint as wickets_taken,
   count(*) filter (where d.extra_type = 'WIDE')::bigint as wides,
   count(*) filter (where d.extra_type = 'NO_BALL')::bigint as no_balls
