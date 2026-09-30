@@ -82,7 +82,7 @@ export default function MatchDetailScreen() {
           <ArrowLeft size={20} strokeWidth={2.5} />
         </button>
 
-        {userRole === 'SUPER_ADMIN' && (
+        {(userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN') && (
           <button
             onClick={handleDelete}
             disabled={isDeleting}
