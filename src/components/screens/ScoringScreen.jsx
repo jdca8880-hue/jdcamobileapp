@@ -27,6 +27,7 @@ export default function ScoringScreen() {
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
     matchSetup, setMatchSetup, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
+    startSuperOver, startSuperOverSecondInnings,
     tournaments, setActiveMatchId
   } = useCricket();
 
@@ -159,7 +160,9 @@ export default function ScoringScreen() {
     }
   }
 
-  if (innings === 2) {
+  // In innings 2, teams swap. In innings 3 (Super Over 1st innings), the team that batted second bats first, so they stay swapped.
+  // In innings 4 (Super Over 2nd innings), they swap back to their original state.
+  if (innings === 2 || innings === 3) {
     const temp = battingTeamId;
     battingTeamId = bowlingTeamId;
     bowlingTeamId = temp;
@@ -778,17 +781,17 @@ export default function ScoringScreen() {
           </Modal>
         )}
 
-        {matchStatus === 'INNINGS_BREAK' && innings === 1 && (
+        {matchStatus === 'INNINGS_BREAK' && (innings === 1 || innings === 3) && (
           <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <h3 className="font-black text-slate-900">Innings Break</h3>
+                <h3 className="font-black text-slate-900">Innings Break {innings === 3 && "(Super Over)"}</h3>
               </div>
               <div className="p-6 text-center">
                 <div className="text-[40px] font-black text-slate-900 leading-none mb-2">{runs}/{wickets}</div>
                 <div className="text-[14px] font-bold text-slate-500 mb-6">Target for {battingTeamId === matchSetup?.teamAId ? teamBName : teamAName}: {runs + 1}</div>
                 <button 
-                  onClick={() => startSecondInnings(runs + 1)}
+                  onClick={() => innings === 3 ? startSuperOverSecondInnings(runs + 1) : startSecondInnings(runs + 1)}
                   className="w-full py-4 rounded-xl font-bold bg-jade text-white shadow-lg active:scale-95 transition-transform"
                 >
                   Start 2nd Innings
@@ -833,7 +836,7 @@ export default function ScoringScreen() {
                 {runs === target - 1 && (
                   <button 
                     onClick={() => {
-                      alert("Super Over functionality coming soon!");
+                      startSuperOver();
                     }}
                     className="w-full py-4 rounded-xl font-bold bg-slate-800 text-white shadow-lg active:scale-95 transition-transform"
                   >

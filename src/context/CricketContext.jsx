@@ -1037,9 +1037,9 @@ export function CricketProvider({ children }) {
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
   };
 
-  const startSecondInnings = (targetRuns) => {
+  const startNextInnings = (targetRuns, nextInningsNum) => {
     setTarget(targetRuns);
-    setInnings(2);
+    setInnings(nextInningsNum);
     setRuns(0);
     setWickets(0);
     setBalls(0);
@@ -1049,6 +1049,10 @@ export function CricketProvider({ children }) {
     setCurrentBowler(null);
     // startInnings() will be called by InningsInitScreen once the user selects players
   };
+
+  const startSecondInnings = (targetRuns) => startNextInnings(targetRuns, 2);
+  const startSuperOver = () => startNextInnings(null, 3);
+  const startSuperOverSecondInnings = (targetRuns) => startNextInnings(targetRuns, 4);
 
   const replaceStriker = (player) => {
     if (!player) return;
@@ -1499,6 +1503,8 @@ export function CricketProvider({ children }) {
         markScoringFirstRunDone,
         startInnings,
         startSecondInnings,
+        startSuperOver,
+        startSuperOverSecondInnings,
         isAppLoading,
         officials: [],
         districtStats: [],

@@ -232,19 +232,18 @@ export function processDelivery(currentState, ballInput) {
   }
 
   // 10. Check Innings & Match Termination Conditions
-  const maxLegalBalls = state.totalMatchOvers * 6;
-  const isAllOut = state.wickets >= 10;
+  const isSuperOver = state.innings === 3 || state.innings === 4;
+  const maxLegalBalls = isSuperOver ? 6 : (state.totalMatchOvers * 6);
+  const maxWickets = isSuperOver ? 2 : 10;
+  const isAllOut = state.wickets >= maxWickets;
   const isOversFinished = state.balls >= maxLegalBalls;
 
-  if (state.innings === 1) {
+  if (state.innings === 1 || state.innings === 3) {
     if (isAllOut || isOversFinished) {
       state.matchStatus = MATCH_STATES.INNINGS_BREAK;
     }
-  } else if (state.innings === 2) {
+  } else if (state.innings === 2 || state.innings === 4) {
     const isTargetChased = state.target && state.runs >= state.target;
-    const isAllOut = state.wickets >= 10;
-    const isOversFinished = state.balls >= (state.totalMatchOvers * 6);
-    
     if (isTargetChased || isAllOut || isOversFinished) {
       state.matchStatus = MATCH_STATES.MATCH_FINISHED;
     }
