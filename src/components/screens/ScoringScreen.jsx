@@ -131,13 +131,7 @@ export default function ScoringScreen() {
     return () => unsubscribe();
   }, []);
 
-  if (!activeMatchId) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 text-slate-500 font-bold">
-        Returning to matches...
-      </div>
-    );
-  }
+
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
   const teamAName = activeMatch?.teamA?.name || activeMatch?.teamA || 'TBA';
