@@ -1101,7 +1101,9 @@ export function CricketProvider({ children }) {
   };
 
   const handleRetireBatter = (isStriker, isRetiredOut) => {
-    const outName = isStriker ? striker.name : nonStriker.name;
+    if (isStriker && !striker) return;
+    if (!isStriker && !nonStriker) return;
+    const outName = isStriker ? striker?.name || striker?.full_name : nonStriker?.name || nonStriker?.full_name;
     const dismissalType = isRetiredOut ? 'Retired Out' : 'Retired Hurt';
     
     setBallHistory((prev) => [...prev, captureSnapshot()]);
