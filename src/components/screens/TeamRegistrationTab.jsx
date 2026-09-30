@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCricket } from '../../context/CricketContext';
 import { Users, Shield, Plus, X, Search, CheckCircle2, AlertTriangle, UserPlus, Camera, Trash2 } from 'lucide-react';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
@@ -277,11 +277,11 @@ export default function TeamRegistrationTab({ userRole }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Side: Teams List */}
-        <div className="md:col-span-4 space-y-4">
-          <div className="jdca-card p-4 h-[600px] overflow-y-auto">
-            <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2">
+        <div className="lg:col-span-4 space-y-4">
+          <div className="jdca-card p-4 h-[350px] lg:h-[600px] overflow-y-auto shadow-sm">
+            <h4 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2 sticky top-0 bg-white/95 backdrop-blur z-10 py-1">
               <Shield size={16} className="text-cobalt" />
               Registered District Teams
             </h4>
@@ -311,36 +311,36 @@ export default function TeamRegistrationTab({ userRole }) {
         </div>
 
         {/* Right Side: Player Assignment */}
-        <div className="md:col-span-8">
-          <div className="jdca-card p-5 h-[600px] flex flex-col">
+        <div className="lg:col-span-8">
+          <div className="jdca-card p-4 lg:p-5 h-[500px] lg:h-[600px] flex flex-col shadow-sm">
             {!activeTeam ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-                <Users size={48} className="mb-3 opacity-50" />
-                <p>Select a team to manage its players</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-xl border border-slate-100 border-dashed m-2">
+                <Users size={48} className="mb-3 opacity-30" />
+                <p className="text-sm font-medium">Select a team to manage its players</p>
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 border-b border-slate-100 pb-4 gap-4 sm:gap-0">
                   <div>
                     <h4 className="font-bold text-base text-slate-900">{activeTeam.name}</h4>
-                    <p className="text-xs text-slate-500">Currently assigned: {teamPlayers.length} players</p>
+                    <p className="text-xs text-slate-500 font-medium">Currently assigned: <span className="text-cobalt font-bold">{teamPlayers.length}</span> players</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-64">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-64">
                       <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
                       <input 
                         type="text" 
                         placeholder="Search players..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-cobalt"
+                        className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-cobalt focus:ring-2 focus:ring-cobalt/20 transition-all"
                       />
                     </div>
-                    <button onClick={() => { setNewPlayerGender(activeTeam?.gender || 'Men'); setNewPlayerDistrict(activeTeam?.district_id || JDCA_DISTRICTS[0]); setShowQuickRegister(true); }} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-1 transition"><UserPlus size={14}/> New Player</button>
+                    <button onClick={() => { setNewPlayerGender(activeTeam?.gender || 'Men'); setNewPlayerDistrict(activeTeam?.district_id || JDCA_DISTRICTS[0]); setShowQuickRegister(true); }} className="px-3 py-2 bg-cobalt/10 hover:bg-cobalt/20 text-cobalt text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition whitespace-nowrap"><UserPlus size={14}/> New Player</button>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                <div className="flex-1 overflow-y-auto pr-2 space-y-2.5 custom-scrollbar">
                   {filteredPlayers.map(player => {
                     const isAssigned = teamPlayers.includes(player.id);
                     
@@ -352,23 +352,24 @@ export default function TeamRegistrationTab({ userRole }) {
                     return (
                       <div 
                         key={player.id}
-                        className={`flex flex-col p-3 border rounded-xl transition ${isIneligible ? 'bg-slate-50 border-slate-200 opacity-70' : 'bg-white border-slate-100 hover:bg-slate-50'}`}
+                        className={`flex flex-col p-3 border rounded-xl transition-all duration-200 ${isIneligible ? 'bg-slate-50 border-slate-200 opacity-70' : 'bg-white border-slate-100 hover:border-slate-300 hover:shadow-sm'}`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                           <div className="flex items-center gap-3">
                             <img 
                               src={player.avatar || player.avatar_url || ''} 
                               alt={player.name || player.full_name}
-                              className="w-10 h-10 rounded-full bg-slate-200 object-cover"
+                              className="w-10 h-10 rounded-full bg-slate-200 object-cover shadow-sm"
                             />
                             <div>
                               <div className="font-bold text-sm text-slate-900">{player.name || player.full_name || 'Unknown Player'}</div>
-                              <div className="text-xs text-slate-500">
-                                {player.district || 'Unknown District'} • Age: {playerAge !== 99 ? playerAge : 'N/A'}
+                              <div className="text-xs text-slate-500 font-medium mt-0.5">
+                                {player.district || 'Unknown District'} • Age: <span className={playerAge !== 99 ? 'text-slate-700 font-semibold' : ''}>{playerAge !== 99 ? playerAge : 'N/A'}</span>
                               </div>
                             </div>
                           </div>
                           
+                          <div className="flex justify-end">
                           {isIneligible ? (
                             <div className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-500 cursor-not-allowed">
                               Ineligible
@@ -376,11 +377,12 @@ export default function TeamRegistrationTab({ userRole }) {
                           ) : (
                             <button
                               onClick={() => handleTogglePlayer(player.id)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isAssigned ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                              className={`px-3 py-1.5 w-full sm:w-auto rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${isAssigned ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent'}`}
                             >
                               {isAssigned ? <><CheckCircle2 size={14} /> Assigned</> : <><Plus size={14} /> Assign</>}
                             </button>
                           )}
+                          </div>
                         </div>
                         
                         {isIneligible && (
