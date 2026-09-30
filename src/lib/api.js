@@ -854,6 +854,7 @@ export const api = {
         teamA: { batting: stats1.batting, bowling: stats2.bowling },
         teamB: { batting: stats2.batting, bowling: stats1.bowling }
       },
+      innings: [stats1, stats2],
       topBatter,
       topBowler
     };

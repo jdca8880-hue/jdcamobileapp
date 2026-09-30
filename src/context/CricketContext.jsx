@@ -650,6 +650,16 @@ export function CricketProvider({ children }) {
 
         if (mergedDeliveries.length > 0) {
           const scorecard = await api.getMatchScorecard(matchId);
+          
+          // Hydrate target for 2nd/4th innings
+          if (scorecard && scorecard.innings) {
+            if (currentInning.innings_number === 2 && scorecard.innings.length >= 1) {
+              setTarget((scorecard.innings[0].runs || 0) + 1);
+            } else if (currentInning.innings_number === 4 && scorecard.innings.length >= 3) {
+              setTarget((scorecard.innings[2].runs || 0) + 1);
+            }
+          }
+
           if (scorecard && scorecard.innings && scorecard.innings.length >= currentInning.innings_number) {
             const currentStats = scorecard.innings[currentInning.innings_number - 1];
             const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
