@@ -654,9 +654,9 @@ export function CricketProvider({ children }) {
           // Hydrate target for 2nd/4th innings
           if (scorecard && scorecard.innings) {
             if (currentInning.innings_number === 2 && scorecard.innings.length >= 1) {
-              setTarget((scorecard.innings[0].runs || 0) + 1);
+              setTarget(prev => prev !== null ? prev : (scorecard.innings[0].runs || 0) + 1);
             } else if (currentInning.innings_number === 4 && scorecard.innings.length >= 3) {
-              setTarget((scorecard.innings[2].runs || 0) + 1);
+              setTarget(prev => prev !== null ? prev : (scorecard.innings[2].runs || 0) + 1);
             }
           }
 
@@ -1050,6 +1050,7 @@ export function CricketProvider({ children }) {
   const startNextInnings = (targetRuns, nextInningsNum) => {
     setTarget(targetRuns);
     setInnings(nextInningsNum);
+    setCurrentInningsId(null);
     setRuns(0);
     setWickets(0);
     setBalls(0);
