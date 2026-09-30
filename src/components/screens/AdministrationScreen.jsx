@@ -65,7 +65,7 @@ export default function AdministrationScreen() {
   const { registeredUsers, setRegisteredUsers, userRole, userId, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
   
   const filteredTabs = TABS.filter(tab => {
-    if (userRole === 'SCORER') return tab.id === 'teams' || tab.id === 'recycle_bin';
+    if (userRole === 'SCORER') return tab.id === 'teams' || tab.id === 'recycle';
     return true;
   });
 
