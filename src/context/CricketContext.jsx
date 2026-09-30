@@ -626,7 +626,7 @@ export function CricketProvider({ children }) {
             totalRuns: d.runs_total,
             wicket: d.wicket_type !== 'NONE',
             dismissalType: d.wicket_type,
-            outPlayerName: d.dismissed_player_id ? d.striker?.name : null,
+            outPlayerName: d.dismissed_player_id ? (d.striker?.full_name || d.striker?.name) : null,
             over: Math.floor(b/6) + '.' + (b%6)
           });
         });

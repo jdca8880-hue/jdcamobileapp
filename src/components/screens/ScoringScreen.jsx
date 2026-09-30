@@ -822,7 +822,7 @@ export default function ScoringScreen() {
                   onClick={async () => {
                      try {
                        const resultText = runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won` : runs === target - 1 ? 'Match Tied' : `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won`;
-                       await api.updateMatch(activeMatchId, { status: 'COMPLETED', result_text: resultText });
+                       await api.updateMatchDetails(activeMatchId, { status: 'COMPLETED', result_text: resultText });
                        alert("Match has been ended successfully.");
                        navigateTo('matches');
                      } catch (err) {
@@ -857,7 +857,7 @@ export default function ScoringScreen() {
             innings={innings}
             onApplyRevisedOvers={async (revisedOvers) => {
                try {
-                 await api.updateMatch(activeMatchId, { max_overs: revisedOvers });
+                 await api.updateMatchDetails(activeMatchId, { max_overs: revisedOvers });
                  setMatchSetup(prev => ({ ...prev, maxOvers: revisedOvers }));
                  alert(`Match overs revised to ${revisedOvers}`);
                } catch (err) {
@@ -866,7 +866,7 @@ export default function ScoringScreen() {
             }}
             onEndMatchNow={async () => {
                try {
-                 await api.updateMatch(activeMatchId, { status: 'COMPLETED', result_text: 'Match Ended Early / Abandoned' });
+                 await api.updateMatchDetails(activeMatchId, { status: 'COMPLETED', result_text: 'Match Ended Early / Abandoned' });
                  alert("Match has been ended.");
                  navigateTo('matches');
                } catch (err) {
