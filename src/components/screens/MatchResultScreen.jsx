@@ -37,6 +37,13 @@ export default function MatchResultScreen() {
 
   const highlights = useMemo(() => calculateMatchHighlights(matchData || {}), [matchData]);
 
+  const allMatchPlayers = useMemo(() => {
+    if (!matchData?.scorecard) return [];
+    const tA = matchData.scorecard.teamA.batting.map(b => ({ id: b.id, name: b.name }));
+    const tB = matchData.scorecard.teamB.batting.map(b => ({ id: b.id, name: b.name }));
+    return [...tA, ...tB].filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
+  }, [matchData]);
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen bg-slate-50">
       <div className="w-8 h-8 border-4 border-cobalt border-t-transparent rounded-full animate-spin"></div>
@@ -64,13 +71,6 @@ export default function MatchResultScreen() {
       }
     }
   };
-
-  const allMatchPlayers = useMemo(() => {
-    if (!matchData?.scorecard) return [];
-    const tA = matchData.scorecard.teamA.batting.map(b => ({ id: b.id, name: b.name }));
-    const tB = matchData.scorecard.teamB.batting.map(b => ({ id: b.id, name: b.name }));
-    return [...tA, ...tB].filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
-  }, [matchData]);
 
   return <div className="match-result-page matches-directory-page pb-24">
     <div className="result-hero-light">
