@@ -178,16 +178,19 @@ export const api = {
 
   async deleteTournament(id) {
     const timestamp = new Date().toISOString();
+    const { data: { user } } = await supabase.auth.getUser();
+    const deleted_by = user?.id || null;
+
     const { error } = await supabase
       .from('tournaments')
-      .update({ deleted_at: timestamp })
+      .update({ deleted_at: timestamp, deleted_by })
       .eq('id', id);
 
     if (error) throw error;
 
     const { error: matchError } = await supabase
       .from('matches')
-      .update({ deleted_at: timestamp })
+      .update({ deleted_at: timestamp, deleted_by })
       .eq('tournament_id', id);
       
     if (matchError) console.error("Failed to soft-delete matches:", matchError);
@@ -196,9 +199,10 @@ export const api = {
   },
 
   async deleteMatch(id) {
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from('matches')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
       .eq('id', id);
 
     if (error) throw error;
@@ -206,9 +210,10 @@ export const api = {
   },
 
   async deletePlayer(id) {
+    const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase
       .from('players')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
       .eq('id', id)
       .select();
 
@@ -223,10 +228,10 @@ export const api = {
   async getRecycleBinItems() {
     // We run these in parallel
     const [tRes, mRes, pRes, teamRes] = await Promise.all([
-      supabase.from('tournaments').select('id, name, deleted_at').not('deleted_at', 'is', null),
-      supabase.from('matches').select('id, match_format, scheduled_at, deleted_at, home_team:home_team_id(name), away_team:away_team_id(name)').not('deleted_at', 'is', null),
-      supabase.from('players').select('id, full_name, deleted_at').not('deleted_at', 'is', null),
-      supabase.from('teams').select('id, name, deleted_at').not('deleted_at', 'is', null)
+      supabase.from('tournaments').select('id, name, deleted_at, deleted_by').not('deleted_at', 'is', null),
+      supabase.from('matches').select('id, match_format, scheduled_at, deleted_at, deleted_by, home_team:home_team_id(name), away_team:away_team_id(name)').not('deleted_at', 'is', null),
+      supabase.from('players').select('id, full_name, deleted_at, deleted_by').not('deleted_at', 'is', null),
+      supabase.from('teams').select('id, name, deleted_at, deleted_by').not('deleted_at', 'is', null)
     ]);
 
     if (tRes.error) throw tRes.error;
@@ -237,21 +242,22 @@ export const api = {
     const items = [];
 
     if (tRes.data) {
-      tRes.data.forEach(t => items.push({ id: t.id, type: 'TOURNAMENT', name: t.name, deleted_at: t.deleted_at }));
+      tRes.data.forEach(t => items.push({ id: t.id, type: 'TOURNAMENT', name: t.name, deleted_at: t.deleted_at, deleted_by: t.deleted_by }));
     }
     if (mRes.data) {
       mRes.data.forEach(m => items.push({ 
         id: m.id, 
         type: 'MATCH', 
         name: `${m.home_team?.name} vs ${m.away_team?.name} (${m.match_format})`, 
-        deleted_at: m.deleted_at 
+        deleted_at: m.deleted_at,
+        deleted_by: m.deleted_by
       }));
     }
     if (pRes.data) {
-      pRes.data.forEach(p => items.push({ id: p.id, type: 'PLAYER', name: p.full_name || 'Unknown Player', deleted_at: p.deleted_at }));
+      pRes.data.forEach(p => items.push({ id: p.id, type: 'PLAYER', name: p.full_name || 'Unknown Player', deleted_at: p.deleted_at, deleted_by: p.deleted_by }));
     }
     if (teamRes.data) {
-      teamRes.data.forEach(team => items.push({ id: team.id, type: 'TEAM', name: team.name, deleted_at: team.deleted_at }));
+      teamRes.data.forEach(team => items.push({ id: team.id, type: 'TEAM', name: team.name, deleted_at: team.deleted_at, deleted_by: team.deleted_by }));
     }
     
     // Sort by deleted_at descending
@@ -266,7 +272,7 @@ export const api = {
     else if (type === 'TEAM') table = 'teams';
     else throw new Error("Invalid type");
 
-    const { error } = await supabase.from(table).update({ deleted_at: null }).eq('id', id);
+    const { error } = await supabase.from(table).update({ deleted_at: null, deleted_by: null }).eq('id', id);
     if (error) throw error;
     return true;
   },

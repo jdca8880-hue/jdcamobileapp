@@ -62,10 +62,10 @@ const INITIAL_FORMATS = [
   { name: 'Test / Days Match', overs: 'Multi-Day', ballsPerOver: 6, powerplayOvers: '-', maxBowlerOvers: 'Unlimited' },
 ];
 export default function AdministrationScreen() {
-  const { registeredUsers, setRegisteredUsers, userRole, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
+  const { registeredUsers, setRegisteredUsers, userRole, userId, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
   
   const filteredTabs = TABS.filter(tab => {
-    if (userRole === 'SCORER') return tab.id === 'teams';
+    if (userRole === 'SCORER') return tab.id === 'teams' || tab.id === 'recycle_bin';
     return true;
   });
 
@@ -453,7 +453,7 @@ export default function AdministrationScreen() {
 
       {/* ── RECYCLE BIN ─────────────────────────────────────────── */}
       {activeTab === 'recycle' && (
-        <RecycleBinTab userRole={userRole} />
+        <RecycleBinTab userRole={userRole} userId={userId} />
       )}
 
       {/* ── TAB 3: SYSTEM & SETTINGS ────────────────────────────────────── */}

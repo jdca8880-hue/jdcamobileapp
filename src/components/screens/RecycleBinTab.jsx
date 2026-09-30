@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { AlertTriangle, Check, RotateCcw, Trash2, Loader2, Database } from 'lucide-react';
 
-export default function RecycleBinTab({ userRole }) {
+export default function RecycleBinTab({ userRole, userId }) {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null);
@@ -11,7 +11,11 @@ export default function RecycleBinTab({ userRole }) {
     setIsLoading(true);
     try {
       const data = await api.getRecycleBinItems();
-      setItems(data || []);
+      let filteredData = data || [];
+      if (userRole === 'SCORER') {
+        filteredData = filteredData.filter(item => item.deleted_by === userId);
+      }
+      setItems(filteredData);
     } catch (err) {
       console.error(err);
       alert("Failed to load recycle bin items");
