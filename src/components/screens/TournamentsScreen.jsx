@@ -185,7 +185,7 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
         <span className="text-[12px] font-bold text-[#8a99b0] w-5">{String(index + 1).padStart(2, '0')}</span>
         <div>
           <div className="text-[14px] font-bold text-[#101827]">
-            {match.teamA?.name || match.teamA || match.home_team?.name || 'JBP'} <span className="text-[#8a99b0] font-medium mx-1">vs</span> {match.teamB?.name || match.teamB || match.away_team?.name || 'MDL'}
+            {match.teamA?.name || match.home_team?.name || 'JBP'} <span className="text-[#8a99b0] font-medium mx-1">vs</span> {match.teamB?.name || match.away_team?.name || 'MDL'}
           </div>
           <div className="text-[12px] text-[#596579] mt-0.5">
             {isLive ? (

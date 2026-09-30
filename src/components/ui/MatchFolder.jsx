@@ -6,8 +6,8 @@ export default function MatchFolder({ match, onOpen }) {
   const [open, setOpen] = useState(false);
   const live = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
   const completed = match.status === 'COMPLETED' || match.status === 'FINISHED';
-  const teamA = match.teamA?.name || match.teamA || 'Jabalpur XI';
-  const teamB = match.teamB?.name || match.teamB || 'Katni XI';
+  const teamA = match.teamA?.name || 'Jabalpur XI';
+  const teamB = match.teamB?.name || 'Katni XI';
   const scoreA = match.teamA?.score || '—';
   const scoreB = match.teamB?.score || '—';
 

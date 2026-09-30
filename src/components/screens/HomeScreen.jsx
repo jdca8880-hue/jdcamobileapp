@@ -406,15 +406,15 @@ export default function HomeScreen() {
                         </span>
                       </div>
                       <div className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-3">
-                        <span>{liveMatches[0].teamA?.name || liveMatches[0].teamA || 'TBA'}</span>
+                        <span>{liveMatches[0].teamA?.name || 'TBA'}</span>
                         <span className="text-xs font-semibold px-2 py-0.5 bg-white/10 rounded-md text-slate-300">VS</span>
-                        <span>{liveMatches[0].teamB?.name || liveMatches[0].teamB || 'TBA'}</span>
+                        <span>{liveMatches[0].teamB?.name || 'TBA'}</span>
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-2">
                         <MapPin size={13} className="text-slate-400" />
                         <span>{liveMatches[0].venue || 'TBA'}</span>
                         <span>•</span>
-                        <span>Toss: {liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.id === liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.name || liveMatches[0].teamA) : (liveMatches[0].teamB?.name || liveMatches[0].teamB)) : 'TBA'} elected to {liveMatches[0].toss_decision?.toLowerCase() || 'bat'}</span>
+                        <span>Toss: {liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.id === liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.name || 'TBA') : (liveMatches[0].teamB?.name || 'TBA')) : 'TBA'} elected to {liveMatches[0].toss_decision?.toLowerCase() || 'bat'}</span>
                       </div>
                     </div>
 
