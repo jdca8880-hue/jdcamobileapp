@@ -10,6 +10,7 @@ import { FREE_HIT_ALLOWED_DISMISSALS } from '../../engine/validationSchemas';
 import { motion } from 'motion/react';
 import Modal from '../ui/Modal';
 import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import { syncService } from '../../services/SyncService';
 import InningsInitScreen from './InningsInitScreen';
 import { MatchCard } from '../ui/MatchCard';
@@ -792,6 +793,53 @@ export default function ScoringScreen() {
                 >
                   Start 2nd Innings
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {matchStatus === 'MATCH_FINISHED' && (
+          <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 className="font-black text-slate-900">Match Completed</h3>
+              </div>
+              <div className="p-6 text-center">
+                <div className="text-[32px] font-black text-slate-900 leading-none mb-2">
+                  {runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won!` : 
+                   runs === target - 1 ? 'Match Tied!' : 
+                   `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won!`}
+                </div>
+                <div className="text-[14px] font-bold text-slate-500 mb-6">
+                  {runs >= target ? `Chased down ${target} runs` : 
+                   runs === target - 1 ? 'Scores are level' : 
+                   `Defended the total of ${target - 1}`}
+                </div>
+                <button 
+                  onClick={async () => {
+                     try {
+                       const resultText = runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won` : runs === target - 1 ? 'Match Tied' : `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won`;
+                       await api.updateMatch(activeMatchId, { status: 'COMPLETED', result_text: resultText });
+                       alert("Match has been ended successfully.");
+                       navigateTo('matches');
+                     } catch (err) {
+                       alert("Failed to end match: " + err.message);
+                     }
+                  }}
+                  className="w-full py-4 rounded-xl font-bold bg-jade text-white shadow-lg active:scale-95 transition-transform mb-3"
+                >
+                  End Match
+                </button>
+                {runs === target - 1 && (
+                  <button 
+                    onClick={() => {
+                      alert("Super Over functionality coming soon!");
+                    }}
+                    className="w-full py-4 rounded-xl font-bold bg-slate-800 text-white shadow-lg active:scale-95 transition-transform"
+                  >
+                    Play Super Over
+                  </button>
+                )}
               </div>
             </div>
           </div>
