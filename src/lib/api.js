@@ -224,6 +224,19 @@ export const api = {
     return true;
   },
 
+  async deleteTeam(id) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('teams')
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error("Permission denied or team not found");
+    return true;
+  },
+
   // ==========================================
   // RECYCLE BIN (SOFT DELETES)
   // ==========================================

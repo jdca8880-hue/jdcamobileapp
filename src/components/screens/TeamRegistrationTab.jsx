@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import { useCricket } from '../../context/CricketContext';
 import { Users, Shield, Plus, X, Search, CheckCircle2, AlertTriangle, UserPlus, Camera, Trash2 } from 'lucide-react';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
@@ -206,12 +206,13 @@ export default function TeamRegistrationTab({ userRole }) {
     e.stopPropagation();
     if (!window.confirm('Are you sure you want to delete this team?')) return;
     try {
-      await supabase.from("teams").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+      const { api } = await import('../../lib/api');
+      await api.deleteTeam(id);
       setTeams(prev => prev.filter(t => t.id !== id));
       if (activeTeamId === id) setActiveTeamId(null);
     } catch (err) {
       console.error(err);
-      alert('Failed to delete team.');
+      alert(err.message || 'Failed to delete team.');
     }
   };
 
@@ -299,7 +300,7 @@ export default function TeamRegistrationTab({ userRole }) {
                   >
                     <div className="font-bold text-sm text-slate-900">{team.name}</div>
                     <div className="text-xs text-slate-500 flex justify-between mt-1 items-center">
-                      <span>{team.age_category?.name || "Category"} • {team.gender}</span>
+                      <span>{team.age_category?.name || "Category"} ï¿½ {team.gender}</span>
                       <button onClick={(e) => handleDeleteTeam(team.id, e)} className="text-slate-400 hover:text-rose-500 p-1 hover:bg-rose-50 rounded transition-colors" title="Delete Team"><Trash2 size={14} /></button>
                     </div>
                   </div>
@@ -560,6 +561,7 @@ export default function TeamRegistrationTab({ userRole }) {
     </div>
   );
 }
+
 
 
 
