@@ -129,9 +129,23 @@ class SyncService {
           if (inn?.id) {
             inningsId = inn.id;
             payload.inningsId = inn.id;
+          } else {
+            // Create innings if missing so offline deliveries can sync
+            const { data: newInn } = await supabase
+              .from('innings')
+              .insert({
+                match_id: payload.matchId,
+                innings_number: Number(payload.innings) || 1
+              })
+              .select('id')
+              .single();
+            if (newInn?.id) {
+              inningsId = newInn.id;
+              payload.inningsId = newInn.id;
+            }
           }
         } catch (e) {
-          console.warn('[SyncService] Failed to auto-resolve inningsId:', e);
+          console.warn('[SyncService] Failed to auto-resolve or create inningsId:', e);
         }
       }
     }

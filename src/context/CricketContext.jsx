@@ -277,9 +277,9 @@ export function CricketProvider({ children }) {
               const freshMatches = matchesRes.value.data.map(m => ({
                 ...m,
                 id: m.match_id || m.id,
-                teamA: { id: m.home_team_id, name: m.home_team_name },
-                teamB: { id: m.away_team_id, name: m.away_team_name },
-                venue: m.venue_name
+                teamA: { id: m.home_team_id, name: m.home_team_name || m.home_team?.name },
+                teamB: { id: m.away_team_id, name: m.away_team_name || m.away_team?.name },
+                venue: m.venue_name || m.venue
               }));
               await db.matches.clear();
               await db.matches.bulkAdd(freshMatches);
@@ -536,9 +536,24 @@ export function CricketProvider({ children }) {
 
   // Hydrate Match State on refresh
   const hydrateMatchState = async (matchId) => {
-    try {
-      const { match, teamAXI, teamBXI, currentInning, deliveries } = await api.hydrateLiveMatch(matchId);
-      if (!match) return { success: false, error: 'Match not found' };
+      let match, teamAXI, teamBXI, currentInning, deliveries;
+      try {
+        const result = await api.hydrateLiveMatch(matchId);
+        match = result.match;
+        teamAXI = result.teamAXI;
+        teamBXI = result.teamBXI;
+        currentInning = result.currentInning;
+        deliveries = result.deliveries;
+      } catch (err) {
+        console.warn('[CricketContext] hydrateLiveMatch from API failed, falling back to local matches:', err);
+        match = matches.find(m => m.id === matchId);
+        teamAXI = [];
+        teamBXI = [];
+        currentInning = null;
+        deliveries = [];
+      }
+
+      if (!match) return { success: false, error: 'Match not found locally or remotely' };
 
       setMatchSetup({
         teamA: match.home_team?.name || '',
@@ -671,16 +686,36 @@ export function CricketProvider({ children }) {
             const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
 
             if (lastDel.striker_id) {
-              const strikerStat = currentStats.batting.find(bt => bt.id === lastDel.striker_id);
-              if (strikerStat) setStriker({ ...strikerStat, strikeRate: strikerStat.strikeRate });
+              let strikerStat = currentStats?.batting?.find(bt => bt.id === lastDel.striker_id);
+              if (!strikerStat) {
+                // Fallback for offline/unsynced players
+                const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.striker_id);
+                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id).reduce((sum, d) => sum + d.runs_off_bat, 0);
+                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id && d.extra_type !== 'WIDES').length;
+                strikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
+              }
+              if (strikerStat) setStriker({ ...strikerStat, strikeRate: strikerStat.strikeRate || '0.00' });
             }
             if (lastDel.non_striker_id) {
-              const nonStrikerStat = currentStats.batting.find(bt => bt.id === lastDel.non_striker_id);
-              if (nonStrikerStat) setNonStriker({ ...nonStrikerStat, strikeRate: nonStrikerStat.strikeRate });
+              let nonStrikerStat = currentStats?.batting?.find(bt => bt.id === lastDel.non_striker_id);
+              if (!nonStrikerStat) {
+                const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.non_striker_id);
+                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id).reduce((sum, d) => sum + d.runs_off_bat, 0);
+                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id && d.extra_type !== 'WIDES').length;
+                nonStrikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
+              }
+              if (nonStrikerStat) setNonStriker({ ...nonStrikerStat, strikeRate: nonStrikerStat.strikeRate || '0.00' });
             }
             if (lastDel.bowler_id) {
-              const bowlerStat = currentStats.bowling.find(bw => bw.id === lastDel.bowler_id);
-              if (bowlerStat) setCurrentBowler({ ...bowlerStat, economy: bowlerStat.economy, overs: bowlerStat.overs });
+              let bowlerStat = currentStats?.bowling?.find(bw => bw.id === lastDel.bowler_id);
+              if (!bowlerStat) {
+                const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.bowler_id);
+                const bRuns = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'BYES' && d.extra_type !== 'LEG_BYES').reduce((sum, d) => sum + d.runs_total, 0);
+                const bBalls = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'WIDES' && d.extra_type !== 'NO_BALLS').length;
+                const bWickets = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT').length;
+                bowlerStat = p ? { ...p, runsConceded: bRuns, overs: Math.floor(bBalls/6) + '.' + (bBalls%6), wickets: bWickets, maidens: 0, economy: '0.00' } : null;
+              }
+              if (bowlerStat) setCurrentBowler({ ...bowlerStat, economy: bowlerStat.economy || '0.00', overs: bowlerStat.overs || '0.0' });
               setLastOverBowlerId(lastDel.bowler_id);
             }
           }
