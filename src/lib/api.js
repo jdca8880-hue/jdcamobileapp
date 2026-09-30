@@ -719,7 +719,7 @@ export const api = {
     // 3. Fetch deliveries with players
     const { data: deliveriesData } = await supabase
       .from('deliveries')
-      .select('*, striker:striker_id(name), bowler:bowler_id(name)')
+      .select('*, striker:striker_id(full_name), bowler:bowler_id(full_name)')
       .eq('match_id', matchId);
 
     const innings = inningsData || [];
