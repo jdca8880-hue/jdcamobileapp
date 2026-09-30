@@ -619,7 +619,7 @@ export default function HomeScreen() {
                         <div key={i} className={`p-3.5 rounded-2xl ${bg} border flex items-center justify-between hover:scale-[1.02] transition-all`}>
                           <div>
                             <div className="text-xs font-black text-slate-900">
-                              {m.teamA?.name || m.teamA} vs {m.teamB?.name || m.teamB}
+                              {m.teamA?.name || 'TBA'} vs {m.teamB?.name || 'TBA'}
                             </div>
                             <div className="text-xs text-slate-500 mt-0.5 font-medium">
                               {m.date || 'Tomorrow'} • {m.venue || 'Ranital Ground'}

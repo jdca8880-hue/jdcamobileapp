@@ -10,8 +10,8 @@ export const MatchCard = ({ match, onClick }) => {
   // Fetch dynamic data if available
   const dateStr = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : 'Date TBD';
   const playerOfMatch = match.man_of_the_match || match.playerOfMatch || null;
-  const teamAName = match.home_team?.name || match.teamA?.name || match.teamA || 'Home Team';
-  const teamBName = match.away_team?.name || match.teamB?.name || match.teamB || 'Away Team';
+  const teamAName = match.home_team?.name || match.teamA?.name || 'Home Team';
+  const teamBName = match.away_team?.name || match.teamB?.name || 'Away Team';
 
   // Image placeholders
   const bannerImage = match.bannerImage || "/imageformatchescard.png";
