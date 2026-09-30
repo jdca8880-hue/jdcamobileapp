@@ -28,7 +28,7 @@ export default function ScoringScreen() {
     matchSetup, setMatchSetup, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
-    tournaments, setActiveMatchId
+    tournaments, setActiveMatchId, isAppLoading
   } = useCricket();
 
   const haptics = useHaptics();
@@ -61,7 +61,7 @@ export default function ScoringScreen() {
   // This prevents the scorer from getting stuck on a "no network" error after a stale session
   useEffect(() => {
     if (!activeMatchId || !matches) return;
-    if (matches.length === 0) return; // still loading
+    if (isAppLoading) return; // wait until initial app data is loaded
     const exists = matches.some(m => m.id === activeMatchId);
     if (!exists) {
       console.warn('[ScoringScreen] Stored activeMatchId not found in match list. Clearing stale session.');
@@ -69,7 +69,7 @@ export default function ScoringScreen() {
       setHydrationError(null);
       navigateTo('matches');
     }
-  }, [activeMatchId, matches]);
+  }, [activeMatchId, matches, isAppLoading]);
 
   useEffect(() => {
     let isMounted = true;
