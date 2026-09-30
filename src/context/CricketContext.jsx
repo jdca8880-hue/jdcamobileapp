@@ -274,7 +274,13 @@ export function CricketProvider({ children }) {
 
             // Reconcile Matches
             if (matchesRes.status === 'fulfilled' && !matchesRes.value.error && matchesRes.value.data) {
-              const freshMatches = matchesRes.value.data;
+              const freshMatches = matchesRes.value.data.map(m => ({
+                ...m,
+                id: m.match_id || m.id,
+                teamA: { id: m.home_team_id, name: m.home_team_name },
+                teamB: { id: m.away_team_id, name: m.away_team_name },
+                venue: m.venue_name
+              }));
               await db.matches.clear();
               await db.matches.bulkAdd(freshMatches);
               setMatches(freshMatches);

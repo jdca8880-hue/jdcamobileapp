@@ -257,7 +257,10 @@ export default function ScoringScreen() {
         <p className="text-gray-500 dark:text-gray-400 mt-2">Error: {hydrationError}</p>
         <p className="text-gray-400 text-sm mt-1">Please check your network connection and try again.</p>
         <button 
-          onClick={() => navigateTo('home')}
+          onClick={() => {
+            setActiveMatchId(null);
+            navigateTo('home');
+          }}
           className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold"
         >
           Return Home
