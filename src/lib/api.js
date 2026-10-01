@@ -534,9 +534,11 @@ export const api = {
         }
       }
     } else {
+      console.error("[api.js] Database Error during match creation:", error);
       const customError = new Error('UNKNOWN_DATABASE_ERROR');
       customError.code = 'UNKNOWN_DATABASE_ERROR';
       customError.details = error;
+      customError.originalMessage = error.message;
       throw customError;
     }
 

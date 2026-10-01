@@ -72,21 +72,21 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
         
         const createdMatches = await api.createDetailedMatches(tournament.id, format, matchesToInsert);
         
-        if (createdMatches && createdMatches.length > 0) {
+        if (createdMatches && createdMatches.data && createdMatches.data.length > 0) {
           if (refreshAdminData) {
             await refreshAdminData();
           }
           // Set the newly created match as active and navigate to match setup
-          setActiveMatchId(createdMatches[0].id);
+          setActiveMatchId(createdMatches.data[0].id);
           onClose();
           navigateTo('/match-setup');
         } else {
-          alert("Failed to create match");
+          alert("Failed to create match. The database may have rejected it.");
         }
       }
     } catch (err) {
       console.error(err);
-      alert("Error saving match: " + (err.message || err));
+      alert("Error saving match: " + (err.originalMessage || err.message || err));
     } finally {
       setIsSubmitting(false);
     }
