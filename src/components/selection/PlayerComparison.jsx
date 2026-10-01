@@ -19,7 +19,7 @@ export default function PlayerComparison({ players, onClose }) {
             <th className="p-3 font-semibold text-slate-500 uppercase text-xs w-48">Metric</th>
             {players.map(p => (
               <th key={p.id} className="p-3 font-bold text-slate-900 border-l border-slate-100 min-w-[150px]">
-                {p.name}
+                {p.full_name}
               </th>
             ))}
           </tr>
@@ -29,7 +29,7 @@ export default function PlayerComparison({ players, onClose }) {
             <td className="p-3 font-medium text-slate-600">Role & District</td>
             {players.map(p => (
               <td key={p.id} className="p-3 border-l border-slate-100">
-                <div className="font-semibold">{p.role}</div>
+                <div className="font-semibold">{p.primary_role}</div>
                 <div className="text-xs text-slate-500">{p.district}</div>
               </td>
             ))}

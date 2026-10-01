@@ -8,10 +8,10 @@ import { Activity } from 'lucide-react';
 export default function PerformanceGraphs({ player }) {
   const [activeTab, setActiveTab] = useState('primary');
 
-  const isBatter = player.role === 'Batter' || player.primaryRole?.includes('Bat');
-  const isBowler = player.role === 'Bowler' || player.primaryRole?.includes('Bowl') || player.primaryRole?.includes('Fast') || player.primaryRole?.includes('Spin');
-  const isWK = player.role === 'Wicket Keeper' || player.primaryRole?.includes('Keeper');
-  const isAllRounder = player.role === 'All-Rounder' || player.primaryRole?.includes('All');
+  const isBatter = player.primary_role === 'Batter' || player.primary_role?.includes('Bat');
+  const isBowler = player.primary_role === 'Bowler' || player.primary_role?.includes('Bowl') || player.primary_role?.includes('Fast') || player.primary_role?.includes('Spin');
+  const isWK = player.primary_role === 'Wicket Keeper' || player.primary_role?.includes('Keeper');
+  const isAllRounder = player.primary_role === 'All-Rounder' || player.primary_role?.includes('All');
 
   const history = [...(player.matchHistory || [])].reverse();
 

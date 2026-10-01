@@ -28,14 +28,14 @@ export default function TeamRegistrationTab({ userRole }) {
   const [ageCategories, setAgeCategories] = useState([]);
   const [dbDistricts, setDbDistricts] = useState([]);
   const [showQuickRegister, setShowQuickRegister] = useState(false);
-  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newPlayerFullName, setNewPlayerFullName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
-  const [newPlayerRole, setNewPlayerRole] = useState('Batter');
-  const [newPlayerBatting, setNewPlayerBatting] = useState('Right-Hand Bat');
-  const [newPlayerBowling, setNewPlayerBowling] = useState('None (Pure Batter)');
-  const [newPlayerDob, setNewPlayerDob] = useState('');
+  const [newPlayerPrimaryRole, setNewPlayerPrimaryRole] = useState('Batter');
+  const [newPlayerBattingStyle, setNewPlayerBattingStyle] = useState('Right-Hand Bat');
+  const [newPlayerBowlingStyle, setNewPlayerBowlingStyle] = useState('None (Pure Batter)');
+  const [newPlayerDateOfBirth, setNewPlayerDateOfBirth] = useState('');
   const [newPlayerGender, setNewPlayerGender] = useState('Men');
-  const [newPlayerAvatar, setNewPlayerAvatar] = useState('');
+  const [newPlayerAvatarUrl, setNewPlayerAvatarUrl] = useState('');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [newPlayerDistrict, setNewPlayerDistrict] = useState('Jabalpur');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -47,16 +47,18 @@ export default function TeamRegistrationTab({ userRole }) {
     setIsUploadingAvatar(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', 'jdcaunsignedupload');
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'jdcaunsignedupload';
+    formData.append('upload_preset', uploadPreset);
 
     try {
-      const res = await fetch('https://api.cloudinary.com/v1_1/gglzv8pn/image/upload', {
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'gglzv8pn';
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
       if (data.secure_url) {
-        setNewPlayerAvatar(data.secure_url);
+        setNewPlayerAvatarUrl(data.secure_url);
       } else if (data.error) {
         alert(data.error.message || 'Failed to upload image.');
       }
@@ -69,16 +71,16 @@ export default function TeamRegistrationTab({ userRole }) {
   };
 
   const handleQuickRegister = async () => {
-    if (!newPlayerName.trim()) return;
+    if (!newPlayerFullName.trim()) return;
     setIsRegistering(true);
     try {
-      await registerPlayer({ name: newPlayerName, phone: newPlayerPhone, district: newPlayerDistrict, dob: newPlayerDob || '2000-01-01', gender: newPlayerGender, role: newPlayerRole, battingStyle: newPlayerBatting, bowlingStyle: newPlayerBowling, avatar: newPlayerAvatar });
+      await registerPlayer({ full_name: newPlayerFullName, phone: newPlayerPhone, district: newPlayerDistrict, date_of_birth: newPlayerDateOfBirth || '2000-01-01', gender: newPlayerGender, primary_role: newPlayerPrimaryRole, batting_style: newPlayerBattingStyle, bowling_style: newPlayerBowlingStyle, avatar_url: newPlayerAvatarUrl });
       setShowQuickRegister(false);
-      setNewPlayerName('');
+      setNewPlayerFullName('');
       setNewPlayerPhone('');
-      setNewPlayerAvatar('');
+      setNewPlayerAvatarUrl('');
       // Wait briefly for sync then search for the newly created player
-      setTimeout(() => setSearchQuery(newPlayerName), 500);
+      setTimeout(() => setSearchQuery(newPlayerFullName), 500);
     } catch (err) {
       console.error(err);
       alert('Failed to register player');
@@ -484,7 +486,7 @@ export default function TeamRegistrationTab({ userRole }) {
                                     <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="flex flex-col items-center mb-4">
                 <label className="relative cursor-pointer group block">
-                  <CloudinaryAvatar src={newPlayerAvatar} alt="Avatar" className={"w-20 h-20 rounded-full object-cover border-[3px] border-slate-100 shadow-sm transition " + (isUploadingAvatar ? "opacity-50" : "group-hover:opacity-80")} />
+                  <CloudinaryAvatar src={newPlayerAvatarUrl} alt="Avatar" className={"w-20 h-20 rounded-full object-cover border-[3px] border-slate-100 shadow-sm transition " + (isUploadingAvatar ? "opacity-50" : "group-hover:opacity-80")} />
                   <div className="absolute bottom-0 right-0 w-6 h-6 bg-cobalt rounded-full flex items-center justify-center text-white border-2 border-white shadow-sm">
                     {isUploadingAvatar ? (
                       <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -498,7 +500,7 @@ export default function TeamRegistrationTab({ userRole }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name *</label>
-                <input type="text" value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm" placeholder="Player Name" />
+                <input type="text" value={newPlayerFullName} onChange={e => setNewPlayerFullName(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm" placeholder="Player Name" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Phone Number (Optional)</label>
@@ -506,7 +508,7 @@ export default function TeamRegistrationTab({ userRole }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Date of Birth *</label>
-                <input type="date" value={newPlayerDob} onChange={e => setNewPlayerDob(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm" />
+                <input type="date" value={newPlayerDateOfBirth} onChange={e => setNewPlayerDateOfBirth(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm" />
               </div>
                             <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Gender</label>
@@ -523,7 +525,7 @@ export default function TeamRegistrationTab({ userRole }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Primary Role</label>
-                <select value={newPlayerRole} onChange={e => setNewPlayerRole(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm bg-white">
+                <select value={newPlayerPrimaryRole} onChange={e => setNewPlayerPrimaryRole(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm bg-white">
                   <option value="Batter">Batter</option>
                   <option value="Bowler">Bowler</option>
                   <option value="All-Rounder">All-Rounder</option>
@@ -532,14 +534,14 @@ export default function TeamRegistrationTab({ userRole }) {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Batting Style</label>
-                <select value={newPlayerBatting} onChange={e => setNewPlayerBatting(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm bg-white">
+                <select value={newPlayerBattingStyle} onChange={e => setNewPlayerBattingStyle(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm bg-white">
                   <option value="Right-Hand Bat">Right-Hand Bat</option>
                   <option value="Left-Hand Bat">Left-Hand Bat</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bowling Style</label>
-                <select value={newPlayerBowling} onChange={e => setNewPlayerBowling(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm bg-white">
+                <select value={newPlayerBowlingStyle} onChange={e => setNewPlayerBowlingStyle(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:border-cobalt text-sm bg-white">
                   <option value="None (Pure Batter)">None (Pure Batter)</option>
                   <option value="Right-Arm Fast">Right-Arm Fast</option>
                   <option value="Right-Arm Medium Fast">Right-Arm Medium Fast</option>
@@ -553,7 +555,7 @@ export default function TeamRegistrationTab({ userRole }) {
             </div>
             <div className="p-4 border-t bg-slate-50 flex justify-end gap-2">
               <button onClick={() => setShowQuickRegister(false)} className="px-4 py-2 text-sm font-bold text-slate-500">Cancel</button>
-              <button onClick={handleQuickRegister} disabled={!newPlayerName || !newPlayerDob || isRegistering || isUploadingAvatar} className="px-4 py-2 text-sm font-bold bg-cobalt text-white rounded-lg disabled:opacity-50 flex items-center gap-2">
+              <button onClick={handleQuickRegister} disabled={!newPlayerFullName || !newPlayerDateOfBirth || isRegistering || isUploadingAvatar} className="px-4 py-2 text-sm font-bold bg-cobalt text-white rounded-lg disabled:opacity-50 flex items-center gap-2">
                 {isRegistering ? 'Registering...' : 'Register Player'}
               </button>
             </div>

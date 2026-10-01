@@ -21,7 +21,7 @@ export default function PlayerList({ players, activeTeam, selectedPlayerId, onSe
         const isActive = selectedPlayerId === p.id;
         
         let statString = '';
-        if (p.role === 'Bowler') {
+        if (p.primary_role === 'Bowler') {
           statString = `${p.matches} Mat · ${p.wickets} Wkts · Econ ${p.economy}`;
         } else {
           statString = `${p.matches} Mat · ${p.careerRuns} Runs · Avg ${p.battingAvg}`;
@@ -37,13 +37,13 @@ export default function PlayerList({ players, activeTeam, selectedPlayerId, onSe
           >
             {/* Avatar */}
             <div className="w-10 h-10 rounded bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center mr-3">
-              <CloudinaryAvatar src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+              <CloudinaryAvatar src={p.avatar_url} alt={p.full_name} className="w-full h-full object-cover" />
             </div>
 
             {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-0.5">
-                <h3 className="text-sm font-bold text-slate-900 truncate pr-2">{p.name}</h3>
+                <h3 className="text-sm font-bold text-slate-900 truncate pr-2">{p.full_name}</h3>
                 
                 {/* Status Badges */}
                 <div className="flex items-center gap-1 shrink-0">
@@ -69,13 +69,13 @@ export default function PlayerList({ players, activeTeam, selectedPlayerId, onSe
               </div>
 
               <div className="flex items-center text-xs text-slate-600 mb-1.5">
-                <span className="font-semibold">{p.role}</span>
+                <span className="font-semibold">{p.primary_role}</span>
                 <span className="mx-1.5">·</span>
-                <span>{p.battingStyle}</span>
-                {p.bowlingStyle !== 'None' && (
+                <span>{p.batting_style}</span>
+                {p.bowling_style !== 'None' && (
                   <>
                     <span className="mx-1.5">·</span>
-                    <span>{p.bowlingStyle}</span>
+                    <span>{p.bowling_style}</span>
                   </>
                 )}
               </div>

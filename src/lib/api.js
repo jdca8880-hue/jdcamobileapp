@@ -118,8 +118,8 @@ export const api = {
         format: tournamentData.format || 'T20',
         age_category_id: tournamentData.age_category_id || defaults.age_category_id,
         gender: tournamentData.gender || 'Men',
-        start_date: tournamentData.startDate || null,
-        end_date: tournamentData.endDate || null,
+        start_date: tournamentData.start_date || tournamentData.startDate || null,
+        end_date: tournamentData.end_date || tournamentData.endDate || null,
         status: tournamentData.status || 'UPCOMING'
       })
       .select()
@@ -151,8 +151,8 @@ export const api = {
         format: tournamentData.format,
         age_category_id: tournamentData.age_category_id,
         gender: tournamentData.gender,
-        start_date: tournamentData.startDate || null,
-        end_date: tournamentData.endDate || null,
+        start_date: tournamentData.start_date !== undefined ? tournamentData.start_date : (tournamentData.startDate || null),
+        end_date: tournamentData.end_date !== undefined ? tournamentData.end_date : (tournamentData.endDate || null),
         status: tournamentData.status
       })
       .eq('id', id)
@@ -468,15 +468,15 @@ export const api = {
     if (!matchesArray || matchesArray.length === 0) return [];
     
     const matchesToInsert = matchesArray.map(m => {
-      if (!m.homeTeamId || !m.awayTeamId) {
+      if (!m.home_team_id && !m.homeTeamId) {
         throw new Error("Please select both Home and Away teams for all matches.");
       }
-      const matchFmt = m.format || format || 'T20';
-      const scheduledVal = m.date || m.scheduledAt;
+      const matchFmt = m.match_format || m.format || format || 'T20';
+      const scheduledVal = m.scheduled_at || m.date || m.scheduledAt;
       return {
         tournament_id: tournamentId,
-        home_team_id: m.homeTeamId || null,
-        away_team_id: m.awayTeamId || null,
+        home_team_id: m.home_team_id || m.homeTeamId || null,
+        away_team_id: m.away_team_id || m.awayTeamId || null,
         scheduled_at: scheduledVal ? new Date(scheduledVal).toISOString() : new Date().toISOString(),
       status: 'SCHEDULED',
       match_format: matchFmt,
@@ -504,9 +504,14 @@ export const api = {
 
   async updateMatchDetails(matchId, matchData) {
     const updatePayload = {};
-    if (matchData.homeTeamId !== undefined) updatePayload.home_team_id = matchData.homeTeamId;
-    if (matchData.awayTeamId !== undefined) updatePayload.away_team_id = matchData.awayTeamId;
-    if (matchData.scheduledAt !== undefined || matchData.date !== undefined) updatePayload.scheduled_at = matchData.scheduledAt ? new Date(matchData.scheduledAt).toISOString() : (matchData.date ? new Date(matchData.date).toISOString() : new Date().toISOString());
+    if (matchData.home_team_id !== undefined) updatePayload.home_team_id = matchData.home_team_id;
+    else if (matchData.homeTeamId !== undefined) updatePayload.home_team_id = matchData.homeTeamId;
+    
+    if (matchData.away_team_id !== undefined) updatePayload.away_team_id = matchData.away_team_id;
+    else if (matchData.awayTeamId !== undefined) updatePayload.away_team_id = matchData.awayTeamId;
+    
+    const scheduledVal = matchData.scheduled_at || matchData.scheduledAt || matchData.date;
+    if (scheduledVal !== undefined) updatePayload.scheduled_at = new Date(scheduledVal).toISOString();
     if (matchData.format !== undefined) updatePayload.match_format = matchData.format;
     if (matchData.max_overs !== undefined) {
       updatePayload.max_overs = matchData.max_overs;
@@ -659,8 +664,8 @@ export const api = {
       .select('*, player:player_id(*)')
       .eq('match_id', matchId);
 
-    const teamAXI = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...r.player, name: r.player.full_name || r.player.name, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
-    const teamBXI = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...r.player, name: r.player.full_name || r.player.name, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
+    const home_team_roster = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
+    const away_team_roster = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
 
     // 3. Fetch Innings
     const { data: inningsData } = await supabase
@@ -684,8 +689,8 @@ export const api = {
 
     return {
       match,
-      teamAXI,
-      teamBXI,
+      home_team_roster,
+      away_team_roster,
       currentInning,
       deliveries
     };
@@ -843,21 +848,25 @@ export const api = {
       date: matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Unknown Date',
       resultText: matchData.result_text || matchData.status,
       manOfTheMatch: matchData.man_of_the_match ? { id: matchData.man_of_the_match.id, name: matchData.man_of_the_match.full_name } : null,
-      teamA: {
+      home_team: {
+        id: matchData.home_team_id,
         name: matchData.home_team?.name || 'Home Team',
+        short_name: matchData.home_team?.short_name || 'HOM',
         score: innings.length > 0 ? `${stats1.runs}/${stats1.wickets}` : '',
         overs: innings.length > 0 ? `(${stats1.overs} ov)` : '',
         extras: stats1.extras
       },
-      teamB: {
+      away_team: {
+        id: matchData.away_team_id,
         name: matchData.away_team?.name || 'Away Team',
+        short_name: matchData.away_team?.short_name || 'AWA',
         score: innings.length > 1 ? `${stats2.runs}/${stats2.wickets}` : '',
         overs: innings.length > 1 ? `(${stats2.overs} ov)` : '',
         extras: stats2.extras
       },
       scorecard: {
-        teamA: { batting: stats1.batting, bowling: stats2.bowling },
-        teamB: { batting: stats2.batting, bowling: stats1.bowling }
+        home_team: { batting: stats1.batting, bowling: stats2.bowling },
+        away_team: { batting: stats2.batting, bowling: stats1.bowling }
       },
       innings: [stats1, stats2],
       topBatter,
@@ -1017,13 +1026,13 @@ export const api = {
   async registerPlayer(playerData) {
     // Map form fields to schema
     const p = {
-      full_name: playerData.name || 'New Player',
-      date_of_birth: playerData.dob || '2000-01-01',
+      full_name: playerData.full_name || 'New Player',
+      date_of_birth: playerData.date_of_birth || '2000-01-01',
       gender: playerData.gender === 'Women' ? 'Women' : 'Men',
-      primary_role: playerData.role || 'Batter',
-      batting_style: playerData.battingStyle || 'Right-Hand Bat',
-      bowling_style: playerData.bowlingStyle || 'None (Pure Batter)',
-      avatar_url: playerData.avatar || null,
+      primary_role: playerData.primary_role || 'Batter',
+      batting_style: playerData.batting_style || 'Right-Hand Bat',
+      bowling_style: playerData.bowling_style || 'None (Pure Batter)',
+      avatar_url: playerData.avatar_url || null,
       phone: playerData.phone || null
     };
 

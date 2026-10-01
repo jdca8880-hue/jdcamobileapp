@@ -11,7 +11,7 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
   if (initialData?.scheduled_at || initialData?.date) {
     const d = new Date(initialData.scheduled_at || initialData.date);
     if (!isNaN(d.getTime())) {
-      formattedDate = d.toISOString().split('T')[0];
+      formattedDate = d.toISOString().slice(0, 16);
     }
   }
 
@@ -132,8 +132,8 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
             </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+            <div className="w-full sm:w-1/2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Format</label>
               <select 
                 value={format} 
@@ -148,10 +148,10 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
               </select>
             </div>
             
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date (Optional)</label>
+            <div className="w-full sm:w-1/2">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date & Time (Optional)</label>
               <input 
-                type="date" 
+                type="datetime-local" 
                 value={scheduledAt} 
                 onChange={(e) => setScheduledAt(e.target.value)}
                 className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
@@ -159,8 +159,8 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
             </div>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+            <div className="w-full sm:w-1/2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Venue (Optional)</label>
               <input 
                 type="text" 
@@ -171,7 +171,7 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
               />
             </div>
             
-            <div>
+            <div className="w-full sm:w-1/2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Umpire (Optional)</label>
               <select 
                 value={umpireName} 

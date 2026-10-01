@@ -12,10 +12,10 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
 
   const matchIsPaused = (isPaused && activeMatchId === match.id) || (typeof localStorage !== 'undefined' && localStorage.getItem(`jdca_match_paused_${match.id}`) === 'true');
   const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
-  const teamAName = match.home_team?.name || match.teamA?.name || match.team1?.name || 'Home Team';
-  const teamBName = match.away_team?.name || match.teamB?.name || match.team2?.name || 'Away Team';
-  const teamAShort = match.home_team?.short_name || match.teamA?.short_name || teamAName.substring(0, 3).toUpperCase();
-  const teamBShort = match.away_team?.short_name || match.teamB?.short_name || teamBName.substring(0, 3).toUpperCase();
+  const teamAName = match.home_team?.name || 'Home Team';
+  const teamBName = match.away_team?.name || 'Away Team';
+  const teamAShort = match.home_team?.short_name || teamAName.substring(0, 3).toUpperCase();
+  const teamBShort = match.away_team?.short_name || teamBName.substring(0, 3).toUpperCase();
   const tournamentName = match.tournaments?.name || match.tournament?.name || match.tournament || 'JDCA Championship';
   const venueName = match.venue_name || match.venue || 'Cricket Ground';
   const matchFormat = match.match_format || match.format || 'T20';
@@ -177,7 +177,7 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
             </span>
           </div>
           <span className="text-sm font-black text-slate-900 tabular-nums">
-            {match.teamA?.score || match.home_team_score || (isLive ? 'Batting' : '0/0')}
+            {match.home_team?.score || (isLive ? 'Batting' : '0/0')}
           </span>
         </div>
 
@@ -192,7 +192,7 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
             </span>
           </div>
           <span className="text-sm font-black text-slate-900 tabular-nums">
-            {match.teamB?.score || match.away_team_score || (isLive ? 'Yet to bat' : '0/0')}
+            {match.away_team?.score || (isLive ? 'Yet to bat' : '0/0')}
           </span>
         </div>
       </div>
@@ -203,9 +203,9 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
           <MapPin size={11} className="text-slate-400 shrink-0" />
           <span className="truncate">{venueName}</span>
         </span>
-        {match.teamA?.overs && (
+        {match.home_team?.overs && (
           <span className="font-semibold text-emerald-600 shrink-0">
-            {match.teamA.overs} ov
+            {match.home_team.overs} ov
           </span>
         )}
       </div>

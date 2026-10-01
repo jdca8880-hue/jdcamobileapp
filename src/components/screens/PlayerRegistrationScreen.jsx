@@ -13,15 +13,15 @@ const BOWLING_STYLES = ['None (Pure Batter)', 'Right-Arm Fast', 'Right-Arm Mediu
 export default function PlayerRegistrationScreen() {
   const { registerPlayer, goBack } = useCricket();
 
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('Batter');
-  const [battingStyle, setBattingStyle] = useState('Right-Hand Bat');
-  const [bowlingStyle, setBowlingStyle] = useState('None (Pure Batter)');
+  const [full_name, setFullName] = useState('');
+  const [primary_role, setPrimaryRole] = useState('Batter');
+  const [batting_style, setBattingStyle] = useState('Right-Hand Bat');
+  const [bowling_style, setBowlingStyle] = useState('None (Pure Batter)');
   const [district, setDistrict] = useState('Jabalpur');
   const [category, setCategory] = useState('Senior');
-  const [dob, setDob] = useState('');
+  const [date_of_birth, setDob] = useState('');
   const [gender, setGender] = useState('Men');
-  const [avatar, setAvatar] = useState('');
+  const [avatar_url, setAvatarUrl] = useState('');
   const [phone, setPhone] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
@@ -45,16 +45,18 @@ export default function PlayerRegistrationScreen() {
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', 'jdcaunsignedupload');
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'jdcaunsignedupload';
+    formData.append('upload_preset', uploadPreset);
 
     try {
-      const res = await fetch('https://api.cloudinary.com/v1_1/gglzv8pn/image/upload', {
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'gglzv8pn';
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
       if (data.secure_url) {
-        setAvatar(data.secure_url);
+        setAvatarUrl(data.secure_url);
       } else if (data.error) {
         alert(data.error.message || 'Failed to upload image.');
       }
@@ -71,7 +73,7 @@ export default function PlayerRegistrationScreen() {
     setFormErrors({});
 
     const formData = {
-      name, role, battingStyle, bowlingStyle, district, category, dob, gender, avatar, phone
+      full_name, primary_role, batting_style, bowling_style, district, category, date_of_birth, gender, avatar_url, phone
     };
 
     const validation = PlayerRegistrationSchema.safeParse(formData);
@@ -130,7 +132,7 @@ export default function PlayerRegistrationScreen() {
             
             <div className="flex flex-col items-center mb-6">
               <label className="relative mb-3 cursor-pointer group block">
-                <CloudinaryAvatar src={avatar} alt="Preview" className={`w-24 h-24 rounded-full object-cover border-[3px] border-white shadow-md transition ${isUploading ? 'opacity-50' : 'group-hover:opacity-80'}`} />
+                <CloudinaryAvatar src={avatar_url} alt="Preview" className={`w-24 h-24 rounded-full object-cover border-[3px] border-white shadow-md transition ${isUploading ? 'opacity-50' : 'group-hover:opacity-80'}`} />
                 <div className="absolute bottom-0 right-0 w-7 h-7 bg-[#2457D6] rounded-full flex items-center justify-center text-white border-2 border-white shadow-sm">
                   {isUploading ? (
                     <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -142,7 +144,7 @@ export default function PlayerRegistrationScreen() {
               </label>
               <div className="flex gap-2">
                 {avatarPresets.map((preset, idx) => (
-                  <button key={idx} type="button" onClick={() => setAvatar(preset)} className={`w-8 h-8 rounded-full border-2 ${avatar === preset ? 'border-[#2457D6]' : 'border-transparent opacity-50'}`}>
+                  <button key={idx} type="button" onClick={() => setAvatarUrl(preset)} className={`w-8 h-8 rounded-full border-2 ${avatar_url === preset ? 'border-[#2457D6]' : 'border-transparent opacity-50'}`}>
                     <CloudinaryAvatar src={preset} alt="" className="w-full h-full rounded-full object-cover" />
                   </button>
                 ))}
@@ -153,16 +155,16 @@ export default function PlayerRegistrationScreen() {
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Full Name *</label>
                 <input 
-                  type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Rahul Sharma"
-                  className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.name ? 'border-[#F05A47]' : 'border-transparent'}`}
+                  type="text" required value={full_name} onChange={e => setFullName(e.target.value)} placeholder="e.g. Rahul Sharma"
+                  className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.full_name ? 'border-[#F05A47]' : 'border-transparent'}`}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Date of Birth *</label>
                   <input 
-                    type="date" required value={dob} onChange={e => setDob(e.target.value)}
-                    className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.dob ? 'border-[#F05A47]' : 'border-transparent'}`}
+                    type="date" required value={date_of_birth} onChange={e => setDob(e.target.value)}
+                    className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.date_of_birth ? 'border-[#F05A47]' : 'border-transparent'}`}
                   />
                 </div>
                 <div>
@@ -201,20 +203,20 @@ export default function PlayerRegistrationScreen() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Primary Role</label>
-                <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
+                <select value={primary_role} onChange={e => setPrimaryRole(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Batting Style</label>
-                  <select value={battingStyle} onChange={e => setBattingStyle(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[12px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
+                  <select value={batting_style} onChange={e => setBattingStyle(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[12px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
                     {BATTING_STYLES.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Bowling Style</label>
-                  <select value={bowlingStyle} onChange={e => setBowlingStyle(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[12px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
+                  <select value={bowling_style} onChange={e => setBowlingStyle(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[12px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
                     {BOWLING_STYLES.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>

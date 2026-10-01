@@ -99,11 +99,11 @@ export default function Shortlist({
           const isSelected = selectedPlayerId === player.id;
           const isInCompare = compareIds.includes(player.id);
           const isBowler =
-            player.role === 'Bowler' ||
-            player.primaryRole?.includes('Bowl') ||
-            player.primaryRole?.includes('Fast') ||
-            player.primaryRole?.includes('Spin');
-          const t = ROLE_THEMES[player.role] || DEFAULT_THEME;
+            player.primary_role === 'Bowler' ||
+            player.primary_role?.includes('Bowl') ||
+            player.primary_role?.includes('Fast') ||
+            player.primary_role?.includes('Spin');
+          const t = ROLE_THEMES[player.primary_role] || DEFAULT_THEME;
 
           return (
             <div
@@ -117,17 +117,17 @@ export default function Shortlist({
                 {/* IDENTITY */}
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <img
-                    src={player.avatar}
-                    alt={player.name}
+                    src={player.avatar_url}
+                    alt={player.full_name}
                     className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-semibold text-sm text-slate-900 truncate">
-                        {player.name}
+                        {player.full_name}
                       </span>
                       <span className={`text-xs font-semibold px-1.5 py-0.5 border rounded uppercase tracking-wide ${t.pill}`}>
-                        {player.role === 'Wicket Keeper' ? 'WK' : player.role}
+                        {player.primary_role === 'Wicket Keeper' ? 'WK' : player.primary_role}
                       </span>
                       <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded">
                         {player.district}
@@ -137,9 +137,9 @@ export default function Shortlist({
                       </span>
                     </div>
                     <div className="text-xs text-slate-400 font-normal truncate mt-0.5">
-                      <span className="text-slate-600 font-medium">{player.primaryRole || player.role}</span>
+                      <span className="text-slate-600 font-medium">{player.primary_role}</span>
                       <span className="mx-1.5">·</span>
-                      <span>{player.battingStyle}</span>
+                      <span>{player.batting_style}</span>
                     </div>
                   </div>
                 </div>

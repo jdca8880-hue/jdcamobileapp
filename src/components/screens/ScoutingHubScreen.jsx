@@ -40,17 +40,17 @@ export default function ScoutingHubScreen() {
         : player.category === selectedAgeCategory;
 
     const matchesRole = 
-      selectedRoleFilter === 'Top Batsmen' ? (player.role || '').includes('Batter') :
-      selectedRoleFilter === 'Top Bowlers' ? (player.role || '').includes('Bowler') :
-      (player.role || '').includes('All-Rounder');
+      selectedRoleFilter === 'Top Batsmen' ? (player.primary_role || '').includes('Batter') :
+      selectedRoleFilter === 'Top Bowlers' ? (player.primary_role || '').includes('Bowler') :
+      (player.primary_role || '').includes('All-Rounder');
 
     const matchesDistrict = 
       selectedDistrict === 'All Districts' 
         ? true 
         : player.district === selectedDistrict;
 
-    const matchesSearch = (player.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (player.battingStyle || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = (player.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (player.batting_style || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (player.district || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesShortlist = showOnlyShortlisted ? shortlistedIds.includes(player.id) : true;
@@ -219,8 +219,8 @@ export default function ScoutingHubScreen() {
                     <div className="flex items-center space-x-3.5">
                       <div className="relative">
                         <img
-                          src={player.avatar}
-                          alt={player.name}
+                          src={player.avatar_url}
+                          alt={player.full_name}
                           className="w-13 h-13 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                         />
                         {player.isPro && (
@@ -233,14 +233,14 @@ export default function ScoutingHubScreen() {
                       <div>
                         <div className="flex items-center space-x-1.5">
                           <h3 className="font-extrabold text-base text-slate-900 group-hover:text-blue-700 transition-colors">
-                            {player.name}
+                            {player.full_name}
                           </h3>
                           {player.inForm && (
                             <span className="w-2 h-2 rounded-full bg-emerald-500" title="In Form" />
                           )}
                         </div>
                         <p className="text-xs text-slate-500 font-medium">
-                          {player.primaryRole || player.role} � {player.battingStyle}
+                          {player.primary_role || player.primary_role} � {player.batting_style}
                         </p>
                         <div className="flex items-center space-x-1 text-xs text-slate-400 mt-0.5">
                           <MapPin className="w-3 h-3 text-slate-400" />

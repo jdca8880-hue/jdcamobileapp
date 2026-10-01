@@ -7,7 +7,7 @@ export default function MatchMediaReport({ match }) {
   const highlights = useMemo(() => calculateMatchHighlights(match), [match]);
   const summary = useMemo(() => generateMatchSummary(match, highlights), [match, highlights]);
   const caption = useMemo(() => generateSocialCaption(match, highlights), [match, highlights]);
-  const headline = match.mediaHeadline || `${match.teamA?.name || 'TBA'} vs ${match.teamB?.name || 'TBA'} — Official Match Report`;
+  const headline = match.mediaHeadline || `${match.home_team?.name || 'TBA'} vs ${match.away_team?.name || 'TBA'} — Official Match Report`;
 
   const copy = async (text = summary) => {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}
@@ -31,13 +31,13 @@ export default function MatchMediaReport({ match }) {
 
           <div className="flex items-center justify-center gap-4 py-4 border-t border-b border-gray-100 mb-6">
             <div className="text-right flex-1">
-              <div className="text-[16px] font-bold text-[#101827]">{match.teamA?.name}</div>
-              <div className="text-[24px] font-black text-[#2457D6] leading-none">{match.teamA?.score || '—'}</div>
+              <div className="text-[16px] font-bold text-[#101827]">{match.home_team?.name}</div>
+              <div className="text-[24px] font-black text-[#2457D6] leading-none">{match.home_team?.score || '—'}</div>
             </div>
             <div className="text-xs font-black uppercase tracking-widest text-[#8a99b0]">VS</div>
             <div className="text-left flex-1">
-              <div className="text-[16px] font-bold text-[#101827]">{match.teamB?.name}</div>
-              <div className="text-[24px] font-black text-[#101827] leading-none">{match.teamB?.score || '—'}</div>
+              <div className="text-[16px] font-bold text-[#101827]">{match.away_team?.name}</div>
+              <div className="text-[24px] font-black text-[#101827] leading-none">{match.away_team?.score || '—'}</div>
             </div>
           </div>
 

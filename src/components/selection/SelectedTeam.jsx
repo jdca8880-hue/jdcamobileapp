@@ -21,11 +21,11 @@ export default function SelectedTeam({
   const targetSize = team.targetSize || 20;
   const count = selectedPlayers.length;
 
-  const batters = selectedPlayers.filter(p => p.role === 'Batter');
-  const allRounders = selectedPlayers.filter(p => p.role === 'All-Rounder');
-  const wicketkeepers = selectedPlayers.filter(p => p.role === 'Wicket Keeper');
-  const fastBowlers = selectedPlayers.filter(p => p.role === 'Bowler' && (p.bowlingStyle?.toLowerCase().includes('fast') || p.bowlingStyle?.toLowerCase().includes('medium')));
-  const spinners = selectedPlayers.filter(p => p.role === 'Bowler' && !p.bowlingStyle?.toLowerCase().includes('fast') && !p.bowlingStyle?.toLowerCase().includes('medium'));
+  const batters = selectedPlayers.filter(p => p.primary_role === 'Batter');
+  const allRounders = selectedPlayers.filter(p => p.primary_role === 'All-Rounder');
+  const wicketkeepers = selectedPlayers.filter(p => p.primary_role === 'Wicket Keeper');
+  const fastBowlers = selectedPlayers.filter(p => p.primary_role === 'Bowler' && (p.bowling_style?.toLowerCase().includes('fast') || p.bowling_style?.toLowerCase().includes('medium')));
+  const spinners = selectedPlayers.filter(p => p.primary_role === 'Bowler' && !p.bowling_style?.toLowerCase().includes('fast') && !p.bowling_style?.toLowerCase().includes('medium'));
 
   const minBatters = team.minBatters || 0;
   const minAllRounders = team.minAllRounders || 0;
@@ -102,7 +102,7 @@ export default function SelectedTeam({
               <option value="">-- Assign Captain --</option>
               {selectedPlayers.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.primaryRole || p.role})
+                  {p.full_name} ({p.primary_role})
                 </option>
               ))}
             </select>
@@ -122,7 +122,7 @@ export default function SelectedTeam({
               <option value="">-- Assign Vice Captain --</option>
               {selectedPlayers.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.primaryRole || p.role})
+                  {p.full_name} ({p.primary_role})
                 </option>
               ))}
             </select>
@@ -142,7 +142,7 @@ export default function SelectedTeam({
               <option value="">-- Assign Wicketkeeper --</option>
               {selectedPlayers.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} {p.role === 'Wicket Keeper' ? '(Specialist WK)' : ''}
+                  {p.full_name} {p.primary_role === 'Wicket Keeper' ? '(Specialist WK)' : ''}
                 </option>
               ))}
             </select>
@@ -295,10 +295,10 @@ function PlayerGroup({ title, players, teamRoles, onSelect, onRemove }) {
               className={`p-3 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer ${t.accent}`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <CloudinaryAvatar src={p.avatar} alt={p.name} className="w-10 h-10 rounded-lg object-cover border border-slate-100 shrink-0" />
+                <CloudinaryAvatar src={p.avatar_url} alt={p.full_name} className="w-10 h-10 rounded-lg object-cover border border-slate-100 shrink-0" />
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-slate-900">{p.name}</span>
+                    <span className="font-semibold text-sm text-slate-900">{p.full_name}</span>
                     <span className="text-xs font-normal text-slate-500">
                       {p.district}
                     </span>
@@ -319,7 +319,7 @@ function PlayerGroup({ title, players, teamRoles, onSelect, onRemove }) {
                     )}
                   </div>
                   <div className="text-xs text-slate-500 font-normal">
-                    {p.primaryRole || p.role} • {p.battingStyle} {p.bowlingStyle && `• ${p.bowlingStyle}`}
+                    {p.primary_role} • {p.batting_style} {p.bowling_style && `• ${p.bowling_style}`}
                   </div>
                 </div>
               </div>

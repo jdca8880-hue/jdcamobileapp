@@ -128,15 +128,15 @@ export default function PlayerProfileScreen() {
 
           <div className="flex flex-col items-center mt-2 text-center">
             <img
-              src={player.avatar_url || player.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name || player.full_name || 'Player')}&background=random`}
-              alt={player.name}
+              src={player.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.full_name || player.full_name || 'Player')}&background=random`}
+              alt={player.full_name}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white shadow-sm mb-3"
             />
             <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 leading-tight mb-1">
-              {player.name}
+              {player.full_name}
             </h1>
             <div className="text-xs text-slate-500 flex items-center justify-center gap-1.5 mb-3">
-              <span className="font-medium text-slate-700">{player.role}</span>
+              <span className="font-medium text-slate-700">{player.primary_role}</span>
               <span>•</span>
               <MapPin size={12} className="text-blue-600" />
               <span>{player.district}</span>
@@ -214,7 +214,7 @@ export default function PlayerProfileScreen() {
               <div className="p-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-sm text-slate-900">Batting Profile</h3>
-                  <p className="text-xs text-slate-500">{player.battingStyle || '-'}</p>
+                  <p className="text-xs text-slate-500">{player.batting_style || '-'}</p>
                 </div>
               </div>
               <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -265,7 +265,7 @@ export default function PlayerProfileScreen() {
               <div className="p-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-sm text-slate-900">Bowling Profile</h3>
-                  <p className="text-xs text-slate-500">{player.bowlingStyle || '-'}</p>
+                  <p className="text-xs text-slate-500">{player.bowling_style || '-'}</p>
                 </div>
               </div>
               <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">

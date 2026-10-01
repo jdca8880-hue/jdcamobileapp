@@ -65,10 +65,10 @@ export default function PlayerDetail({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
              <div className="w-14 h-14 rounded-md bg-white border border-slate-200 shadow-sm flex items-center justify-center overflow-hidden">
-                  <CloudinaryAvatar src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
+                  <CloudinaryAvatar src={player.avatar_url} alt={player.full_name} className="w-full h-full object-cover" />
              </div>
              <div>
-                <h2 className="text-lg font-bold text-slate-900 leading-tight">{player.name}</h2>
+                <h2 className="text-lg font-bold text-slate-900 leading-tight">{player.full_name}</h2>
                 <p className="text-xs font-mono text-slate-500 mt-0.5">{player.registrationNumber}</p>
              </div>
           </div>
@@ -113,9 +113,9 @@ export default function PlayerDetail({
             <DataItem label="Age Category" value={player.category} />
             <DataItem label="Gender" value={player.gender} />
             <DataItem label="Date of Birth" value={player.dob || 'Not Provided'} />
-            <DataItem label="Primary Role" value={player.role} />
-            <DataItem label="Batting Style" value={player.battingStyle} />
-            <DataItem label="Bowling Style" value={player.bowlingStyle} />
+            <DataItem label="Primary Role" value={player.primary_role} />
+            <DataItem label="Batting Style" value={player.batting_style} />
+            <DataItem label="Bowling Style" value={player.bowling_style} />
           </div>
         </section>
 
@@ -137,7 +137,7 @@ export default function PlayerDetail({
         </section>
 
         {/* Performance - Bowling (Only if Bowler/All-Rounder) */}
-        {(player.role === 'Bowler' || player.role === 'All-Rounder') && (
+        {(player.primary_role === 'Bowler' || player.primary_role === 'All-Rounder') && (
           <section>
             <SectionHeading icon={Activity} title="Bowling Performance" />
             <div className="grid grid-cols-4 gap-2 mb-3">
@@ -159,7 +159,7 @@ export default function PlayerDetail({
           <SectionHeading icon={Shield} title="Fielding Performance" />
           <div className="grid grid-cols-4 gap-2">
             <StatBox label="Catches" value={player.catches} />
-            {player.role === 'Wicket Keeper' && (
+            {player.primary_role === 'Wicket Keeper' && (
                <StatBox label="Stumpings" value={player.stumpings} />
             )}
             <StatBox label="Run Outs" value={player.runOuts} />
@@ -172,7 +172,7 @@ export default function PlayerDetail({
           <SectionHeading icon={Activity} title="Performance Trends" />
           <div className="flex gap-3 h-32">
             <TrendChart data={battingTrend} color="bg-blue-500" label="Runs" />
-            {(player.role === 'Bowler' || player.role === 'All-Rounder') && (
+            {(player.primary_role === 'Bowler' || player.primary_role === 'All-Rounder') && (
                <TrendChart data={bowlingTrend} color="bg-emerald-500" label="Wickets" />
             )}
           </div>
@@ -185,7 +185,7 @@ export default function PlayerDetail({
             {player.matchHistory.slice(0, 5).map((m, i) => (
               <div key={i} className="flex-1 bg-slate-50 border border-slate-200 rounded py-2 text-center">
                 <div className="text-sm sm:text-base font-bold text-slate-800">
-                  {player.role === 'Bowler' 
+                  {player.primary_role === 'Bowler' 
                     ? `${m.bowling?.wickets || 0}/${m.bowling?.runs || 0}`
                     : `${m.batting?.runs || 0}${m.batting?.notOut ? '*' : ''}`
                   }

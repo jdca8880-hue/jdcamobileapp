@@ -100,8 +100,8 @@ export default function PlayerPool({
         const isShortlisted = shortlistedPlayerIds.includes(player.id);
         const isInCompare = compareIds.includes(player.id);
         const isEligible = player.eligibility?.isEligible;
-        const isBowler = player.role === 'Bowler' || player.primaryRole?.includes('Bowl') || player.primaryRole?.includes('Fast') || player.primaryRole?.includes('Spin');
-        const t = ROLE_THEMES[player.role] || DEFAULT_THEME;
+        const isBowler = player.primary_role === 'Bowler' || player.primary_role?.includes('Bowl') || player.primary_role?.includes('Fast') || player.primary_role?.includes('Spin');
+        const t = ROLE_THEMES[player.primary_role] || DEFAULT_THEME;
 
         return (
           <motion.div
@@ -123,18 +123,18 @@ export default function PlayerPool({
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <CloudinaryAvatar
-                  src={player.avatar}
-                  alt={player.name}
+                  src={player.avatar_url}
+                  alt={player.full_name}
                   className="w-11 h-11 rounded-lg object-cover border border-slate-200 shrink-0"
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm text-slate-900 group-hover:text-slate-700 transition truncate">
-                      {player.name}
+                      {player.full_name}
                     </span>
                     {/* Role badge */}
                     <span className={`text-xs font-semibold px-1.5 py-0.5 border rounded uppercase tracking-wide ${t.badge}`}>
-                      {t.label || player.role}
+                      {t.label || player.primary_role}
                     </span>
                   </div>
                   <div className="text-xs text-slate-400 font-normal mt-0.5 truncate">
@@ -142,7 +142,7 @@ export default function PlayerPool({
                     <span className="mx-1.5">·</span>
                     <span>{player.ageGroup} · {player.age}y</span>
                     <span className="mx-1.5">·</span>
-                    <span>{player.primaryRole || player.role}</span>
+                    <span>{player.primary_role || player.primary_role}</span>
                   </div>
                 </div>
               </div>

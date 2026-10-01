@@ -17,7 +17,7 @@ const ROLE_BRIGHT_BADGES = {
 };
 
 const PlayerListItem = ({ player, onClick }) => {
-  const playerRole = player.primary_role || player.role;
+  const playerRole = player.primary_role;
   const roleBadge = ROLE_BRIGHT_BADGES[playerRole] || 'bg-blue-600 text-white';
 
   return (
@@ -28,15 +28,15 @@ const PlayerListItem = ({ player, onClick }) => {
       <div className="flex items-center gap-3.5 min-w-0">
         <div className="relative shrink-0">
           <CloudinaryAvatar
-            src={player.avatar_url || player.avatar}
-            alt={player.full_name || player.name}
+            src={player.avatar_url}
+            alt={player.full_name}
             className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white shadow-md ring-2 ring-blue-500/20"
           />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition truncate">
-              {player.full_name || player.name}
+              {player.full_name}
             </span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${roleBadge}`}>
               {playerRole || 'Batter'}
@@ -79,7 +79,7 @@ export default function PlayersScreen() {
     if (genderTab === 'Women' && !isWomen) return false;
 
     if (searchQuery) {
-      const pName = p.full_name || p.name || '';
+      const pName = p.full_name || '';
       const matchSearch = pName.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchSearch) return false;
     }

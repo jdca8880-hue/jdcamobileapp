@@ -114,10 +114,10 @@ export default function SelectionWorkspace() {
   // Team Player Counts by Role
   const roleCounts = useMemo(() => {
     return selectedPlayers.reduce((acc, p) => {
-      if (p.role === 'Batter') acc.batters += 1;
-      else if (p.role === 'Bowler') acc.bowlers += 1;
-      else if (p.role === 'All-Rounder') acc.allRounders += 1;
-      else if (p.role === 'Wicket Keeper') acc.wicketKeepers += 1;
+      if (p.primary_role === 'Batter') acc.batters += 1;
+      else if (p.primary_role === 'Bowler') acc.bowlers += 1;
+      else if (p.primary_role === 'All-Rounder') acc.allRounders += 1;
+      else if (p.primary_role === 'Wicket Keeper') acc.wicketKeepers += 1;
       return acc;
     }, { batters: 0, bowlers: 0, allRounders: 0, wicketKeepers: 0 });
   }, [selectedPlayers]);
@@ -126,10 +126,10 @@ export default function SelectionWorkspace() {
   const displayedPlayers = useMemo(() => {
     let list = categoryPlayers.filter(p => {
       // Tab Filter
-      if (activeTab === 'batters' && p.role !== 'Batter') return false;
-      if (activeTab === 'bowlers' && p.role !== 'Bowler') return false;
-      if (activeTab === 'allRounders' && p.role !== 'All-Rounder') return false;
-      if (activeTab === 'wicketKeepers' && p.role !== 'Wicket Keeper') return false;
+      if (activeTab === 'batters' && p.primary_role !== 'Batter') return false;
+      if (activeTab === 'bowlers' && p.primary_role !== 'Bowler') return false;
+      if (activeTab === 'allRounders' && p.primary_role !== 'All-Rounder') return false;
+      if (activeTab === 'wicketKeepers' && p.primary_role !== 'Wicket Keeper') return false;
       if (activeTab === 'selected' && !(activeTeam?.selectedPlayerIds || []).includes(p.id)) return false;
 
       // District Filter
@@ -138,7 +138,7 @@ export default function SelectionWorkspace() {
       // Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = (p.name || '').toLowerCase().includes(q);
+        const matchesName = (p.full_name || '').toLowerCase().includes(q);
         const matchesDist = (p.district || '').toLowerCase().includes(q);
         if (!matchesName && !matchesDist) return false;
       }
@@ -394,7 +394,7 @@ export default function SelectionWorkspace() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {displayedPlayers.map(player => {
               const inTeam = isSelected(player.id);
-              const badgeStyle = ROLE_BADGES[player.role] || { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200' };
+              const badgeStyle = ROLE_BADGES[player.primary_role] || { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200' };
 
               // Age eligibility check
               const activeCat = CATEGORY_OPTIONS.find(opt => opt.id === activeTeamId);
@@ -416,11 +416,11 @@ export default function SelectionWorkspace() {
                   {/* Top Header */}
                   <div className="p-4 pb-3 flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <CloudinaryAvatar src={player.avatar_url || player.avatar} alt={player.name} className="w-12 h-12 rounded-full object-cover border border-slate-200 shrink-0" />
+                      <CloudinaryAvatar src={player.avatar_url} alt={player.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200 shrink-0" />
                       <div className="min-w-0">
-                        <h3 className="font-black text-[15px] text-slate-900 truncate" title={player.name}>{player.name}</h3>
+                        <h3 className="font-black text-[15px] text-slate-900 truncate" title={player.full_name}>{player.full_name}</h3>
                         <div className="text-[11px] font-semibold text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
-                          <span className={`px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${badgeStyle.bg} ${badgeStyle.text}`}>{player.role}</span>
+                          <span className={`px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${badgeStyle.bg} ${badgeStyle.text}`}>{player.primary_role}</span>
                           <span className="text-slate-300">&bull;</span>
                           <span className="truncate">{player.district}</span>
                         </div>
@@ -604,16 +604,16 @@ export default function SelectionWorkspace() {
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <CloudinaryAvatar
-                            src={player.avatar_url || player.avatar}
-                            alt={player.name}
+                            src={player.avatar_url}
+                            alt={player.full_name}
                             className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
                           />
                           <div className="min-w-0">
                             <h4 className="text-xs font-bold text-slate-900 truncate">
-                              {player.name}
+                              {player.full_name}
                             </h4>
                             <span className="text-xs text-slate-400 block truncate">
-                              {player.role} • {player.district}
+                              {player.primary_role} • {player.district}
                             </span>
                           </div>
                         </div>
@@ -696,7 +696,7 @@ export default function SelectionWorkspace() {
                   >
                     <option value="">Select Captain...</option>
                     {selectedPlayers.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.role})</option>
+                      <option key={p.id} value={p.id}>{p.full_name} ({p.primary_role})</option>
                     ))}
                   </select>
                 </div>
@@ -713,7 +713,7 @@ export default function SelectionWorkspace() {
                   >
                     <option value="">Select Vice-Captain...</option>
                     {selectedPlayers.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.role})</option>
+                      <option key={p.id} value={p.id}>{p.full_name} ({p.primary_role})</option>
                     ))}
                   </select>
                 </div>
@@ -729,7 +729,7 @@ export default function SelectionWorkspace() {
                   >
                     <option value="">Select Wicket Keeper...</option>
                     {selectedPlayers.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.role})</option>
+                      <option key={p.id} value={p.id}>{p.full_name} ({p.primary_role})</option>
                     ))}
                   </select>
                 </div>
@@ -750,8 +750,8 @@ export default function SelectionWorkspace() {
                     {selectedPlayers.map((player, idx) => (
                       <tr key={player.id}>
                         <td className="py-2 px-3 font-bold text-slate-400">{idx + 1}</td>
-                        <td className="py-2 px-3 font-bold text-slate-900">{player.name}</td>
-                        <td className="py-2 px-3">{player.role}</td>
+                        <td className="py-2 px-3 font-bold text-slate-900">{player.full_name}</td>
+                        <td className="py-2 px-3">{player.primary_role}</td>
                         <td className="py-2 px-3 text-slate-500">{player.district}</td>
                       </tr>
                     ))}

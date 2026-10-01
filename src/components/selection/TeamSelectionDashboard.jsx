@@ -19,7 +19,7 @@ export default function TeamSelectionDashboard({ team, allPlayers, onBack, onUpd
   };
 
   selectedPlayers.forEach(p => {
-    if (counts[p.role] !== undefined) counts[p.role]++;
+    if (counts[p.primary_role] !== undefined) counts[p.primary_role]++;
   });
 
   // Balance Warnings
@@ -42,16 +42,16 @@ export default function TeamSelectionDashboard({ team, allPlayers, onBack, onUpd
       className="flex items-center p-3 bg-white border border-slate-200 rounded-md mb-2 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all"
     >
       <div className="w-10 h-10 rounded bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center mr-3 border border-slate-200">
-        {player.avatar ? (
-          <CloudinaryAvatar src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
+        {player.avatar_url ? (
+          <CloudinaryAvatar src={player.avatar_url} alt={player.full_name} className="w-full h-full object-cover" />
         ) : (
           <User className="w-5 h-5 text-slate-400" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-bold text-slate-900">{player.name}</h4>
+        <h4 className="text-sm font-bold text-slate-900">{player.full_name}</h4>
         <div className="text-xs text-slate-500 font-medium">
-          {player.district} · {player.role}
+          {player.district} · {player.primary_role}
         </div>
       </div>
       <div className="text-right">

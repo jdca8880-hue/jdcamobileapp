@@ -186,8 +186,8 @@ class SyncService {
     }
 
     // Map frontend dismissal type to Postgres enum
-    let wicketType = 'NONE';
-    if (payload.wicket) {
+    let wicketType = payload.wicket_type !== undefined ? payload.wicket_type : 'NONE';
+    if (wicketType === 'NONE' && payload.wicket) {
       const wMap = {
         'Bowled': 'BOWLED', 'Caught': 'CAUGHT', 'LBW': 'LBW', 'Run Out': 'RUN_OUT',
         'Stumped': 'STUMPED', 'Hit Wicket': 'HIT_WICKET', 'Retired Hurt': 'RETIRED_HURT',
@@ -196,8 +196,8 @@ class SyncService {
       wicketType = wMap[payload.dismissalType] || 'BOWLED';
     }
 
-    let extraType = 'NONE';
-    if (payload.extraType) {
+    let extraType = payload.extra_type !== undefined ? payload.extra_type : 'NONE';
+    if (extraType === 'NONE' && payload.extraType) {
       const eMap = {
         'wide': 'WIDE', 'no_ball': 'NO_BALL', 'bye': 'BYE', 'leg_bye': 'LEG_BYE', 'penalty': 'PENALTY'
       };
@@ -205,9 +205,11 @@ class SyncService {
     }
 
     // Strictly enforce: runs_total = runs_off_bat + runs_extras (constraint delivery_total_valid)
-    const runsOffBat = Number(payload.runsOffBat) || 0;
-    const totalRuns = Number(payload.totalRuns) || 0;
-    const runsExtras = totalRuns !== undefined ? Math.max(0, totalRuns - runsOffBat) : (Number(payload.extraRuns) || 0);
+    const runsOffBat = Number(payload.runs_off_bat ?? payload.runsOffBat) || 0;
+    const totalRuns = payload.runs_total ?? payload.totalRuns;
+    const extraRunsRaw = payload.runs_extras ?? payload.extraRuns;
+    
+    const runsExtras = totalRuns !== undefined ? Math.max(0, Number(totalRuns) - runsOffBat) : (Number(extraRunsRaw) || 0);
     const finalTotalRuns = runsOffBat + runsExtras;
 
     // Resolve player UUIDs
@@ -218,8 +220,9 @@ class SyncService {
     // Resolve dismissed player UUID (constraint wicket_player_required: wicket_type = 'NONE' or dismissed_player_id is not null)
     let dismissedPlayerId = null;
     if (wicketType !== 'NONE') {
-      dismissedPlayerId = isUUID(payload.dismissedPlayerId) 
-        ? payload.dismissedPlayerId 
+      const dpId = payload.dismissed_player_id ?? payload.dismissedPlayerId;
+      dismissedPlayerId = isUUID(dpId) 
+        ? dpId 
         : (isUUID(payload.strikerId) ? payload.strikerId : null);
 
       if (!dismissedPlayerId) {

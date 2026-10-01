@@ -107,20 +107,20 @@ export default function TeamsScreen() {
       }
       
       const squad = teamPlayers.map(p => ({
-        id: p.id,
-        name: p.full_name || p.name,
-        role: p.primary_role || p.role || 'Batter',
+        ...p,
+        full_name: p.full_name,
+        primary_role: p.primary_role || 'Batter',
         district: p.district || team.district?.name || 'TBD',
-        avatar: p.avatar_url || p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.name)}&background=random`
+        avatar_url: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`
       }));
 
       // Calculate composition
       const composition = { batters: 0, bowlers: 0, allRounders: 0, wicketKeepers: 0 };
       squad.forEach(p => {
-        if (p.role?.includes('Batter')) composition.batters++;
-        else if (p.role?.includes('Bowler')) composition.bowlers++;
-        else if (p.role?.includes('All-Rounder')) composition.allRounders++;
-        else if (p.role?.includes('Wicket')) composition.wicketKeepers++;
+        if (p.primary_role?.includes('Batter')) composition.batters++;
+        else if (p.primary_role?.includes('Bowler')) composition.bowlers++;
+        else if (p.primary_role?.includes('All-Rounder')) composition.allRounders++;
+        else if (p.primary_role?.includes('Wicket')) composition.wicketKeepers++;
       });
 
       return {
@@ -134,9 +134,9 @@ export default function TeamsScreen() {
         status: team.is_active ? 'Active' : 'Inactive',
         homeVenue: 'Venue TBD',
         district: team.district?.name || 'TBD',
-        captain: squad.length > 0 ? squad[0].name : 'TBD',
-        viceCaptain: squad.length > 1 ? squad[1].name : 'TBD',
-        wicketKeeper: squad.find(p => p.role?.includes('Wicket'))?.name || 'TBD',
+        captain: squad.length > 0 ? squad[0].full_name : 'TBD',
+        viceCaptain: squad.length > 1 ? squad[1].full_name : 'TBD',
+        wicketKeeper: squad.find(p => p.primary_role?.includes('Wicket'))?.full_name || 'TBD',
         headCoach: 'Head Coach',
         leadSelector: 'Lead Selector',
         squadSize: 15,
@@ -173,7 +173,7 @@ export default function TeamsScreen() {
         const matchesName = (team.name || '').toLowerCase().includes(q);
         const matchesCaptain = (team.captain || '').toLowerCase().includes(q);
         const matchesCoach = (team.headCoach || '').toLowerCase().includes(q);
-        const matchesPlayer = team.squad.some(p => (p.name || '').toLowerCase().includes(q) || (p.district || '').toLowerCase().includes(q));
+        const matchesPlayer = team.squad.some(p => (p.full_name || '').toLowerCase().includes(q) || (p.district || '').toLowerCase().includes(q));
         if (!matchesName && !matchesCaptain && !matchesCoach && !matchesPlayer) return false;
       }
 
@@ -531,15 +531,15 @@ export default function TeamsScreen() {
                         key={player.id}
                         onClick={() => handlePlayerClick(player)}
                         className="group relative cursor-pointer flex flex-col items-center shrink-0"
-                        title={`${player.name} (${player.role} - ${player.district})`}
+                        title={`${player.full_name} (${player.primary_role} - ${player.district})`}
                       >
                         <CloudinaryAvatar
-                          src={player.avatar_url || player.avatar}
-                          alt={player.name}
+                          src={player.avatar_url}
+                          alt={player.full_name}
                           className="w-8 h-8 rounded-full object-cover border border-slate-200 group-hover:border-blue-600 transition"
                         />
                         <span className="text-[9px] font-medium text-slate-500 truncate w-10 text-center mt-0.5">
-                          {player.name.split(' ')[0]}
+                          {player.full_name?.split(' ')[0]}
                         </span>
                       </div>
                     ))}
@@ -770,7 +770,7 @@ export default function TeamsScreen() {
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                         {activeRosterTeam.squad.map((player, idx) => {
-                          const roleStyle = ROLE_COLORS[player.role] || { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' };
+                          const roleStyle = ROLE_COLORS[player.primary_role] || { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' };
 
                           return (
                             <tr
@@ -784,26 +784,26 @@ export default function TeamsScreen() {
                               <td className="py-2.5 px-3">
                                 <div className="flex items-center gap-2.5">
                                   <CloudinaryAvatar
-                                    src={player.avatar_url || player.avatar}
-                                    alt={player.name}
+                                    src={player.avatar_url}
+                                    alt={player.full_name}
                                     className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
                                   />
                                   <div className="min-w-0">
                                     <div className="font-bold text-slate-900 group-hover:text-blue-600 transition flex items-center gap-1">
-                                      <span>{player.name}</span>
+                                      <span>{player.full_name}</span>
                                       {player.inForm && (
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="In Form" />
                                       )}
                                     </div>
                                     <span className="text-xs text-slate-400 block truncate">
-                                      {player.battingStyle}
+                                      {player.batting_style}
                                     </span>
                                   </div>
                                 </div>
                               </td>
                               <td className="py-2.5 px-3">
                                 <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-bold border ${roleStyle.bg} ${roleStyle.text} ${roleStyle.border}`}>
-                                  {player.role}
+                                  {player.primary_role}
                                 </span>
                               </td>
                               <td className="py-2.5 px-3 font-semibold text-slate-900">

@@ -10,8 +10,8 @@ export const MatchCard = ({ match, onClick }) => {
   // Fetch dynamic data if available
   const dateStr = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : 'Date TBD';
   const playerOfMatch = match.man_of_the_match || match.playerOfMatch || null;
-  const teamAName = match.home_team?.name || match.teamA?.name || 'Home Team';
-  const teamBName = match.away_team?.name || match.teamB?.name || 'Away Team';
+  const teamAName = match.home_team?.name || 'Home Team';
+  const teamBName = match.away_team?.name || 'Away Team';
 
   // Image placeholders
   const bannerImage = match.bannerImage || "/imageformatchescard.png";
@@ -78,7 +78,7 @@ export const MatchCard = ({ match, onClick }) => {
               </div>
               {(isLive || isCompleted) && (
                 <div className="text-lg font-black text-slate-900">
-                  {match.teamA?.score || '0/0'}
+                  {match.home_team?.score || '0/0'}
                 </div>
               )}
             </div>
@@ -94,7 +94,7 @@ export const MatchCard = ({ match, onClick }) => {
               </div>
               {(isLive || isCompleted) && (
                 <div className="text-lg font-black text-slate-900">
-                  {match.teamB?.score || (isLive ? 'Yet to bat' : '0/0')}
+                  {match.away_team?.score || (isLive ? 'Yet to bat' : '0/0')}
                 </div>
               )}
             </div>
@@ -102,7 +102,7 @@ export const MatchCard = ({ match, onClick }) => {
           
           {isLive && (
             <div className="mt-4 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg inline-block border border-emerald-100">
-              CRR: 5.8 · {match.teamA?.overs || '24.2'} overs
+              CRR: 5.8 · {match.home_team?.overs || '24.2'} overs
             </div>
           )}
 

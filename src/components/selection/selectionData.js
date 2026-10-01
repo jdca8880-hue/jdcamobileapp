@@ -131,18 +131,22 @@ export function normalizeSelectionPlayer(p) {
     recentFormString = matchHistory.slice(0, 3).map(m => `${m.batting?.runs || 0}${m.batting?.notOut ? '*' : ''}`).join(' · ');
   }
 
+  // Preserve legacy fields for backward compatibility
+  // Do NOT delete .name, .role, .avatar, .battingStyle, .bowlingStyle yet
+  
   return {
     ...p,
     id: p.id || null,
-    name: p.name || p.full_name || 'Unknown Player',
+    full_name: p.full_name || p.name || 'Unknown Player',
+    avatar_url: p.avatar_url || p.avatar || null,
     registrationNumber: p.registrationNumber || null,
     category,
     categoryLevel: AGE_HIERARCHY_LEVELS[category] || 5,
     gender,
     district,
-    role: standardRole,
-    battingStyle,
-    bowlingStyle,
+    primary_role: standardRole,
+    batting_style: battingStyle,
+    bowling_style: bowlingStyle,
     
     // Performance
     matches,

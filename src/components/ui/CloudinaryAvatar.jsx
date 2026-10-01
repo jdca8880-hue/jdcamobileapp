@@ -5,7 +5,7 @@ import { autoGravity } from '@cloudinary/url-gen/qualifiers/gravity';
 import { AdvancedImage } from '@cloudinary/react';
 
 // Initialize Cloudinary instance
-const cld = new Cloudinary({ cloud: { cloudName: 'gglzv8pn' } });
+const cld = new Cloudinary({ cloud: { cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'gglzv8pn' } });
 
 /**
  * Universal Avatar component that leverages Cloudinary for

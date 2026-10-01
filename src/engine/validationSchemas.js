@@ -63,26 +63,26 @@ export const BallEventSchema = z.object({
  * Zod schema for Player Registration
  */
 export const PlayerRegistrationSchema = z.object({
-  name: z
+  full_name: z
     .string()
     .trim()
     .min(2, { message: 'Player name must be at least 2 characters' })
     .max(50, { message: 'Player name cannot exceed 50 characters' }),
-  role: z.enum(['Batter', 'Bowler', 'All-Rounder', 'Wicket Keeper'], {
+  primary_role: z.enum(['Batter', 'Bowler', 'All-Rounder', 'Wicket Keeper'], {
     errorMap: () => ({ message: 'Please select a valid role' }),
   }),
-  battingStyle: z.enum(['Right-Hand Bat', 'Left-Hand Bat'], {
+  batting_style: z.enum(['Right-Hand Bat', 'Left-Hand Bat'], {
     errorMap: () => ({ message: 'Please select a batting style' }),
   }),
-  bowlingStyle: z.string().min(2, { message: 'Bowling style is required' }),
+  bowling_style: z.string().min(2, { message: 'Bowling style is required' }),
   district: z.string().min(2, { message: 'District name is required' }),
   category: z.string().min(2),
   gender: z.enum(['Men', 'Women']),
   phone: z.string().optional(),
-  dob: z.string().refine((date) => {
+  date_of_birth: z.string().refine((date) => {
     return new Date(date).getTime() > 0;
   }, { message: 'Invalid Date of Birth' }),
-  avatar: z.string().url().or(z.string().min(1)),
+  avatar_url: z.string().url().or(z.string().min(1)),
 });
 
 /**

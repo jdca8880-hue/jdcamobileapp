@@ -275,11 +275,20 @@ export function CricketProvider({ children }) {
             // Reconcile Matches
             if (matchesRes.status === 'fulfilled' && !matchesRes.value.error && matchesRes.value.data) {
               const freshMatches = matchesRes.value.data.map(m => ({
-                ...m,
                 id: m.match_id || m.id,
-                teamA: { id: m.home_team_id, name: m.home_team_name || m.home_team?.name },
-                teamB: { id: m.away_team_id, name: m.away_team_name || m.away_team?.name },
-                venue: m.venue_name || m.venue
+                tournament_id: m.tournament_id,
+                home_team_id: m.home_team_id,
+                away_team_id: m.away_team_id,
+                home_team: { id: m.home_team_id, name: m.home_team_name || m.home_team?.name, short_name: m.home_team?.short_name || '' },
+                away_team: { id: m.away_team_id, name: m.away_team_name || m.away_team?.name, short_name: m.away_team?.short_name || '' },
+                toss_winner_id: m.toss_winner_id,
+                toss_decision: m.toss_decision,
+                scheduled_at: m.scheduled_at,
+                status: m.status,
+                match_format: m.match_format,
+                max_overs: m.max_overs,
+                venue_name: m.venue_name || m.venue,
+                deleted_at: m.deleted_at
               }));
               await db.matches.clear();
               await db.matches.bulkAdd(freshMatches);
@@ -324,15 +333,18 @@ export function CricketProvider({ children }) {
                 const fielding = fieldStats.find(s => s.player_id === p.id) || null;
 
                 return { 
-                  ...p, 
+                  id: p.id,
+                  full_name: p.full_name || 'Unknown Player',
+                  avatar_url: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`,
+                  date_of_birth: p.date_of_birth || p.dob,
+                  primary_role: p.primary_role,
+                  batting_style: p.batting_style,
+                  bowling_style: p.bowling_style,
                   district, 
                   category, 
                   career_batting: batting, 
                   career_bowling: bowling, 
                   career_fielding: fielding,
-                  name: p.full_name || '',
-                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`,
-                  role: p.primary_role,
                   careerRuns: batting ? batting.career_runs : 0,
                   wickets: bowling ? bowling.wickets : 0,
                   battingAvg: batting ? batting.average : 0,
@@ -345,9 +357,7 @@ export function CricketProvider({ children }) {
                   hundreds: batting ? batting.hundreds : 0,
                   economy: bowling ? bowling.economy : 0,
                   bestBowling: null,
-                  bowlingAvg: null,
-                  battingStyle: p.batting_style,
-                  bowlingStyle: p.bowling_style
+                  bowlingAvg: null
                 };
               });
               await db.players.clear();
@@ -537,19 +547,19 @@ export function CricketProvider({ children }) {
   // Hydrate Match State on refresh
   const hydrateMatchState = async (matchId) => {
     try {
-      let match, teamAXI, teamBXI, currentInning, deliveries;
+      let match, home_team_roster, away_team_roster, currentInning, deliveries;
       try {
         const result = await api.hydrateLiveMatch(matchId);
         match = result.match;
-        teamAXI = result.teamAXI;
-        teamBXI = result.teamBXI;
+        home_team_roster = result.home_team_roster;
+        away_team_roster = result.away_team_roster;
         currentInning = result.currentInning;
         deliveries = result.deliveries;
       } catch (err) {
         console.warn('[CricketContext] hydrateLiveMatch from API failed, falling back to local matches:', err);
         match = matches.find(m => m.id === matchId);
-        teamAXI = [];
-        teamBXI = [];
+        home_team_roster = [];
+        away_team_roster = [];
         currentInning = null;
         deliveries = [];
       }
@@ -566,8 +576,8 @@ export function CricketProvider({ children }) {
         tossWinnerTeamId: match.toss_winner_id,
         electedTo: match.toss_decision === 'BAT' ? 'Bat' : 'Bowl',
         totalOvers: match.max_overs || 20,
-        teamAXI,
-        teamBXI
+        teamAXI: home_team_roster, // Temporarily alias for components in Phase 1
+        teamBXI: away_team_roster  // Temporarily alias for components in Phase 1
       });
 
       if (currentInning) {
@@ -642,15 +652,14 @@ export function CricketProvider({ children }) {
           else if (d.extra_type !== 'NONE') t = 'extra';
           
           mappedLog.push({
-            id: d.idempotency_key,
+            id: d.idempotency_key || d.id,
             type: t,
-            runs: d.runs_total,
-            runsOffBat: d.runs_off_bat,
-            extraRuns: d.runs_extras,
-            extraType: d.extra_type !== 'NONE' ? d.extra_type.toLowerCase() : null,
-            totalRuns: d.runs_total,
-            wicket: d.wicket_type !== 'NONE',
-            dismissalType: d.wicket_type,
+            runs_total: d.runs_total,
+            runs_off_bat: d.runs_off_bat,
+            runs_extras: d.runs_extras,
+            extra_type: d.extra_type,
+            wicket_type: d.wicket_type,
+            dismissed_player_id: d.dismissed_player_id,
             outPlayerName: d.dismissed_player_id ? (d.striker?.full_name || d.striker?.name) : null,
             over: Math.floor(b/6) + '.' + (b%6)
           });
