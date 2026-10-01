@@ -6,14 +6,13 @@ import PageHeader from '../ui/PageHeader';
 import Badge from '../ui/Badge';
 
 export default function InningsBreakScreen() {
-  const { runs = 0, wickets = 0, setInnings, navigateTo, activeMatchId, resolveInningsId } = useCricket();
+  const { runs = 0, wickets = 0, navigateTo, startSecondInnings } = useCricket();
 
-  const targetScore = (runs || 184) + 1;
+  const targetScore = (runs || 0) + 1;
 
   const handleStartSecondInnings = async () => {
-    if (setInnings) setInnings(2);
-    if (resolveInningsId && activeMatchId) {
-      await resolveInningsId(activeMatchId, 2);
+    if (startSecondInnings) {
+      startSecondInnings(targetScore);
     }
     if (navigateTo) navigateTo('scoring');
   };
@@ -37,10 +36,10 @@ export default function InningsBreakScreen() {
               1st Innings Total
             </h2>
             <div className="text-4xl sm:text-5xl font-black text-white tracking-tight mt-1 font-tabular">
-              {runs || 184} <span className="text-2xl text-gray-400 font-bold">/{wickets || 4}</span>
+              {runs} <span className="text-2xl text-gray-400 font-bold">/{wickets}</span>
             </div>
             <p className="text-xs text-gray-300 font-medium mt-1">
-              Overs: <strong>20.0</strong> • Run Rate: <strong>{(((runs || 184) / 20)).toFixed(2)}</strong>
+              Overs: <strong>20.0</strong> • Run Rate: <strong>{(runs / 20).toFixed(2)}</strong>
             </p>
           </div>
         </div>

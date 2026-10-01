@@ -821,7 +821,7 @@ export function CricketProvider({ children }) {
                 
               if (deliveries) {
                 const firstInningsRuns = deliveries.reduce((acc, d) => acc + (d.runs_total || 0), 0);
-                setTarget(firstInningsRuns + 1);
+                setTarget(prev => prev !== null ? prev : firstInningsRuns + 1);
               }
             }
           } catch (e) {
