@@ -751,8 +751,8 @@ export default function MatchSetupScreen() {
                     <div className="flex justify-between"><span className="text-[#8a99b0] font-medium">Toss</span><span className="font-bold text-ink">{matchSetup.tossWinner} ({matchSetup.electedTo})</span></div>
                     <div className="flex justify-between"><span className="text-[#8a99b0] font-medium">Overs</span><span className="font-bold text-ink">{matchSetup.totalOvers}</span></div>
                     <div className="flex justify-between"><span className="text-[#8a99b0] font-medium">Batting First</span><span className="font-bold text-ink">{battingTeamName}</span></div>
-                    {selectedStriker && <div className="flex justify-between"><span className="text-[#8a99b0] font-medium">Striker</span><span className="font-bold text-ink">{battingXI.find(p => String(p.id) === selectedStriker)?.name || '—'}</span></div>}
-                    {selectedBowler && <div className="flex justify-between"><span className="text-[#8a99b0] font-medium">Bowler</span><span className="font-bold text-ink">{bowlingXI.find(p => String(p.id) === selectedBowler)?.name || '—'}</span></div>}
+                    {selectedStriker && <div className="flex justify-between"><span className="text-[#8a99b0] font-medium">Striker</span><span className="font-bold text-ink">{battingXI.find(p => String(p.id) === selectedStriker)?.full_name || battingXI.find(p => String(p.id) === selectedStriker)?.name || '—'}</span></div>}
+                    {selectedBowler && <div className="flex justify-between"><span className="text-[#8a99b0] font-medium">Bowler</span><span className="font-bold text-ink">{bowlingXI.find(p => String(p.id) === selectedBowler)?.full_name || bowlingXI.find(p => String(p.id) === selectedBowler)?.name || '—'}</span></div>}
                   </div>
                 </div>
              </div>

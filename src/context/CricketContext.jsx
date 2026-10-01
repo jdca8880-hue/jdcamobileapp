@@ -1083,8 +1083,8 @@ export function CricketProvider({ children }) {
         let text = '';
         
         const activeMatch = matches?.find(m => m.id === activeMatchId);
-        const teamAName = activeMatch?.teamA?.name || 'TBA';
-        const teamBName = activeMatch?.teamB?.name || 'TBA';
+        const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'TBA';
+        const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'TBA';
         
         // Determine which team was batting in this innings (innings 2/4)
         const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
