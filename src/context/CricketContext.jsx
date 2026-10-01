@@ -556,12 +556,23 @@ export function CricketProvider({ children }) {
         currentInning = result.currentInning;
         deliveries = result.deliveries;
       } catch (err) {
-        console.warn('[CricketContext] hydrateLiveMatch from API failed, falling back to local matches:', err);
+        console.warn('[CricketContext] hydrateLiveMatch from API failed, attempting fallback to local state:', err);
         match = matches.find(m => m.id === matchId);
-        home_team_roster = [];
-        away_team_roster = [];
-        currentInning = null;
-        deliveries = [];
+        
+        // DO NOT blindly set rosters to []. 
+        // Preserve last known valid state if we have it in memory for THIS match.
+        if (matchSetup && matchSetup.teamAId === match?.home_team_id && matchSetup.teamAXI?.length > 0) {
+          home_team_roster = matchSetup.teamAXI;
+          away_team_roster = matchSetup.teamBXI;
+          // Phase 3 scope: keep existing currentInning/deliveries if possible, but they aren't strictly stored in matchSetup.
+          // In a full offline redesign we would load these from Dexie. For now, we just avoid the Setup trap.
+          currentInning = null;
+          deliveries = [];
+        } else {
+          // We do not have a valid local roster to fall back on. 
+          // Return a hard error to trigger the UI error state, avoiding the "No Playing XI" setup trap.
+          return { success: false, error: 'Network or database fetch failed while loading match. ' + err.message };
+        }
       }
 
       if (!match) return { success: false, error: 'Match not found locally or remotely' };

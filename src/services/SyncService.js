@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { getPendingActions, clearAction } from '../lib/db';
+import { getPendingActions, clearAction, updateAction } from '../lib/db';
 
 const MAX_RETRIES = 3;
 
@@ -76,7 +76,7 @@ class SyncService {
     this.setStatus('SYNCING');
     try {
       const actions = await getPendingActions();
-      this.pendingCount = actions.length;
+      this.pendingCount = actions.filter(a => a.status !== 'FAILED_PERMANENT').length;
       this.emit();
 
       if (actions.length === 0) {
@@ -87,19 +87,26 @@ class SyncService {
 
       console.log(`[SyncService] Processing ${actions.length} pending actions...`);
 
+      const blockedMatches = new Set();
+
       for (const action of actions) {
-        // Skip items that have exceeded max retries
-        const retries = this.retryCounts[action.id] || 0;
-        if (retries >= MAX_RETRIES) {
-          console.warn(`[SyncService] Action ${action.id} exceeded max retries (${MAX_RETRIES}). Dropping.`);
-          await clearAction(action.id);
-          this.pendingCount = Math.max(0, this.pendingCount - 1);
-          this.emit();
+        const matchId = action.payload?.matchId;
+
+        if (action.status === 'FAILED_PERMANENT') {
+          if (matchId) blockedMatches.add(matchId);
+          continue;
+        }
+
+        if (matchId && blockedMatches.has(matchId)) {
+          console.warn(`[SyncService] Skipping action ${action.id} because match ${matchId} is blocked.`);
           continue;
         }
 
         let success = false;
         let isNetworkError = false;
+        let isPermanentError = false;
+        let errorDetails = null;
+        let isAuthError = false;
         
         try {
           if (supabase) {
@@ -108,39 +115,105 @@ class SyncService {
              } else if (action.action === 'UNDO_DELIVERY') {
                success = await this.deleteDelivery(action.payload);
              } else {
-               // Unknown action type — remove it to avoid blocking the queue
-               success = true;
+               success = true; // Unknown action type
              }
           }
         } catch (error) {
           console.error(`[SyncService] Failed to process action ${action.id}:`, error);
-          if (error.code === '23505') { // Postgres Unique Violation (idempotency key = already exists)
-             success = true; // Already in DB — clear from queue
-          } else if (!navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-             // True network failure — stop processing, wait for reconnect
+          errorDetails = { code: error.code, message: error.message, details: error.details };
+
+          if (error.code === '23505') { 
+             // ONLY treat idempotency duplicate as success. Other unique constraints are permanent failures.
+             if (error.message?.includes('idempotency') || error.details?.includes('idempotency')) {
+                success = true; 
+             } else {
+                isPermanentError = true;
+             }
+          } else if (!navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError') || error.code === 'NETWORK_ERROR') {
              isNetworkError = true;
+          } else if (error.code === '401' || error.code === '42501' || error.message?.includes('JWT') || error.message?.includes('Auth')) {
+             isAuthError = true;
+          } else if (error.message?.includes('State Transition Error') || error.message?.includes('already finalized') || error.message?.includes('immutable') || error.message?.includes('check_match_immutable')) {
+             isPermanentError = true;
+          } else if (error.code === '23514' || error.code === '23503' || error.message?.includes('violates check constraint') || error.message?.includes('violates foreign key constraint') || error.message?.includes('invalid input syntax')) {
+             isPermanentError = true;
           } else {
-             // Application-level error (bad data, RLS, etc.) — increment retry count
-             this.retryCounts[action.id] = retries + 1;
+             // Unknown error -> assume transient until max retries to be safe.
           }
+        }
+
+        const retries = this.retryCounts[action.id] || 0;
+        
+        if (isAuthError) {
+           console.warn(`[SyncService] Authentication error on action ${action.id}. Pausing queue.`);
+           this.notifySessionExpired(matchId, action);
+           break; // Stop processing the queue until user logs in
+        }
+
+        if (!success && !isNetworkError && !isPermanentError) {
+           if (retries + 1 >= MAX_RETRIES) {
+              isPermanentError = true;
+              errorDetails = errorDetails || { message: 'Max retries reached' };
+           } else {
+              this.retryCounts[action.id] = retries + 1;
+           }
+        }
+
+        if (isPermanentError) {
+           console.error(`[SyncService] Action ${action.id} failed permanently. Blocking match ${matchId}.`);
+           await updateAction(action.id, {
+             status: 'FAILED_PERMANENT',
+             error: errorDetails,
+             failedAt: Date.now()
+           });
+           if (matchId) blockedMatches.add(matchId);
+           delete this.retryCounts[action.id];
+           
+           this.notifyPermanentFailure(matchId, action);
+           continue;
         }
 
         if (success) {
           delete this.retryCounts[action.id];
           await clearAction(action.id);
-          this.pendingCount = Math.max(0, this.pendingCount - 1);
-          this.emit();
         }
 
         if (isNetworkError) {
-          // Stop processing on real network error, will retry when back online
-          break;
+          break; // Stop on real network error
         }
       }
     } finally {
       this.syncInProgress = false;
-      await this.updatePendingCount(); // Always refresh count accurately
+      await this.updatePendingCount(); 
       this.setStatus(this.isOnline ? 'ONLINE' : 'OFFLINE');
+    }
+  }
+
+  notifySessionExpired(matchId, action) {
+    const msg = `Session expired / please sign in again to continue syncing.`;
+    const event = new CustomEvent('sync-permanent-failure', {
+      detail: { matchId, actionId: action.id, message: msg, action, isAuthError: true }
+    });
+    window.dispatchEvent(event);
+  }
+
+  notifyPermanentFailure(matchId, action) {
+    const seq = action.payload?.deliverySequence || '?';
+    const msg = `Match sync stopped at delivery ${seq}. Your score is saved locally but could not be synchronized. Please resolve the sync error before continuing.`;
+    
+    // Broadcast a custom event for the UI to pick up
+    const event = new CustomEvent('sync-permanent-failure', {
+      detail: { matchId, actionId: action.id, message: msg, action }
+    });
+    window.dispatchEvent(event);
+  }
+
+  async retryFailedAction(actionId) {
+    await updateAction(actionId, { status: 'PENDING', error: null, failedAt: null });
+    delete this.retryCounts[actionId];
+    this.updatePendingCount();
+    if (this.isOnline) {
+      this.processQueue();
     }
   }
 
@@ -238,10 +311,8 @@ class SyncService {
         } catch (e) {}
       }
 
-      // If still no valid UUID exists in DB, avoid violating DB check constraint by treating as NONE in DB
-      if (!dismissedPlayerId) {
-        wicketType = 'NONE';
-      }
+      // DO NOT silently overwrite wicketType. If missing, it will violate check_wicket_player_required.
+      // The DB constraint will reject it, which is the correct behaviour. We must preserve original payload.
     }
 
     // Consistency constraints for fielder and wicketkeeper
@@ -287,10 +358,15 @@ class SyncService {
     });
 
     if (error) {
-      if (error.code === '23505') return true; // Already exists (idempotent)
-      // If match finalized while in queue, drop gracefully
+      if (error.code === '23505') {
+        if (error.message?.includes('idempotency') || error.details?.includes('idempotency')) {
+           return true; 
+        }
+        throw error;
+      }
+      // Ensure finalized rejections are bubbled up instead of silently dropped
       if (error.message?.includes('already finalized') || error.message?.includes('check_match_immutable')) {
-        return true;
+        throw error;
       }
       throw error;
     }

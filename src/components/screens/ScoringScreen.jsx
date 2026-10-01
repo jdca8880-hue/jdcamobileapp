@@ -137,8 +137,19 @@ export default function ScoringScreen() {
     const unsubscribe = syncService.subscribe((state) => {
       setSyncState(state);
     });
-    return () => unsubscribe();
-  }, []);
+    
+    const handleSyncError = (e) => {
+      if (e.detail?.matchId === activeMatchId) {
+        setSyncError(e.detail);
+      }
+    };
+    
+    window.addEventListener('sync-permanent-failure', handleSyncError);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('sync-permanent-failure', handleSyncError);
+    };
+  }, [activeMatchId]);
 
 
 
@@ -394,6 +405,27 @@ export default function ScoringScreen() {
     <div className="bg-cloud min-h-screen">
       <div className="max-w-md mx-auto relative bg-white border-x border-slate-200 min-h-screen pb-[100px] shadow-2xl">
         
+        {syncError && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-sm text-sm z-50">
+            <div className="flex justify-between items-start mb-1">
+              <strong className="font-bold">Sync Failed</strong>
+              <button onClick={() => setSyncError(null)} className="text-red-500 hover:text-red-700">
+                <X size={16} />
+              </button>
+            </div>
+            <span className="block mb-3">{syncError.message}</span>
+            <button 
+              onClick={() => {
+                syncService.retryFailedAction(syncError.actionId);
+                setSyncError(null);
+              }}
+              className="bg-red-600 text-white py-1.5 px-4 rounded hover:bg-red-700 font-medium transition-colors"
+            >
+              Retry Sync
+            </button>
+          </div>
+        )}
+
         {/* HEADER */}
         <div className="px-4 pt-[60px] pb-4 bg-slate-50 border-b border-slate-100">
           <div className="flex items-center justify-between mb-4">
@@ -1005,8 +1037,8 @@ export default function ScoringScreen() {
             }}
             onEndMatchNow={async () => {
                try {
-                 await api.updateMatchDetails(activeMatchId, { status: 'COMPLETED', result_text: 'Match Ended Early / Abandoned' });
-                 alert("Match has been ended.");
+                 await api.abandonMatch(activeMatchId);
+                 alert("Match has been ended early/abandoned.");
                  navigateTo('matches');
                } catch (err) {
                  alert("Failed to end match: " + err.message);

@@ -68,3 +68,10 @@ export async function getPendingActions() {
 export async function clearAction(id) {
   await db.sync_queue.delete(id);
 }
+
+/**
+ * Update an existing action in the queue (e.g. status changes)
+ */
+export async function updateAction(id, changes) {
+  await db.sync_queue.update(id, changes);
+}

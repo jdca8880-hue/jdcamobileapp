@@ -125,7 +125,14 @@ export const api = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        const customError = new Error('DUPLICATE_TOURNAMENT');
+        customError.code = 'DUPLICATE_TOURNAMENT';
+        throw customError;
+      }
+      throw error;
+    }
 
     if (tournamentData.participatingTeams && tournamentData.participatingTeams.length > 0) {
       const teamInserts = tournamentData.participatingTeams.map(teamId => ({
@@ -465,7 +472,7 @@ export const api = {
 
 
   async createDetailedMatches(tournamentId, format, matchesArray) {
-    if (!matchesArray || matchesArray.length === 0) return [];
+    if (!matchesArray || matchesArray.length === 0) return { created: 0, skipped: 0, failed: 0 };
     
     const matchesToInsert = matchesArray.map(m => {
       if (!m.home_team_id && !m.homeTeamId) {
@@ -488,18 +495,57 @@ export const api = {
       };
     });
 
+    let createdCount = 0;
+    let skippedCount = 0;
+    let failedCount = 0;
+    const insertedMatches = [];
+
+    // Try bulk insert first for performance
     const { data, error } = await supabase
       .from('matches')
       .insert(matchesToInsert)
       .select();
 
-    if (error) {
-      if (error.code === '23505') {
-        throw new Error("One or more of these matches already exist (duplicate fixture).");
-      }
-      throw error;
+    if (!error && data) {
+      return {
+        created: data.length,
+        skipped: 0,
+        failed: 0,
+        data
+      };
     }
-    return data;
+
+    if (error.code === '23505') {
+      // Concurrency safe fallback: insert one by one
+      for (const match of matchesToInsert) {
+        const { data: singleData, error: singleError } = await supabase
+          .from('matches')
+          .insert(match)
+          .select()
+          .maybeSingle();
+
+        if (!singleError && singleData) {
+          createdCount++;
+          insertedMatches.push(singleData);
+        } else if (singleError && singleError.code === '23505') {
+          skippedCount++;
+        } else {
+          failedCount++;
+        }
+      }
+    } else {
+      const customError = new Error('UNKNOWN_DATABASE_ERROR');
+      customError.code = 'UNKNOWN_DATABASE_ERROR';
+      customError.details = error;
+      throw customError;
+    }
+
+    return {
+      created: createdCount,
+      skipped: skippedCount,
+      failed: failedCount,
+      data: insertedMatches
+    };
   },
 
   async updateMatchDetails(matchId, matchData) {
@@ -1268,6 +1314,19 @@ export const api = {
   async finalizeMatch(matchId, winnerId, resultMargin, resultText, manOfTheMatchId = null) {
     if (!matchId) throw new Error("Match ID required");
     
+    // Fetch existing match state
+    const { data: existingMatch, error: fetchErr } = await supabase
+      .from('matches')
+      .select('status, winner_team_id, result_margin, result_text, man_of_the_match_id')
+      .eq('id', matchId)
+      .single();
+
+    if (fetchErr) {
+      const customError = new Error('NETWORK_ERROR');
+      customError.code = 'NETWORK_ERROR';
+      throw customError;
+    }
+
     const updatePayload = {
       status: 'COMPLETED',
       winner_team_id: winnerId,
@@ -1278,6 +1337,23 @@ export const api = {
       updatePayload.man_of_the_match_id = manOfTheMatchId;
     }
 
+    if (existingMatch.status === 'COMPLETED') {
+      // Check if payloads match exactly
+      const isIdentical = 
+        existingMatch.winner_team_id === winnerId &&
+        existingMatch.result_margin === resultMargin &&
+        existingMatch.result_text === resultText &&
+        (manOfTheMatchId ? existingMatch.man_of_the_match_id === manOfTheMatchId : true);
+
+      if (isIdentical) {
+        return true; // ALREADY_FINALIZED_SAME_STATE
+      } else {
+        const customError = new Error('FINALIZED_CONFLICT');
+        customError.code = 'FINALIZED_CONFLICT';
+        throw customError;
+      }
+    }
+
     const { error } = await supabase
       .from('matches')
       .update(updatePayload)
@@ -1285,7 +1361,10 @@ export const api = {
       
     if (error) {
       console.error('[api] Failed to finalize match:', error);
-      throw error;
+      const customError = new Error('UNKNOWN_DATABASE_ERROR');
+      customError.code = 'UNKNOWN_DATABASE_ERROR';
+      customError.details = error;
+      throw customError;
     }
     
     return true;
@@ -1305,6 +1384,53 @@ export const api = {
       throw error;
     }
     return data;
+  },
+
+  // ==========================================
+  // SCORING COMPLETION: ABANDON/CANCEL MATCH
+  // ==========================================
+
+  async abandonMatch(matchId) {
+    if (!matchId) throw new Error("Match ID required");
+
+    // Fetch existing match state
+    const { data: existingMatch, error: fetchErr } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('id', matchId)
+      .single();
+
+    if (fetchErr) {
+      const customError = new Error('NETWORK_ERROR');
+      customError.code = 'NETWORK_ERROR';
+      throw customError;
+    }
+
+    if (existingMatch.status === 'COMPLETED' || existingMatch.status === 'ABANDONED' || existingMatch.status === 'CANCELLED') {
+       if (existingMatch.status === 'ABANDONED') return true;
+       
+       const customError = new Error('INVALID_STATE_TRANSITION');
+       customError.code = 'INVALID_STATE_TRANSITION';
+       throw customError;
+    }
+
+    const { error } = await supabase
+      .from('matches')
+      .update({
+        status: 'ABANDONED',
+        result_text: 'Match Ended Early / Abandoned'
+      })
+      .eq('id', matchId);
+
+    if (error) {
+      console.error('[api] Failed to abandon match:', error);
+      const customError = new Error('UNKNOWN_DATABASE_ERROR');
+      customError.code = 'UNKNOWN_DATABASE_ERROR';
+      customError.details = error;
+      throw customError;
+    }
+
+    return true;
   }
 };
 

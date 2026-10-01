@@ -98,7 +98,11 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save tournament');
+      if (err.code === 'DUPLICATE_TOURNAMENT') {
+        setErrorMsg('An identical tournament already exists for this season, category, and gender.');
+      } else {
+        setErrorMsg(err.message || 'Failed to save tournament');
+      }
     } finally {
       setIsSaving(false);
     }
