@@ -1248,8 +1248,8 @@ export function CricketProvider({ children }) {
   const replaceStriker = (player) => {
     if (!player) return;
     setStriker((prev) => ({
-      id: player.id || prev.id,
-      name: player.name || prev.name,
+      id: player.id || prev?.id,
+      name: player.full_name || player.name || prev?.name || 'Striker',
       runs: Number.isFinite(player.runs) ? player.runs : 0,
       balls: Number.isFinite(player.balls) ? player.balls : 0,
       fours: Number.isFinite(player.fours) ? player.fours : 0,
@@ -1262,7 +1262,7 @@ export function CricketProvider({ children }) {
     if (!player) return;
     const newBatter = {
       id: player.id || `temp-${Date.now()}`,
-      name: player.name || 'Batter',
+      name: player.full_name || player.name || 'Batter',
       runs: Number.isFinite(player.runs) ? player.runs : 0,
       balls: Number.isFinite(player.balls) ? player.balls : 0,
       fours: Number.isFinite(player.fours) ? player.fours : 0,
@@ -1280,7 +1280,7 @@ export function CricketProvider({ children }) {
     if (!player) return;
     setCurrentBowler({
       id: player.id,
-      name: player.name || 'Bowler',
+      name: player.full_name || player.name || 'Bowler',
       overs: 0,
       ballsBowled: 0,
       maidens: 0,
