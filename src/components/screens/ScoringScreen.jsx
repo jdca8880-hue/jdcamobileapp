@@ -326,7 +326,7 @@ export default function ScoringScreen() {
 
     let wk = '';
     if (selectedDismissal === 'Stumped') {
-      wk = bowlingXI.find(p => /wicket/i.test(p.role))?.name || fielder;
+      wk = bowlingXI.find(p => /wicket/i.test(p.primary_role || p.role))?.full_name || bowlingXI.find(p => /wicket/i.test(p.primary_role || p.role))?.name || fielder;
     }
 
     setReplacingBatterType(outName === nonStriker?.name ? 'nonStriker' : 'striker');
@@ -588,7 +588,7 @@ export default function ScoringScreen() {
                <RefreshCw size={14} /> Change Bowler
              </button>
              <button onClick={() => setChangeWkOpen(true)} className="flex-1 bg-white rounded-[10px] py-2.5 text-xs font-bold uppercase tracking-wider border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-               <Users size={14} /> Edit WK {currentWk ? `(${currentWk?.name.split(' ')[0]})` : ''}
+               <Users size={14} /> Edit WK {currentWk ? `(${(currentWk?.full_name || currentWk?.name || '').split(' ')[0]})` : ''}
              </button>
           </div>
         </div>
@@ -679,13 +679,13 @@ export default function ScoringScreen() {
               <div className="mb-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Caught by</label>
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  {bowlingXI.filter(p => p.name !== striker?.name && p.name !== nonStriker?.name).map(p => (
+                  {bowlingXI.filter(p => (p.full_name || p.name) !== striker?.name && (p.full_name || p.name) !== nonStriker?.name).map(p => (
                     <button 
                       key={p.id} 
-                      className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === p.name ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
-                      onClick={() => setFielder(p.name)}
+                      className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === (p.full_name || p.name) ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
+                      onClick={() => setFielder(p.full_name || p.name)}
                     >
-                      {p.name} {/wicket/i.test(p.role) ? '(WK)' : ''}
+                      {p.full_name || p.name} {/wicket/i.test(p.primary_role || p.role) ? '(WK)' : ''}
                     </button>
                   ))}
                 </div>
@@ -767,8 +767,8 @@ export default function ScoringScreen() {
                   className="flex items-center justify-between p-3 rounded-[10px] bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors"
                 >
                   <div>
-                    <div className="text-[14px] font-bold text-slate-900 text-left">{player.name}</div>
-                    <div className="text-xs text-slate-500 text-left">{player.role || 'Batter'}</div>
+                    <div className="text-[14px] font-bold text-slate-900 text-left">{player.full_name || player.name}</div>
+                    <div className="text-xs text-slate-500 text-left">{player.primary_role || player.role || 'Batter'}</div>
                   </div>
                   <ChevronRight size={16} className="text-slate-300"/>
                 </button>
@@ -794,8 +794,8 @@ export default function ScoringScreen() {
                   className="flex items-center justify-between p-3 rounded-[10px] bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors"
                 >
                   <div>
-                    <div className="text-[14px] font-bold text-slate-900 text-left">{player.name}</div>
-                    <div className="text-xs text-slate-500 text-left">{player.role}</div>
+                    <div className="text-[14px] font-bold text-slate-900 text-left">{player.full_name || player.name}</div>
+                    <div className="text-xs text-slate-500 text-left">{player.primary_role || player.role}</div>
                   </div>
                   <ChevronRight size={16} className="text-slate-300"/>
                 </button>
@@ -817,8 +817,8 @@ export default function ScoringScreen() {
                     className={`flex items-center justify-between p-3 rounded-[10px] border transition-colors ${isWk ? 'bg-mango-50 border-mango text-slate-900' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'}`}
                   >
                     <div className="text-left">
-                      <div className="text-[14px] font-bold">{player.name}</div>
-                      <div className={`text-xs ${isWk ? 'text-mango-700 font-semibold' : 'text-slate-500'}`}>{player.role}</div>
+                      <div className="text-[14px] font-bold">{player.full_name || player.name}</div>
+                      <div className={`text-xs ${isWk ? 'text-mango-700 font-semibold' : 'text-slate-500'}`}>{player.primary_role || player.role}</div>
                     </div>
                     {isWk && <span className="text-xs font-bold uppercase tracking-widest bg-mango text-white px-2 py-1 rounded">Current WK</span>}
                   </button>
