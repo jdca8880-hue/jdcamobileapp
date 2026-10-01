@@ -6,12 +6,15 @@ import PageHeader from '../ui/PageHeader';
 import Badge from '../ui/Badge';
 
 export default function InningsBreakScreen() {
-  const { runs = 0, wickets = 0, setInnings, navigateTo } = useCricket();
+  const { runs = 0, wickets = 0, setInnings, navigateTo, activeMatchId, resolveInningsId } = useCricket();
 
   const targetScore = (runs || 184) + 1;
 
-  const handleStartSecondInnings = () => {
+  const handleStartSecondInnings = async () => {
     if (setInnings) setInnings(2);
+    if (resolveInningsId && activeMatchId) {
+      await resolveInningsId(activeMatchId, 2);
+    }
     if (navigateTo) navigateTo('scoring');
   };
 

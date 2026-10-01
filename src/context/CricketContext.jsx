@@ -737,6 +737,11 @@ export function CricketProvider({ children }) {
               setLastOverBowlerId(lastDel.bowler_id);
             }
           }
+        } else {
+          setStriker(null);
+          setNonStriker(null);
+          setCurrentBowler(null);
+          setLastOverBowlerId(null);
         }
       }
       return { success: true };

@@ -40,9 +40,16 @@ export default function MatchResultScreen() {
   const highlights = useMemo(() => calculateMatchHighlights(matchData || {}), [matchData]);
 
   const allMatchPlayers = useMemo(() => {
-    if (!matchData?.scorecard) return [];
-    const tA = matchData.scorecard.teamA.batting.map(b => ({ id: b.id, name: b.name }));
-    const tB = matchData.scorecard.teamB.batting.map(b => ({ id: b.id, name: b.name }));
+    if (!matchData || !matchData.scorecard) return [];
+    
+    const hTeam = matchData.scorecard.home_team || {};
+    const aTeam = matchData.scorecard.away_team || {};
+    const hBatting = hTeam.batting || [];
+    const aBatting = aTeam.batting || [];
+
+    const tA = hBatting.map(b => ({ id: b.id, name: b.name }));
+    const tB = aBatting.map(b => ({ id: b.id, name: b.name }));
+    
     return [...tA, ...tB].filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
   }, [matchData]);
 
