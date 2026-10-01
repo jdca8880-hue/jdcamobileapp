@@ -50,6 +50,7 @@ export default function ScoringScreen() {
   const [extraRuns, setExtraRuns] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
+  const [syncError, setSyncError] = useState(null);
   const [isHydrating, setIsHydrating] = useState(false);
   const [hydrationError, setHydrationError] = useState(null);
   const [selectedTournament, setSelectedTournament] = useState('');
