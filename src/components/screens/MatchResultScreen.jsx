@@ -93,7 +93,13 @@ export default function MatchResultScreen() {
         await api.assignManOfTheMatch(matchData.id, selectedMotm);
       }
       const finalResultText = matchData.resultText || matchData.result || 'Match Completed';
-      await api.finalizeMatch(matchData.id, null, null, finalResultText, selectedMotm || null);
+      await api.finalizeMatch(
+        matchData.id, 
+        matchData.winner_team_id || null, 
+        matchData.result_margin || null, 
+        finalResultText, 
+        selectedMotm || null
+      );
       await resetScoringSession();
       alert("Match has been successfully finalized and permanently locked! Scorer console is refreshed and ready.");
       navigateTo('scoring');

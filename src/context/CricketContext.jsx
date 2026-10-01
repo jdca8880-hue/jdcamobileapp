@@ -1135,7 +1135,11 @@ export function CricketProvider({ children }) {
           text = 'Match tied';
         }
         
-        api.finalizeMatch(activeMatchId, winnerId, margin, text).catch(console.error);
+        api.updateMatchDetails(activeMatchId, { 
+          winner_team_id: winnerId, 
+          result_margin: margin, 
+          result_text: text 
+        }).catch(console.error);
       } catch (e) {
         console.error('[CricketContext] Match finalization error:', e);
       }

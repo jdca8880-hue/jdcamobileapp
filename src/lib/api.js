@@ -523,6 +523,8 @@ export const api = {
     if (matchData.scorerName !== undefined) updatePayload.scorer_name = matchData.scorerName;
     if (matchData.status !== undefined) updatePayload.status = matchData.status;
     if (matchData.result_text !== undefined) updatePayload.result_text = matchData.result_text;
+    if (matchData.winner_team_id !== undefined) updatePayload.winner_team_id = matchData.winner_team_id;
+    if (matchData.result_margin !== undefined) updatePayload.result_margin = matchData.result_margin;
 
     const { data, error } = await supabase
       .from('matches')
