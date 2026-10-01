@@ -193,7 +193,10 @@ export default function ScoringScreen() {
   // Only force full InningsInitScreen at the very beginning of the innings
   const needsInitialization = balls === 0 && (!striker?.id || !nonStriker?.id || !currentBowler?.id);
 
-  const batters = useMemo(() => battingXI.filter(p => p?.name && p.name !== striker?.name && p.name !== nonStriker?.name), [battingXI, striker?.name, nonStriker?.name]);
+  const batters = useMemo(() => battingXI.filter(p => {
+    const pName = p?.full_name || p?.name;
+    return pName && pName !== striker?.name && pName !== nonStriker?.name;
+  }), [battingXI, striker?.name, nonStriker?.name]);
   const lastBalls = deliveryLog.length ? deliveryLog.slice(-6) : currentOverBalls.map((b, i) => ({ ...b, id: `temp-${i}`, runs: Number(b.value) || 0, wicket: b.type === 'wicket', extra: b.type === 'extra' }));
   const isOverComplete = matchStatus === 'OVER_COMPLETE';
 
