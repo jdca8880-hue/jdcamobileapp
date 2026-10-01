@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { Trophy, ArrowRight, Newspaper, ShieldCheck, Lock, CheckCircle2 } from 'lucide-react';
+import { Trophy, ArrowRight, Newspaper, ShieldCheck, Lock, CheckCircle2, Trash2 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
 import MatchScorecard from '../ui/MatchScorecard';
@@ -13,6 +13,7 @@ export default function MatchResultScreen() {
   const [selectedMotm, setSelectedMotm] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchReport() {
@@ -97,8 +98,34 @@ export default function MatchResultScreen() {
     }
   };
 
-  return <div className="match-result-page matches-directory-page pb-24">
-    <div className="result-hero-light">
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this match? It will be moved to the Recycle Bin.")) return;
+    
+    setIsDeleting(true);
+    try {
+      await api.deleteMatch(matchData.id);
+      alert('Match moved to Recycle Bin.');
+      navigateTo('matches');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to delete match.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return <div className="match-result-page matches-directory-page pb-24 relative">
+    <div className="result-hero-light relative">
+      {(userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || userRole === 'SCORER') && (
+        <button
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-rose-500/20 text-rose-300 hover:bg-rose-500/40 hover:text-white transition-colors cursor-pointer disabled:opacity-50 border border-rose-500/30 z-10"
+          title="Delete Match"
+        >
+          <Trash2 size={16} strokeWidth={2.5} />
+        </button>
+      )}
       <div><span className="result-hero-light__kicker"><Trophy size={14}/> OFFICIAL MATCH RESULT</span><h1>{matchData.resultText || matchData.result || 'Match completed'}</h1><p>{matchData.tournament || 'JDCA Fixture'} • {matchData.venue || 'JDCA Ground'} • {matchData.date || 'Match Day'}</p></div>
       <div className="result-hero-light__scores"><span>{matchData.teamA?.name}</span><strong>{matchData.teamA?.score || '-'}</strong><small>{matchData.teamA?.overs || ''}</small><i>VS</i><span>{matchData.teamB?.name}</span><strong>{matchData.teamB?.score || '-'}</strong><small>{matchData.teamB?.overs || ''}</small></div>
     </div>
