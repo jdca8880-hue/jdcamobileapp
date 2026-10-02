@@ -20,7 +20,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const { currentScreen, navigateTo, userRole, userEmail, setIsAuthenticated } = useCricket();
+  const { currentScreen, navigateTo, userRole, userEmail, setIsAuthenticated, logout } = useCricket();
 
   const visible = NAV_ITEMS.map(item => {
     if (userRole === 'SCORER' && item.id === 'administration') {
