@@ -19,8 +19,8 @@ export const useStandings = (matches) => {
 
       // Initialize standings map
       matches.forEach(m => {
-        const tA = m.home_team?.name || m.teamA?.name || 'TBA';
-        const tB = m.away_team?.name || m.teamB?.name || 'TBA';
+        const tA = m.home_team?.name || m.teamA?.name || 'Unknown Team';
+        const tB = m.away_team?.name || m.teamB?.name || 'Unknown Team';
         const idA = m.home_team_id || m.home_team?.id || m.teamA?.id || tA;
         const idB = m.away_team_id || m.away_team?.id || m.teamB?.id || tB;
 

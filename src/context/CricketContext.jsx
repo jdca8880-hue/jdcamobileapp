@@ -703,10 +703,27 @@ export function CricketProvider({ children }) {
           
           // Hydrate target for 2nd/4th innings
           if (scorecard && scorecard.innings) {
+            let firstInningsRuns = null;
             if (currentInning.innings_number === 2 && scorecard.innings.length >= 1) {
-              setTarget(prev => prev !== null ? prev : (scorecard.innings[0].runs || 0) + 1);
+              firstInningsRuns = scorecard.innings[0].runs || 0;
             } else if (currentInning.innings_number === 4 && scorecard.innings.length >= 3) {
-              setTarget(prev => prev !== null ? prev : (scorecard.innings[2].runs || 0) + 1);
+              firstInningsRuns = scorecard.innings[2].runs || 0;
+            }
+
+            if (firstInningsRuns !== null) {
+              try {
+                const { db } = await import('../lib/db.js');
+                if (db.sync_queue) {
+                  const pendingActions = await db.sync_queue.toArray();
+                  const targetInningsNum = currentInning.innings_number === 2 ? 1 : 3;
+                  const offlineDelivs = pendingActions.filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.matchId === matchId && Number(a.payload?.innings || 1) === targetInningsNum);
+                  const offlineRuns = offlineDelivs.reduce((acc, a) => acc + (a.payload?.totalRuns || 0), 0);
+                  firstInningsRuns += offlineRuns;
+                }
+              } catch (e) {
+                console.warn('[CricketContext] Failed to add offline deliveries to target:', e);
+              }
+              setTarget(prev => prev !== null ? prev : firstInningsRuns + 1);
             }
           }
 
@@ -804,6 +821,7 @@ export function CricketProvider({ children }) {
         // Calculate Target for second innings
         if (num === 2 && !target) {
           try {
+            let onlineRuns = 0;
             // Fetch first innings ID
             const { data: firstInn } = await supabase
               .from('innings')
@@ -820,10 +838,21 @@ export function CricketProvider({ children }) {
                 .eq('innings_id', firstInn.id);
                 
               if (deliveries) {
-                const firstInningsRuns = deliveries.reduce((acc, d) => acc + (d.runs_total || 0), 0);
-                setTarget(prev => prev !== null ? prev : firstInningsRuns + 1);
+                onlineRuns = deliveries.reduce((acc, d) => acc + (d.runs_total || 0), 0);
               }
             }
+
+            let offlineRuns = 0;
+            try {
+              const { db } = await import('../lib/db.js');
+              if (db.sync_queue) {
+                const pending = await db.sync_queue.toArray();
+                const offline = pending.filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.matchId === matchId && Number(a.payload?.innings || 1) === 1);
+                offlineRuns = offline.reduce((acc, a) => acc + (a.payload?.totalRuns || 0), 0);
+              }
+            } catch (err) {}
+
+            setTarget(prev => prev !== null ? prev : (onlineRuns + offlineRuns) + 1);
           } catch (e) {
             console.error('[CricketContext] Failed to calculate target:', e);
           }
@@ -1099,8 +1128,8 @@ export function CricketProvider({ children }) {
         let text = '';
         
         const activeMatch = matches?.find(m => m.id === activeMatchId);
-        const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'TBA';
-        const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'TBA';
+        const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'Unknown Team';
+        const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'Unknown Team';
         
         // Determine which team was batting in this innings (innings 2/4)
         const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;

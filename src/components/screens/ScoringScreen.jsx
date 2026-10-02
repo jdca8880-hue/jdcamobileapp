@@ -155,8 +155,8 @@ export default function ScoringScreen() {
 
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
-  const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'TBA';
-  const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'TBA';
+  const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'Unknown Team';
+  const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'Unknown Team';
   const matchTournament = tournaments?.find(t => t.id === activeMatch?.tournament_id);
   const tournamentName = activeMatch?.tournament || 'JDCA District Cricket';
   

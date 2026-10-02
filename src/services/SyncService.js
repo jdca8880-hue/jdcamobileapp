@@ -88,6 +88,12 @@ class SyncService {
       console.log(`[SyncService] Processing ${actions.length} pending actions...`);
 
       const blockedMatches = new Set();
+      const context = {
+        matchStatusCache: new Map(),
+        inningsCache: new Map(),
+        lastSequenceCache: new Map(),
+        rosterCache: new Map()
+      };
 
       for (const action of actions) {
         const matchId = action.payload?.matchId;
@@ -111,7 +117,7 @@ class SyncService {
         try {
           if (supabase) {
              if (action.action === 'RECORD_DELIVERY') {
-               success = await this.pushDelivery(action.payload);
+               success = await this.pushDelivery(action.payload, context);
              } else if (action.action === 'UNDO_DELIVERY') {
                success = await this.deleteDelivery(action.payload);
              } else {
@@ -217,7 +223,7 @@ class SyncService {
     }
   }
 
-  async pushDelivery(payload) {
+  async pushDelivery(payload, context = null) {
     if (!payload.matchId) return true; // Invalid data, skip
     
     // Lifecycle events like 'innings_start' are timeline markers, not physical deliveries
@@ -231,13 +237,18 @@ class SyncService {
     
     // If inningsId is missing or invalid, resolve or create using api.getOrCreateInnings
     if (!inningsId) {
-      if (supabase && payload.matchId) {
+      const cacheKey = `${payload.matchId}_${payload.innings}`;
+      if (context?.inningsCache?.has(cacheKey)) {
+        inningsId = context.inningsCache.get(cacheKey);
+        payload.inningsId = inningsId;
+      } else if (supabase && payload.matchId) {
         try {
           const { api } = await import('../lib/api');
           const inn = await api.getOrCreateInnings(payload.matchId, Number(payload.innings) || 1);
           if (inn?.id) {
             inningsId = inn.id;
             payload.inningsId = inn.id;
+            context?.inningsCache?.set(cacheKey, inn.id);
           }
         } catch (e) {
           console.warn('[SyncService] Failed to auto-resolve or create innings via API:', e);
@@ -251,9 +262,17 @@ class SyncService {
 
     // Backend verification: Prevent delivery if match is COMPLETED
     if (supabase) {
-      const { data: matchData } = await supabase.from('matches').select('status').eq('id', payload.matchId).maybeSingle();
-      if (matchData && (matchData.status === 'COMPLETED' || matchData.status === 'FINISHED' || matchData.status === 'CANCELLED')) {
-        console.warn(`[SyncService] Match ${payload.matchId} is ${matchData.status}. Rejecting delivery record.`);
+      let matchStatus = context?.matchStatusCache?.get(payload.matchId);
+      if (!matchStatus) {
+        const { data: matchData } = await supabase.from('matches').select('status').eq('id', payload.matchId).maybeSingle();
+        if (matchData) {
+          matchStatus = matchData.status;
+          context?.matchStatusCache?.set(payload.matchId, matchStatus);
+        }
+      }
+      
+      if (matchStatus === 'COMPLETED' || matchStatus === 'FINISHED' || matchStatus === 'CANCELLED') {
+        console.warn(`[SyncService] Match ${payload.matchId} is ${matchStatus}. Rejecting delivery record.`);
         return true; // Clear from offline queue gracefully
       }
     }
@@ -301,13 +320,20 @@ class SyncService {
       if (!dismissedPlayerId) {
         // Fallback: query any valid player from the match roster so check constraint is satisfied
         try {
-          const { data: rPlayer } = await supabase
-            .from('match_rosters')
-            .select('player_id')
-            .eq('match_id', payload.matchId)
-            .limit(1)
-            .maybeSingle();
-          if (rPlayer?.player_id) dismissedPlayerId = rPlayer.player_id;
+          if (context?.rosterCache?.has(payload.matchId)) {
+            dismissedPlayerId = context.rosterCache.get(payload.matchId);
+          } else {
+            const { data: rPlayer } = await supabase
+              .from('match_rosters')
+              .select('player_id')
+              .eq('match_id', payload.matchId)
+              .limit(1)
+              .maybeSingle();
+            if (rPlayer?.player_id) {
+              dismissedPlayerId = rPlayer.player_id;
+              context?.rosterCache?.set(payload.matchId, dismissedPlayerId);
+            }
+          }
         } catch (e) {}
       }
 
@@ -323,14 +349,18 @@ class SyncService {
     let deliverySequence = payload.deliverySequence;
     if (!deliverySequence || deliverySequence < 1) {
       try {
-        const { data: lastDel } = await supabase
-          .from('deliveries')
-          .select('delivery_sequence')
-          .eq('innings_id', inningsId)
-          .order('delivery_sequence', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        deliverySequence = (lastDel?.delivery_sequence || 0) + 1;
+        if (context?.lastSequenceCache?.has(inningsId)) {
+          deliverySequence = context.lastSequenceCache.get(inningsId) + 1;
+        } else {
+          const { data: lastDel } = await supabase
+            .from('deliveries')
+            .select('delivery_sequence')
+            .eq('innings_id', inningsId)
+            .order('delivery_sequence', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          deliverySequence = (lastDel?.delivery_sequence || 0) + 1;
+        }
       } catch (e) {
         deliverySequence = Math.max(1, (payload.balls || 0) + 1);
       }
@@ -360,6 +390,7 @@ class SyncService {
     if (error) {
       if (error.code === '23505') {
         if (error.message?.includes('idempotency') || error.details?.includes('idempotency')) {
+           context?.lastSequenceCache?.set(inningsId, deliverySequence); // Cache it even if duplicate
            return true; 
         }
         throw error;
@@ -370,6 +401,8 @@ class SyncService {
       }
       throw error;
     }
+    
+    context?.lastSequenceCache?.set(inningsId, deliverySequence);
     return true;
   }
 

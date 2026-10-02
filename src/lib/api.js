@@ -891,13 +891,42 @@ export const api = {
     const topBatter = allBatters[0] ? { name: allBatters[0].name, stat: `${allBatters[0].runs} (${allBatters[0].balls})` } : null;
     const topBowler = allBowlers[0] ? { name: allBowlers[0].name, stat: `${allBowlers[0].wickets}/${allBowlers[0].runs}` } : null;
 
+    let mvp = matchData.man_of_the_match ? { id: matchData.man_of_the_match.id, name: matchData.man_of_the_match.full_name } : null;
+    
+    if (!mvp) {
+      const playerScores = {};
+      [...stats1.batting, ...stats2.batting].forEach(b => {
+        if (b.id) {
+          if (!playerScores[b.id]) playerScores[b.id] = { id: b.id, name: b.name, score: 0 };
+          playerScores[b.id].score += (b.runs || 0);
+        }
+      });
+      [...stats1.bowling, ...stats2.bowling].forEach(b => {
+        if (b.id) {
+          if (!playerScores[b.id]) playerScores[b.id] = { id: b.id, name: b.name, score: 0 };
+          playerScores[b.id].score += (b.wickets || 0) * 25; // 25 points per wicket
+        }
+      });
+      
+      let bestScore = -1;
+      for (const p of Object.values(playerScores)) {
+        if (p.score > bestScore) {
+          bestScore = p.score;
+          mvp = { id: p.id, name: p.name };
+        }
+      }
+    }
+
     return {
       id: matchData.id,
       tournament: matchData.tournament_id,
       venue: matchData.venue_name || 'JDCA Ground',
       date: matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Unknown Date',
       resultText: matchData.result_text || matchData.status,
-      manOfTheMatch: matchData.man_of_the_match ? { id: matchData.man_of_the_match.id, name: matchData.man_of_the_match.full_name } : null,
+      status: matchData.status,
+      winner_team_id: matchData.winner_team_id,
+      result_margin: matchData.result_margin,
+      manOfTheMatch: mvp,
       home_team: {
         id: matchData.home_team_id,
         name: matchData.home_team?.name || 'Home Team',

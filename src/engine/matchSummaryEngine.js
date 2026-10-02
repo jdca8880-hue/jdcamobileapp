@@ -18,8 +18,8 @@ export function calculateMatchHighlights(match = {}) {
 }
 
 export function generateMatchSummary(match = {}, highlights = calculateMatchHighlights(match)) {
-  const teamA = match.teamA?.name || 'TBA';
-  const teamB = match.teamB?.name || 'TBA';
+  const teamA = match.teamA?.name || 'Unknown Team';
+  const teamB = match.teamB?.name || 'Unknown Team';
   const result = match.resultText || match.result || 'Match result recorded officially.';
   const aScore = match.teamA?.score || '';
   const bScore = match.teamB?.score || '';
@@ -37,8 +37,8 @@ export function generateMatchSummary(match = {}, highlights = calculateMatchHigh
 }
 
 export function generateSocialCaption(match = {}, highlights = calculateMatchHighlights(match)) {
-  const teamA = match.teamA?.name || 'TBA';
-  const teamB = match.teamB?.name || 'TBA';
+  const teamA = match.teamA?.name || 'Unknown Team';
+  const teamB = match.teamB?.name || 'Unknown Team';
   const lines = [`🏏 ${teamA} vs ${teamB}`, `🏆 ${match.resultText || match.result || 'Official result recorded'}`];
   if (highlights.topBatter?.name) lines.push(`🏏 Top Batter: ${highlights.topBatter.name} � ${highlights.topBatter.stat || ''}`.trim());
   if (highlights.topBowler?.name) lines.push(`🎯 Top Bowler: ${highlights.topBowler.name} � ${highlights.topBowler.stat || ''}`.trim());

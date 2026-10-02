@@ -81,35 +81,35 @@ export default function MatchScorecard({ match }) {
           onClick={() => setInningsTab(1)}
           className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all ${inningsTab === 1 ? 'bg-white text-[#101827] shadow-sm' : 'text-[#8a99b0]'}`}
         >
-          1st Innings: {match.home_team?.name || 'TBA'}
+          1st Innings: {match.home_team?.name || 'Unknown Team'}
         </button>
         <button
           onClick={() => setInningsTab(2)}
           className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all ${inningsTab === 2 ? 'bg-white text-[#101827] shadow-sm' : 'text-[#8a99b0]'}`}
         >
-          2nd Innings: {match.away_team?.name || 'TBA'}
+          2nd Innings: {match.away_team?.name || 'Unknown Team'}
         </button>
       </div>
 
       {inningsTab === 1 && (
         <>
-          <BattingTable team={match.home_team?.name || 'TBA'} players={scorecard.home_team?.batting} />
+          <BattingTable team={match.home_team?.name || 'Unknown Team'} players={scorecard.home_team?.batting} />
           <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl mb-6 text-[13px]">
             <span className="font-bold text-[#596579]">Extras</span>
             <span className="font-black text-[#101827]">{scorecard.home_team?.extras ?? match.home_team?.extras ?? '�'}</span>
           </div>
-          <BowlingTable team={match.away_team?.name || 'TBA'} bowlers={scorecard.away_team?.bowling || scorecard.bowlingA} />
+          <BowlingTable team={match.away_team?.name || 'Unknown Team'} bowlers={scorecard.away_team?.bowling || scorecard.bowlingA} />
         </>
       )}
 
       {inningsTab === 2 && (
         <>
-          <BattingTable team={match.away_team?.name || 'TBA'} players={scorecard.away_team?.batting} />
+          <BattingTable team={match.away_team?.name || 'Unknown Team'} players={scorecard.away_team?.batting} />
           <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl mb-6 text-[13px]">
             <span className="font-bold text-[#596579]">Extras</span>
             <span className="font-black text-[#101827]">{scorecard.away_team?.extras ?? match.away_team?.extras ?? '�'}</span>
           </div>
-          <BowlingTable team={match.home_team?.name || 'TBA'} bowlers={scorecard.home_team?.bowling || scorecard.bowlingB} />
+          <BowlingTable team={match.home_team?.name || 'Unknown Team'} bowlers={scorecard.home_team?.bowling || scorecard.bowlingB} />
         </>
       )}
 

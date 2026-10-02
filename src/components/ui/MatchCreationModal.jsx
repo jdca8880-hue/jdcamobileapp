@@ -40,6 +40,14 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
       alert("Home and Away teams must be different");
       return;
     }
+    if (!scheduledAt) {
+      alert("Please select a scheduled date and time");
+      return;
+    }
+    if (!venueName || venueName.trim() === '') {
+      alert("Please enter a venue name");
+      return;
+    }
 
     setIsSubmitting(true);
     try {

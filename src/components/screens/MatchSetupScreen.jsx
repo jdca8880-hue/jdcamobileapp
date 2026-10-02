@@ -334,6 +334,10 @@ export default function MatchSetupScreen() {
         alert("Please select the toss winner.");
         return false;
       }
+      if (!matchSetup.electedTo) {
+        alert("Please select what the toss winner elected to do (Bat or Bowl).");
+        return false;
+      }
       return true;
     }
     if (currentStep === 4) {

@@ -7,7 +7,7 @@ export default function MatchMediaReport({ match }) {
   const highlights = useMemo(() => calculateMatchHighlights(match), [match]);
   const summary = useMemo(() => generateMatchSummary(match, highlights), [match, highlights]);
   const caption = useMemo(() => generateSocialCaption(match, highlights), [match, highlights]);
-  const headline = match.mediaHeadline || `${match.home_team?.name || 'TBA'} vs ${match.away_team?.name || 'TBA'} — Official Match Report`;
+  const headline = match.mediaHeadline || `${match.home_team?.name || 'Unknown Team'} vs ${match.away_team?.name || 'Unknown Team'} — Official Match Report`;
 
   const copy = async (text = summary) => {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}
