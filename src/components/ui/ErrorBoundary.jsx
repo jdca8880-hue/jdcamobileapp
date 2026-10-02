@@ -23,6 +23,9 @@ export class ErrorBoundary extends React.Component {
             <AlertTriangle size={32} />
           </div>
           <h2 className="text-2xl font-black text-gray-900 mb-2">Something went wrong</h2>
+          <div className="bg-red-50 text-red-600 font-mono text-xs text-left p-4 rounded-xl border border-red-100 max-w-full overflow-x-auto mb-6 w-full max-w-lg">
+            {this.state.error?.toString()}
+          </div>
           <p className="text-sm text-gray-500 mb-8 max-w-md">
             The application encountered an unexpected error. Please try refreshing the page. If the problem persists, please contact support.
           </p>
