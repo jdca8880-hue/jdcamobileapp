@@ -109,9 +109,9 @@ export default function MatchDetailScreen() {
 
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="flex-1 text-right">
-              <div className="text-[20px] font-black leading-tight mb-1">{match.teamA?.name || 'JABALPUR'}</div>
-              <div className="text-[32px] font-black text-[#ff6100] tracking-tighter leading-none">{match.teamA?.score || (live ? '142/4' : '186/4')}</div>
-              {live && <div className="text-[12px] font-bold text-white/80 mt-1">{match.teamA?.overs || '24.2'} ov</div>}
+              <div className="text-[20px] font-black leading-tight mb-1">{match.home_team?.name || 'Home Team'}</div>
+              <div className="text-[32px] font-black text-[#ff6100] tracking-tighter leading-none">{match.home_team?.score || (live ? 'Batting' : '')}</div>
+              {live && <div className="text-[12px] font-bold text-white/80 mt-1">{match.home_team?.overs || ''}</div>}
             </div>
             
             <div className="w-8 flex-shrink-0 flex flex-col items-center justify-center text-white/40">
@@ -121,14 +121,14 @@ export default function MatchDetailScreen() {
             </div>
 
             <div className="flex-1 text-left">
-              <div className="text-[20px] font-black leading-tight mb-1">{match.teamB?.name || 'MANDLA'}</div>
-              <div className="text-[32px] font-black text-white tracking-tighter leading-none">{match.teamB?.score || (live ? '—' : '184/8')}</div>
-              {!live && <div className="text-[12px] font-bold text-white/80 mt-1">40.0 ov</div>}
+              <div className="text-[20px] font-black leading-tight mb-1">{match.away_team?.name || 'Away Team'}</div>
+              <div className="text-[32px] font-black text-white tracking-tighter leading-none">{match.away_team?.score || (live ? 'Yet to bat' : '')}</div>
+              {!live && <div className="text-[12px] font-bold text-white/80 mt-1">{match.away_team?.overs || ''}</div>}
             </div>
           </div>
 
           <div className="text-[13px] font-bold text-white/90 bg-white/10 py-2 px-4 rounded-xl inline-block max-w-[90%] mx-auto">
-            {live ? 'Jabalpur elected to bat first' : (match.resultText || match.result || 'Jabalpur won by 2 runs')}
+            {live ? (match.toss_winner_id === match.home_team_id ? match.home_team?.name : match.away_team?.name) + ' elected to ' + (match.toss_decision === 'BAT' ? 'bat' : 'bowl') : (match.result_text || match.result_text || 'Match completed')}
           </div>
         </div>
       </div>

@@ -702,7 +702,7 @@ export const api = {
     // 1. Fetch match and teams
     const { data: match, error: matchError } = await supabase
       .from('matches')
-      .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
+      .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
       .eq('id', matchId)
       .single();
       
