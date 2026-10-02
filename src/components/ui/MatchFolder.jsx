@@ -6,8 +6,8 @@ export default function MatchFolder({ match, onOpen }) {
   const [open, setOpen] = useState(false);
   const live = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
   const completed = match.status === 'COMPLETED' || match.status === 'FINISHED';
-  const teamA = match.home_team?.name || 'Jabalpur XI';
-  const teamB = match.away_team?.name || 'Katni XI';
+  const teamA = match.home_team?.name || 'Home Team';
+  const teamB = match.away_team?.name || 'Away Team';
   const scoreA = match.home_team?.score || '—';
   const scoreB = match.away_team?.score || '—';
 
@@ -47,4 +47,5 @@ export default function MatchFolder({ match, onOpen }) {
     </section>
   );
 }
+
 
