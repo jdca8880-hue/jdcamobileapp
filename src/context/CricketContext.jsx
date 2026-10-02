@@ -1702,6 +1702,7 @@ export function CricketProvider({ children }) {
         setTournaments,
         refreshAdminData,
         matches,
+        setMatches,
         activeMatchId,
         setActiveMatchId,
         matchSetup,
