@@ -140,7 +140,7 @@ export default function MatchResultScreen() {
         </button>
       )}
       <div><span className="result-hero-light__kicker"><Trophy size={14}/> OFFICIAL MATCH RESULT</span><h1>{matchData.resultText || matchData.result || 'Match completed'}</h1><p>{matchData.tournament || 'JDCA Fixture'} • {matchData.venue || 'JDCA Ground'} • {matchData.date || 'Match Day'}</p></div>
-      <div className="result-hero-light__scores"><span>{matchData.teamA?.name}</span><strong>{matchData.teamA?.score || '-'}</strong><small>{matchData.teamA?.overs || ''}</small><i>VS</i><span>{matchData.teamB?.name}</span><strong>{matchData.teamB?.score || '-'}</strong><small>{matchData.teamB?.overs || ''}</small></div>
+      <div className="result-hero-light__scores"><span>{matchData.home_team?.name}</span><strong>{matchData.home_team?.score || '-'}</strong><small>{matchData.home_team?.overs || ''}</small><i>VS</i><span>{matchData.away_team?.name}</span><strong>{matchData.away_team?.score || '-'}</strong><small>{matchData.away_team?.overs || ''}</small></div>
     </div>
 
     <div className="result-section"><div className="section-kicker"><Trophy size={15}/> COMPLETE SCORECARD</div><MatchScorecard match={matchData}/></div>

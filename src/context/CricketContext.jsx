@@ -15,6 +15,22 @@ import { INITIAL_SCORECARD, FIELD_DIRECTIONS } from '../data/constants';
 import { syncService } from '../services/SyncService';
 import { db, queueOfflineAction } from '../lib/db';
 
+export const INITIAL_MATCH_SETUP = {
+  teamA: 'Team A',
+  teamAId: null,
+  teamB: 'Team B',
+  teamBId: null,
+  tossWinner: '',
+  electedTo: '',
+  totalOvers: 20,
+  oversPerBowler: 4,
+  wideRuns: 1,
+  noBallRuns: 1,
+  assignedScorerId: null,
+  teamAXI: [],
+  teamBXI: []
+};
+
 const CricketContext = createContext();
 
 export function CricketProvider({ children }) {
