@@ -806,8 +806,47 @@ export const api = {
       .select('*, striker:striker_id(full_name), bowler:bowler_id(full_name)')
       .eq('match_id', matchId);
 
-    const innings = inningsData || [];
-    const deliveries = deliveriesData || [];
+    let innings = inningsData || [];
+    let deliveries = deliveriesData || [];
+
+    // Fallback to local DB if Supabase hasn't received sync yet
+    try {
+      const { db } = await import('./db');
+      if (innings.length === 0) {
+        const localInnings = await db.innings.where('match_id').equals(matchId).sortBy('innings_number');
+        if (localInnings.length > 0) innings = localInnings;
+      }
+      if (deliveries.length === 0) {
+        const localDeliveries = await db.deliveries.where('match_id').equals(matchId).toArray();
+        if (localDeliveries.length > 0) deliveries = localDeliveries;
+      }
+      
+      // Resolve missing player names (RLS blocks players table for anon sometimes, or offline players)
+      const uniquePlayerIds = new Set();
+      deliveries.forEach(d => {
+        if (d.striker_id && !d.striker) uniquePlayerIds.add(d.striker_id);
+        if (d.bowler_id && !d.bowler) uniquePlayerIds.add(d.bowler_id);
+      });
+      
+      if (uniquePlayerIds.size > 0) {
+        const localPlayers = await db.players.where('id').anyOf([...uniquePlayerIds]).toArray();
+        deliveries = deliveries.map(d => {
+          let st = d.striker;
+          let bw = d.bowler;
+          if (d.striker_id && !st) {
+             const lp = localPlayers.find(p => p.id === d.striker_id);
+             if (lp) st = { full_name: lp.full_name || lp.name };
+          }
+          if (d.bowler_id && !bw) {
+             const lp = localPlayers.find(p => p.id === d.bowler_id);
+             if (lp) bw = { full_name: lp.full_name || lp.name };
+          }
+          return { ...d, striker: st, bowler: bw };
+        });
+      }
+    } catch (e) {
+      console.warn('[api] Failed offline fallback in scorecard:', e);
+    }
 
     // Helper: Compute stats for an innings
     const computeInningsStats = (inningId) => {
@@ -917,6 +956,19 @@ export const api = {
       }
     }
 
+    let homeStats = { runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] };
+    let awayStats = { runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] };
+
+    if (innings.length > 0) {
+       if (innings[0].batting_team_id === matchData.home_team_id) {
+          homeStats = stats1;
+          if (innings.length > 1) awayStats = stats2;
+       } else {
+          awayStats = stats1;
+          if (innings.length > 1) homeStats = stats2;
+       }
+    }
+
     return {
       id: matchData.id,
       tournament: matchData.tournament_id,
@@ -931,21 +983,21 @@ export const api = {
         id: matchData.home_team_id,
         name: matchData.home_team?.name || 'Home Team',
         short_name: matchData.home_team?.short_name || 'HOM',
-        score: innings.length > 0 ? `${stats1.runs}/${stats1.wickets}` : '',
-        overs: innings.length > 0 ? `(${stats1.overs} ov)` : '',
-        extras: stats1.extras
+        score: homeStats.batting.length > 0 || homeStats.runs > 0 ? `${homeStats.runs}/${homeStats.wickets}` : '',
+        overs: homeStats.batting.length > 0 || homeStats.runs > 0 ? `(${homeStats.overs} ov)` : '',
+        extras: homeStats.extras
       },
       away_team: {
         id: matchData.away_team_id,
         name: matchData.away_team?.name || 'Away Team',
         short_name: matchData.away_team?.short_name || 'AWA',
-        score: innings.length > 1 ? `${stats2.runs}/${stats2.wickets}` : '',
-        overs: innings.length > 1 ? `(${stats2.overs} ov)` : '',
-        extras: stats2.extras
+        score: awayStats.batting.length > 0 || awayStats.runs > 0 ? `${awayStats.runs}/${awayStats.wickets}` : '',
+        overs: awayStats.batting.length > 0 || awayStats.runs > 0 ? `(${awayStats.overs} ov)` : '',
+        extras: awayStats.extras
       },
       scorecard: {
-        home_team: { batting: stats1.batting, bowling: stats2.bowling },
-        away_team: { batting: stats2.batting, bowling: stats1.bowling }
+        home_team: { batting: homeStats.batting, bowling: awayStats.bowling },
+        away_team: { batting: awayStats.batting, bowling: homeStats.bowling }
       },
       innings: [stats1, stats2],
       topBatter,
