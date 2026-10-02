@@ -5,6 +5,7 @@ import { MatchCard } from '../ui/MatchCard';
 import TournamentManagerModal from '../ui/TournamentManagerModal';
 import MatchCreationModal from '../ui/MatchCreationModal';
 import { api } from '../../lib/api';
+import { useLiveMatchesSync } from '../../hooks/useLiveMatchesSync';
 
 const TOURNAMENT_THEMES = [
   {
@@ -224,6 +225,7 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
 };
 
 export default function TournamentsScreen() {
+  useLiveMatchesSync();
   const { matches = [], tournaments = [], pointsTable = [], teams = [], navigateTo, setActiveMatchId, userRole, refreshAdminData } = useCricket();
   const [activeTab, setActiveTab] = useState('Matches'); // 'Matches' | 'Standings'
   const [expandedTournament, setExpandedTournament] = useState(null);

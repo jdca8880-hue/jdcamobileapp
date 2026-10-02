@@ -4,8 +4,10 @@ import { useCricket } from '../../context/CricketContext';
 import { MatchStatusBadge } from '../ui/Badge';
 import { MatchCard } from '../ui/MatchCard';
 import { LiveMatchCard } from '../ui/LiveMatchCard';
+import { useLiveMatchesSync } from '../../hooks/useLiveMatchesSync';
 
 export default function MatchesScreen() {
+  useLiveMatchesSync();
   const { matches = [], navigateTo, setActiveMatchId, userRole, userName, userEmail, userId } = useCricket();
   const [activeTab, setActiveTab] = useState(userRole === 'SCORER' ? 'my_matches' : 'all');
 

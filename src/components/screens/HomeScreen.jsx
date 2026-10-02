@@ -8,6 +8,7 @@ import {
 import { useStandings } from '../../lib/standings';
 import { useCricket } from '../../context/CricketContext';
 import { motion } from 'motion/react';
+import { useLiveMatchesSync } from '../../hooks/useLiveMatchesSync';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -46,6 +47,7 @@ const ANNOUNCEMENT_BRIGHT_CARDS = [
 ];
 
 export default function HomeScreen() {
+  useLiveMatchesSync();
   const {
     matches = [],
     players = [],
