@@ -228,6 +228,15 @@ class SyncService {
     }
   }
 
+  async deleteFailedAction(actionId) {
+    await clearAction(actionId);
+    delete this.retryCounts[actionId];
+    await this.updatePendingCount();
+    if (this.isOnline) {
+      this.processQueue();
+    }
+  }
+
   async pushDelivery(payload, context = null) {
     if (!payload.matchId) return true; // Invalid data, skip
     

@@ -418,15 +418,28 @@ export default function ScoringScreen() {
               </button>
             </div>
             <span className="block mb-3">{syncError.message}</span>
-            <button 
-              onClick={() => {
-                syncService.retryFailedAction(syncError.actionId);
-                setSyncError(null);
-              }}
-              className="bg-red-600 text-white py-1.5 px-4 rounded hover:bg-red-700 font-medium transition-colors"
-            >
-              Retry Sync
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  syncService.retryFailedAction(syncError.actionId);
+                  setSyncError(null);
+                }}
+                className="bg-red-600 text-white py-1.5 px-4 rounded hover:bg-red-700 font-medium transition-colors"
+              >
+                Retry Sync
+              </button>
+              <button 
+                onClick={() => {
+                  if(window.confirm("Are you sure you want to delete this delivery from the offline queue? This cannot be undone.")) {
+                    syncService.deleteFailedAction(syncError.actionId);
+                    setSyncError(null);
+                  }
+                }}
+                className="bg-white border border-red-200 text-red-600 py-1.5 px-4 rounded hover:bg-red-50 font-medium transition-colors"
+              >
+                Delete & Resume Queue
+              </button>
+            </div>
           </div>
         )}
 

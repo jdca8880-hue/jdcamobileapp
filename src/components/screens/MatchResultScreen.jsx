@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { Trophy, ArrowRight, Newspaper, ShieldCheck, Lock, CheckCircle2, Trash2 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
+import { syncService } from '../../services/SyncService';
 import MatchScorecard from '../ui/MatchScorecard';
 import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
@@ -83,6 +84,11 @@ export default function MatchResultScreen() {
   };
 
   const handleFinalEndAndLock = async () => {
+    if (syncService.pendingCount > 0) {
+      alert(`Cannot lock the match right now. There are still ${syncService.pendingCount} deliveries waiting to sync to the server. Please wait for the sync to finish or resolve any sync errors in the scoring screen.`);
+      return;
+    }
+    
     if (!window.confirm("Are you sure you want to permanently lock this match? All match statistics, scores, and player awards will be officially sealed, and the scorer screen will be refreshed.")) {
       return;
     }
