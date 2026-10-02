@@ -76,9 +76,9 @@ export const MatchCard = ({ match, onClick }) => {
                   {teamAName}
                 </div>
               </div>
-              {(isLive || isCompleted) && (
+              {(isLive || isCompleted) && (match.home_team?.score || isLive) && (
                 <div className="text-lg font-black text-slate-900">
-                  {match.home_team?.score || '0/0'}
+                  {match.home_team?.score || (isLive ? 'Batting' : '')}
                 </div>
               )}
             </div>
@@ -92,9 +92,9 @@ export const MatchCard = ({ match, onClick }) => {
                   {teamBName}
                 </div>
               </div>
-              {(isLive || isCompleted) && (
+              {(isLive || isCompleted) && (match.away_team?.score || isLive) && (
                 <div className="text-lg font-black text-slate-900">
-                  {match.away_team?.score || (isLive ? 'Yet to bat' : '0/0')}
+                  {match.away_team?.score || (isLive ? 'Yet to bat' : '')}
                 </div>
               )}
             </div>
@@ -123,29 +123,35 @@ export const MatchCard = ({ match, onClick }) => {
                 </div>
 
                 {/* Top Batter & Bowler */}
-                <div className="flex flex-col justify-center gap-2">
-                  <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs">🏏</span>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Batter</span>
-                        <span className="text-xs font-bold text-slate-800">{match.topBatter?.name || 'TBD'}</span>
+                {(match.topBatter || match.topBowler) && (
+                  <div className="flex flex-col justify-center gap-2">
+                    {match.topBatter && (
+                      <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">🏏</span>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Batter</span>
+                            <span className="text-xs font-bold text-slate-800">{match.topBatter.name}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black text-slate-700">{match.topBatter.score || '-'}</span>
                       </div>
-                    </div>
-                    <span className="text-xs font-black text-slate-700">{match.topBatter?.score || '-'}</span>
-                  </div>
+                    )}
 
-                  <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs">🎯</span>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Bowler</span>
-                        <span className="text-xs font-bold text-slate-800">{match.topBowler?.name || 'TBD'}</span>
+                    {match.topBowler && (
+                      <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">🎯</span>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Bowler</span>
+                            <span className="text-xs font-bold text-slate-800">{match.topBowler.name}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black text-slate-700">{match.topBowler.score || '-'}</span>
                       </div>
-                    </div>
-                    <span className="text-xs font-black text-slate-700">{match.topBowler?.score || '-'}</span>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}

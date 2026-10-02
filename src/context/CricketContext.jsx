@@ -519,7 +519,7 @@ export function CricketProvider({ children }) {
         setTournaments(tData);
       }
 
-      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null);
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)').is('deleted_at', null);
       if (!mErr && mData) {
         await db.matches.clear();
         await db.matches.bulkAdd(mData);
