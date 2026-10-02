@@ -102,7 +102,7 @@ export default function MatchResultScreen() {
       );
       await resetScoringSession();
       alert("Match has been successfully finalized and permanently locked! Scorer console is refreshed and ready.");
-      navigateTo('scoring');
+      navigateTo('matches');
     } catch (err) {
       console.error("Failed to finalize and lock match:", err);
       alert("Error locking match: " + (err.message || 'Please check network'));

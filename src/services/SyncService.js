@@ -192,6 +192,11 @@ class SyncService {
       this.syncInProgress = false;
       await this.updatePendingCount(); 
       this.setStatus(this.isOnline ? 'ONLINE' : 'OFFLINE');
+      
+      // Auto-drain: if more actions were queued while syncing, start again shortly
+      if (this.pendingCount > 0 && this.isOnline) {
+        setTimeout(() => this.processQueue(), 500);
+      }
     }
   }
 
@@ -448,11 +453,17 @@ class SyncService {
         console.warn(`[SyncService] Live execution failed, falling back to queue. Error:`, err);
         await offlineQueueFn(actionType, payload);
         await this.updatePendingCount();
+        if (this.isOnline && !this.syncInProgress) {
+           this.processQueue();
+        }
         return false;
       }
     } else {
       await offlineQueueFn(actionType, payload);
       await this.updatePendingCount();
+      if (this.isOnline && !this.syncInProgress) {
+         this.processQueue();
+      }
       return false;
     }
   }
