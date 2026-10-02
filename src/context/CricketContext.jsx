@@ -175,6 +175,36 @@ export function CricketProvider({ children }) {
   const [tournaments, setTournaments] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
 
+  // Comprehensive Logout 
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setUserEmail('');
+      setUserRole('VIEWER');
+      setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
+      setActiveMatchId(null);
+      setCurrentScreen('welcome');
+      
+      // Clear offline scoring state
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('jdca_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear Dexie queues if available
+      if (db.sync_queue) await db.sync_queue.clear();
+      if (db.delivery_log) await db.delivery_log.clear();
+      
+    } catch (err) {
+      console.error("Error during logout:", err);
+      // Force UI state regardless
+      setIsAuthenticated(false);
+      setCurrentScreen('welcome');
+    }
+  };
+
   // Offline-First & Realtime Data Sync
   useEffect(() => {
     // subscription removed
@@ -247,35 +277,7 @@ export function CricketProvider({ children }) {
           });
         }
         
-  // Comprehensive Logout 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setIsAuthenticated(false);
-      setUserEmail('');
-      setUserRole('VIEWER');
-      setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
-      setActiveMatchId(null);
-      setCurrentScreen('welcome');
-      
-      // Clear offline scoring state
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('jdca_')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Clear Dexie queues if available
-      if (db.sync_queue) await db.sync_queue.clear();
-      if (db.delivery_log) await db.delivery_log.clear();
-      
-    } catch (err) {
-      console.error("Error during logout:", err);
-      // Force UI state regardless
-      setIsAuthenticated(false);
-      setCurrentScreen('welcome');
-    }
-  };
+
 
         // 1. Immediately load whatever is in Dexie (Offline-First)
         let localMatches = await db.matches.toArray();
