@@ -8,7 +8,7 @@ export const MatchCard = ({ match, onClick }) => {
   const isCompleted = match.status === 'COMPLETED' || match.status === 'FINISHED';
 
   // Fetch dynamic data if available
-  const dateStr = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : 'Date TBD';
+  const dateStr = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : 'Date Not Set';
   const playerOfMatch = match.man_of_the_match || match.playerOfMatch || null;
   const teamAName = match.home_team?.name || 'Home Team';
   const teamBName = match.away_team?.name || 'Away Team';
@@ -114,10 +114,10 @@ export const MatchCard = ({ match, onClick }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Man of the Match */}
                 <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    <CloudinaryAvatar src={playerAvatar} alt={playerOfMatch?.full_name || 'TBD'} className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
+                    <CloudinaryAvatar src={playerAvatar} alt={playerOfMatch?.full_name || 'Not Awarded'} className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
                     <div className="flex flex-col flex-1">
                        <span className="text-[9px] text-orange-500 font-bold uppercase tracking-wider flex items-center gap-1">🏆 Player of the Match</span>
-                       <span className="text-xs font-black text-slate-800">{playerOfMatch?.full_name || playerOfMatch?.name || 'TBD'}</span>
+                       <span className="text-xs font-black text-slate-800">{playerOfMatch?.full_name || playerOfMatch?.name || 'Not Awarded'}</span>
                        <span className="text-[10px] font-semibold text-slate-500">Official Award</span>
                     </div>
                 </div>

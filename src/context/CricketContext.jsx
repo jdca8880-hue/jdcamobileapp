@@ -772,10 +772,10 @@ export function CricketProvider({ children }) {
             }
           }
 
-          if (scorecard && scorecard.innings && scorecard.innings.length >= currentInning.innings_number) {
-            const currentStats = scorecard.innings[currentInning.innings_number - 1];
-            const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
+          const currentStats = scorecard?.innings?.[currentInning.innings_number - 1];
+          const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
 
+          if (lastDel) {
             if (lastDel.striker_id) {
               let strikerStat = currentStats?.batting?.find(bt => bt.id === lastDel.striker_id);
               if (!strikerStat) {

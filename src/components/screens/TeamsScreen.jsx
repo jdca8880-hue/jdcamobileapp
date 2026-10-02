@@ -110,7 +110,7 @@ export default function TeamsScreen() {
         ...p,
         full_name: p.full_name,
         primary_role: p.primary_role || 'Batter',
-        district: p.district || team.district?.name || 'TBD',
+        district: p.district || team.district?.name || 'Unassigned',
         avatar_url: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`
       }));
 
@@ -127,16 +127,16 @@ export default function TeamsScreen() {
         id: team.id,
         name: team.name,
         short: team.short_name || team.name.substring(0, 3).toUpperCase(),
-        category: team.age_category?.name || 'Category TBD',
+        category: team.age_category?.name || 'Category Not Set',
         gender: team.gender || 'All',
-        season: team.season || 'TBD',
+        season: team.season || 'Not Set',
         level: 'Official Match Team',
         status: team.is_active ? 'Active' : 'Inactive',
-        homeVenue: 'Venue TBD',
-        district: team.district?.name || 'TBD',
-        captain: squad.length > 0 ? squad[0].full_name : 'TBD',
-        viceCaptain: squad.length > 1 ? squad[1].full_name : 'TBD',
-        wicketKeeper: squad.find(p => p.primary_role?.includes('Wicket'))?.full_name || 'TBD',
+        homeVenue: 'Venue Not Set',
+        district: team.district?.name || 'Unassigned',
+        captain: squad.length > 0 ? squad[0].full_name : '-',
+        viceCaptain: squad.length > 1 ? squad[1].full_name : '-',
+        wicketKeeper: squad.find(p => p.primary_role?.includes('Wicket'))?.full_name || '-',
         headCoach: 'Head Coach',
         leadSelector: 'Lead Selector',
         squadSize: 15,
@@ -144,8 +144,8 @@ export default function TeamsScreen() {
         squad,
         trophies: 0,
         activePlayers: squad.length,
-        homeGround: 'Venue TBD',
-        standing: 'TBD',
+        homeGround: 'Venue Not Set',
+        standing: '-',
         primaryColor: '#3b82f6'
       };
     });

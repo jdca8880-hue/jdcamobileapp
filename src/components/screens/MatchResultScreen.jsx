@@ -15,6 +15,7 @@ export default function MatchResultScreen() {
   const [isAssigning, setIsAssigning] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [customResultText, setCustomResultText] = useState('');
 
   useEffect(() => {
     async function fetchReport() {
@@ -29,6 +30,7 @@ export default function MatchResultScreen() {
         if (data.manOfTheMatch) {
            setSelectedMotm(data.manOfTheMatch.id);
         }
+        setCustomResultText(data.resultText || data.result || 'Match Completed');
       } catch (err) {
         console.error("Failed to load match scorecard", err);
       } finally {
@@ -98,7 +100,7 @@ export default function MatchResultScreen() {
       if (selectedMotm) {
         await api.assignManOfTheMatch(matchData.id, selectedMotm);
       }
-      const finalResultText = matchData.resultText || matchData.result || 'Match Completed';
+      const finalResultText = customResultText.trim() || 'Match Completed';
       await api.finalizeMatch(
         matchData.id, 
         matchData.winner_team_id || null, 
@@ -176,7 +178,24 @@ export default function MatchResultScreen() {
           </>
         )}
       </div>
-      <div><small>RESULT</small><b>{matchData.resultText || matchData.result || 'Match completed'}</b><span>Official Final Status</span></div>
+      <div>
+        <small>RESULT</small>
+        {canAssignMotm ? (
+          <input 
+            type="text" 
+            value={customResultText} 
+            onChange={(e) => setCustomResultText(e.target.value)}
+            disabled={isLocking}
+            className="mt-1 w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-cobalt"
+            placeholder="e.g. JBP won by 4 wickets"
+          />
+        ) : (
+          <>
+            <b>{matchData.resultText || matchData.result || 'Match completed'}</b>
+            <span>Official Final Status</span>
+          </>
+        )}
+      </div>
     </div></div>
 
     <div className="result-section"><div className="section-kicker"><Newspaper size={15}/> MEDIA REPORT</div><MatchMediaReport match={matchData}/></div>
@@ -221,7 +240,7 @@ export default function MatchResultScreen() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Verified Result</span>
-              <span className="font-extrabold text-slate-900">{matchData.resultText || matchData.result || 'Match Completed'}</span>
+              <span className="font-extrabold text-slate-900">{customResultText || 'Match Completed'}</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Player of the Match</span>
