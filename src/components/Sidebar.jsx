@@ -50,11 +50,6 @@ export default function Sidebar() {
     return map[currentScreen] || currentScreen;
   })();
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    navigateTo('welcome');
-  };
-
   return (
     <aside
       className="hidden lg:flex flex-col h-screen sticky top-0 flex-shrink-0 relative z-20"
@@ -127,7 +122,7 @@ export default function Sidebar() {
           <RoleBadge role={userRole} />
         </div>
         <button
-          onClick={handleLogout}
+          onClick={logout}
           className="flex items-center gap-3 px-3 py-2 w-full text-[#8a99b0] hover:text-white hover:bg-white/5 rounded-lg transition-colors"
           id="sidebar-logout-btn"
         >

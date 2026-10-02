@@ -242,11 +242,40 @@ export function CricketProvider({ children }) {
               setUserEmail('');
               setUserRole('VIEWER');
               setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
-              // Clear stale match ID so scorer doesn't land on hydration error next login
               setActiveMatchId(null);
             }
           });
         }
+        
+  // Comprehensive Logout 
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setUserEmail('');
+      setUserRole('VIEWER');
+      setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
+      setActiveMatchId(null);
+      setCurrentScreen('welcome');
+      
+      // Clear offline scoring state
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('jdca_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear Dexie queues if available
+      if (db.sync_queue) await db.sync_queue.clear();
+      if (db.delivery_log) await db.delivery_log.clear();
+      
+    } catch (err) {
+      console.error("Error during logout:", err);
+      // Force UI state regardless
+      setIsAuthenticated(false);
+      setCurrentScreen('welcome');
+    }
+  };
 
         // 1. Immediately load whatever is in Dexie (Offline-First)
         let localMatches = await db.matches.toArray();
@@ -1826,6 +1855,7 @@ export function CricketProvider({ children }) {
         setActiveSelectionTeam,
         selectorPermissions,
         setSelectorPermissions,
+        logout,
       }}
     >
       {children}

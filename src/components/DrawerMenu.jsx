@@ -31,7 +31,7 @@ const ACTIVE_MAP = {
 };
 
 export default function DrawerMenu() {
-  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userEmail, setIsAuthenticated, isDarkMode, setIsDarkMode } = useCricket();
+  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userEmail, logout, isDarkMode, setIsDarkMode } = useCricket();
 
   const activeId = ACTIVE_MAP[currentScreen] || currentScreen;
 
@@ -55,9 +55,8 @@ export default function DrawerMenu() {
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
     setDrawerOpen(false);
-    navigateTo('welcome');
+    logout();
   };
 
   return (

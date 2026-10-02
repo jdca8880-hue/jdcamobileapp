@@ -10,6 +10,7 @@ import ProtectedRoute, { ROLE_HOME } from './components/ProtectedRoute';
 import AnimatedPage from './components/AnimatedPage';
 import LiveMatchesShowcase from './components/ui/LiveMatchesShowcase';
 import NotificationPrompt from './components/NotificationPrompt';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 // ── Screens ────────────────────────────────────────────────────
 import AuthScreen             from './components/screens/AuthScreen';
@@ -169,11 +170,13 @@ function MainApp() {
 export default function App() {
   // Trigger HMR
   return (
-    <BrowserRouter>
-      <CricketProvider>
-        <MainApp />
-      </CricketProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <CricketProvider>
+          <MainApp />
+        </CricketProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
