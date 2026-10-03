@@ -97,12 +97,27 @@ export default function MatchResultScreen() {
       syncService.processQueue();
       
       const waitForSync = () => new Promise(resolve => {
+         let backoffAttempts = 0;
          const check = () => {
-            if (syncService.pendingCount === 0 || !syncService.syncInProgress) {
+            if (syncService.pendingCount === 0) {
+               resolve(0);
+            } else if (!syncService.isOnline) {
                resolve(syncService.pendingCount);
             } else {
                setSyncStatus(prev => ({ ...prev, pendingCount: syncService.pendingCount }));
-               setTimeout(check, 500);
+               
+               // If it backed off due to a transient error, force a retry periodically
+               if (!syncService.syncInProgress) {
+                 backoffAttempts++;
+                 if (backoffAttempts > 5) {
+                   syncService.forceSync();
+                   backoffAttempts = 0;
+                 }
+               } else {
+                 backoffAttempts = 0;
+               }
+               
+               setTimeout(check, 1000);
             }
          };
          check();

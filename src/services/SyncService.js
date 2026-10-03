@@ -43,7 +43,7 @@ class SyncService {
   async updatePendingCount() {
     try {
       const actions = await getPendingActions();
-      this.pendingCount = actions.length;
+      this.pendingCount = actions.filter(a => a.status !== 'FAILED_PERMANENT').length;
       this.emit();
     } catch(e) {}
   }
