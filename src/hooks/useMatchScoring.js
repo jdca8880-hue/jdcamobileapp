@@ -1086,34 +1086,19 @@ export function useMatchScoring({
     setBallHistory((prev) => prev.slice(0, -1));
     setValidationError(null);
 
-    // Remove from Dexie & Queue UNDO to Supabase
+    // Queue UNDO to Supabase
     try {
       const { db } = await import('../lib/db.js');
       if (db.deliveries) {
         await db.deliveries.where('id').equals(undoneDelivery.id).delete();
       }
       
-      // If this delivery is still pending in sync_queue, cancel it directly without sending undo to server
-      let wasPending = false;
-      if (db.sync_queue) {
-        const pendingItem = await db.sync_queue
-          .filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.id === undoneDelivery.id)
-          .first();
-        if (pendingItem) {
-          await db.sync_queue.delete(pendingItem.id);
-          await syncService.updatePendingCount();
-          wasPending = true;
-        }
-      }
-
-      if (!wasPending) {
-        const undoPayload = {
-          id: undoneDelivery.id,
-          matchId: undoneDelivery.matchId,
-          inningsId: undoneDelivery.inningsId
-        };
-        await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
-      }
+      const undoPayload = {
+        id: undoneDelivery.id,
+        matchId: undoneDelivery.matchId,
+        inningsId: undoneDelivery.inningsId
+      };
+      await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
     } catch (err) {
       console.error('[useMatchScoring] Failed to persist undo:', err);
     }
