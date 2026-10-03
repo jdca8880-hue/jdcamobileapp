@@ -330,7 +330,7 @@ class SyncService {
     let extraType = payload.extra_type !== undefined ? payload.extra_type : 'NONE';
     if (extraType === 'NONE' && payload.extraType) {
       const eMap = {
-        'wide': 'WIDE', 'no_ball': 'NO_BALL', 'bye': 'BYES', 'leg_bye': 'LEG_BYES', 'penalty': 'PENALTY'
+        'wide': 'WIDE', 'no_ball': 'NO_BALL', 'bye': 'BYE', 'leg_bye': 'LEG_BYE', 'penalty': 'PENALTY'
       };
       extraType = eMap[payload.extraType.toLowerCase()] || payload.extraType.toUpperCase();
     }

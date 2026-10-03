@@ -277,7 +277,7 @@ export function useMatchScoring({
                 const teamBXI = matchSetup.teamBXI || [];
                 const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.striker_id);
                 const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id).reduce((sum, d) => sum + d.runs_off_bat, 0);
-                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id && d.extra_type !== 'WIDES').length;
+                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id && d.extra_type !== 'WIDE').length;
                 strikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
               }
               if (strikerStat) setStriker({ ...strikerStat, strikeRate: strikerStat.strikeRate || '0.00' });
@@ -289,7 +289,7 @@ export function useMatchScoring({
                 const teamBXI = matchSetup.teamBXI || [];
                 const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.non_striker_id);
                 const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id).reduce((sum, d) => sum + d.runs_off_bat, 0);
-                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id && d.extra_type !== 'WIDES').length;
+                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id && d.extra_type !== 'WIDE').length;
                 nonStrikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
               }
               if (nonStrikerStat) setNonStriker({ ...nonStrikerStat, strikeRate: nonStrikerStat.strikeRate || '0.00' });
@@ -300,8 +300,8 @@ export function useMatchScoring({
                 const teamAXI = matchSetup.teamAXI || [];
                 const teamBXI = matchSetup.teamBXI || [];
                 const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.bowler_id);
-                const bRuns = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'BYES' && d.extra_type !== 'LEG_BYES').reduce((sum, d) => sum + d.runs_total, 0);
-                const bBalls = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'WIDES' && d.extra_type !== 'NO_BALLS').length;
+                const bRuns = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE').reduce((sum, d) => sum + d.runs_total, 0);
+                const bBalls = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'WIDE' && d.extra_type !== 'NO_BALL').length;
                 const bWickets = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT').length;
                 bowlerStat = p ? { ...p, runsConceded: bRuns, overs: Math.floor(bBalls/6) + '.' + (bBalls%6), wickets: bWickets, maidens: 0, economy: '0.00' } : null;
               }
