@@ -140,9 +140,8 @@ export default function ScoringScreen() {
     });
     
     const handleSyncError = (e) => {
-      if (e.detail?.matchId === activeMatchId) {
-        setSyncError(e.detail);
-      }
+      // Show error even if it's for a different match, because it jams the entire queue!
+      setSyncError(e.detail);
     };
     
     window.addEventListener('sync-permanent-failure', handleSyncError);
@@ -438,6 +437,20 @@ export default function ScoringScreen() {
                 className="bg-white border border-red-200 text-red-600 py-1.5 px-4 rounded hover:bg-red-50 font-medium transition-colors"
               >
                 Delete & Resume Queue
+              </button>
+              <button 
+                onClick={async () => {
+                  if(window.confirm("DANGER: This will delete ALL pending offline deliveries for ALL matches. Only do this if your queue is permanently corrupted!")) {
+                    const { db } = await import('../../lib/db.js');
+                    await db.offline_queue.clear();
+                    syncService.updatePendingCount();
+                    setSyncError(null);
+                    alert("Queue cleared!");
+                  }
+                }}
+                className="bg-white border border-red-200 text-red-600 py-1.5 px-4 rounded hover:bg-red-50 font-medium transition-colors ml-auto text-xs"
+              >
+                Purge All
               </button>
             </div>
           </div>

@@ -742,10 +742,27 @@ export function CricketProvider({ children }) {
             }
           }
         } else {
-          setStriker(null);
-          setNonStriker(null);
-          setCurrentBowler(null);
-          setLastOverBowlerId(null);
+          // Try to recover from local storage if no deliveries yet (prevents reset on refresh before first ball)
+          try {
+            const cachedStriker = JSON.parse(localStorage.getItem(`jdca-striker-${matchId}`));
+            const cachedNonStriker = JSON.parse(localStorage.getItem(`jdca-nonstriker-${matchId}`));
+            const cachedBowler = JSON.parse(localStorage.getItem(`jdca-bowler-${matchId}`));
+            if (cachedStriker && cachedNonStriker && cachedBowler) {
+              setStriker(cachedStriker);
+              setNonStriker(cachedNonStriker);
+              setCurrentBowler(cachedBowler);
+            } else {
+              setStriker(null);
+              setNonStriker(null);
+              setCurrentBowler(null);
+              setLastOverBowlerId(null);
+            }
+          } catch (e) {
+            setStriker(null);
+            setNonStriker(null);
+            setCurrentBowler(null);
+            setLastOverBowlerId(null);
+          }
         }
       }
       return { success: true };
@@ -1272,15 +1289,19 @@ export function CricketProvider({ children }) {
 
   const replaceStriker = (player) => {
     if (!player) return;
-    setStriker((prev) => ({
-      id: player.id || prev?.id,
-      name: player.full_name || player.name || prev?.name || 'Striker',
-      runs: Number.isFinite(player.runs) ? player.runs : 0,
-      balls: Number.isFinite(player.balls) ? player.balls : 0,
-      fours: Number.isFinite(player.fours) ? player.fours : 0,
-      sixes: Number.isFinite(player.sixes) ? player.sixes : 0,
-      strikeRate: player.strikeRate || '0.0',
-    }));
+    setStriker((prev) => {
+      const newState = {
+        id: player.id || prev?.id,
+        name: player.full_name || player.name || prev?.name || 'Striker',
+        runs: Number.isFinite(player.runs) ? player.runs : 0,
+        balls: Number.isFinite(player.balls) ? player.balls : 0,
+        fours: Number.isFinite(player.fours) ? player.fours : 0,
+        sixes: Number.isFinite(player.sixes) ? player.sixes : 0,
+        strikeRate: player.strikeRate || '0.0',
+      };
+      if (activeMatchId) localStorage.setItem(`jdca-striker-${activeMatchId}`, JSON.stringify(newState));
+      return newState;
+    });
   };
 
   const replaceBatter = (isStriker, player) => {
@@ -1296,14 +1317,16 @@ export function CricketProvider({ children }) {
     };
     if (isStriker) {
       setStriker(newBatter);
+      if (activeMatchId) localStorage.setItem(`jdca-striker-${activeMatchId}`, JSON.stringify(newBatter));
     } else {
       setNonStriker(newBatter);
+      if (activeMatchId) localStorage.setItem(`jdca-nonstriker-${activeMatchId}`, JSON.stringify(newBatter));
     }
   };
 
   const replaceBowler = (player) => {
     if (!player) return;
-    setCurrentBowler({
+    const newState = {
       id: player.id,
       name: player.full_name || player.name || 'Bowler',
       overs: 0,
@@ -1313,7 +1336,9 @@ export function CricketProvider({ children }) {
       wickets: 0,
       economy: '0.00',
       wk: ''
-    });
+    };
+    setCurrentBowler(newState);
+    if (activeMatchId) localStorage.setItem(`jdca-bowler-${activeMatchId}`, JSON.stringify(newState));
   };
 
   const handleRetireBatter = (isStriker, isRetiredOut) => {

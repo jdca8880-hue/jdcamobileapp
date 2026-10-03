@@ -113,6 +113,7 @@ class SyncService {
         let isPermanentError = false;
         let errorDetails = null;
         let isAuthError = false;
+        let progressMade = false;
         
         try {
           if (supabase) {
@@ -180,6 +181,7 @@ class SyncService {
         }
 
         if (success) {
+          progressMade = true;
           delete this.retryCounts[action.id];
           await clearAction(action.id);
         }
@@ -193,9 +195,16 @@ class SyncService {
       await this.updatePendingCount(); 
       this.setStatus(this.isOnline ? 'ONLINE' : 'OFFLINE');
       
-      // Auto-drain: if more actions were queued while syncing, start again shortly
+      // Auto-drain: if more actions were queued while syncing, start again shortly.
+      // But if we're looping without progress (e.g. hitting persistent network/auth errors), back off to 5 seconds.
       if (this.pendingCount > 0 && this.isOnline) {
-        setTimeout(() => this.processQueue(), 500);
+        // If we didn't clear anything and just broke out due to network/auth error, back off.
+        const delay = this.pendingCount === actions.length ? 5000 : 500;
+        setTimeout(() => {
+          if (this.isOnline && !this.syncInProgress) {
+            this.processQueue();
+          }
+        }, delay);
       }
     }
   }
