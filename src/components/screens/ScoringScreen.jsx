@@ -570,16 +570,26 @@ export default function ScoringScreen() {
             
             {/* Sync Divergence Warning */}
             {syncState.pendingCount > 0 && (
-              <div className="mt-4 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-amber-700 w-full max-w-sm mx-auto">
-                <div className="flex items-center gap-2 text-[14px] font-bold">
-                  {syncState.status === 'OFFLINE' ? (
-                    <WifiOff size={16} />
-                  ) : (
-                    <RefreshCw size={16} className="animate-spin" />
+              <div className="mt-4 bg-amber-50 border border-amber-200 px-4 py-3 rounded-xl inline-flex flex-col items-center justify-center text-amber-700 w-full max-w-sm mx-auto">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2 text-[14px] font-bold">
+                    {syncState.status === 'OFFLINE' ? (
+                      <WifiOff size={16} />
+                    ) : (
+                      <RefreshCw size={16} className="animate-spin" />
+                    )}
+                    {syncState.status === 'OFFLINE' ? 'Offline' : 'Syncing'}
+                  </div>
+                  {syncState.status === 'SYNCING' && (
+                    <button 
+                      onClick={() => syncService.forceSync()}
+                      className="text-xs bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded-full font-bold shadow-sm transition-colors flex items-center gap-1 active:scale-95"
+                    >
+                      <RefreshCw size={10} /> Force Sync
+                    </button>
                   )}
-                  {syncState.status === 'OFFLINE' ? 'Offline' : 'Syncing'}
                 </div>
-                <div className="text-[12px] opacity-80 text-center leading-tight mt-1">
+                <div className="text-[12px] opacity-80 text-left leading-tight mt-2 w-full border-t border-amber-200/50 pt-2">
                   {syncState.pendingCount} pending {syncState.pendingCount === 1 ? 'delivery' : 'deliveries'} not saved to database. Local score may diverge.
                 </div>
               </div>

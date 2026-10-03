@@ -67,6 +67,18 @@ class SyncService {
   }
 
   /**
+   * Force reset the sync state and re-trigger a sync. 
+   * Useful if the sync gets stuck in SYNCING state.
+   */
+  async forceSync() {
+    console.log('[SyncService] Force sync triggered by user.');
+    this.syncInProgress = false;
+    if (this.isOnline) {
+      await this.processQueue();
+    }
+  }
+
+  /**
    * Process all pending actions in the local Dexie queue
    */
   async processQueue() {
