@@ -48,7 +48,7 @@ function RootRedirect() {
 }
 
 function MainApp() {
-  const { currentScreen, isAppLoading } = useCricket();
+  const { currentScreen, isAppLoading, loadingProgress, loadingMessage } = useCricket();
   const location = useLocation();
   const isAuth = currentScreen === 'welcome';
 
@@ -83,10 +83,24 @@ function MainApp() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-white text-xl sm:text-2xl font-black tracking-widest uppercase mb-3"
+          className="text-white text-xl sm:text-2xl font-black tracking-widest uppercase mb-4"
         >
-          Loading JDCA
+          JDCA SCORE CENTER
         </motion.h2>
+
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="w-64 max-w-full bg-slate-800/50 rounded-full h-1.5 mb-4 overflow-hidden border border-slate-700/50"
+        >
+          <motion.div 
+            className="h-full bg-gradient-to-r from-blue-500 to-indigo-400"
+            initial={{ width: 0 }}
+            animate={{ width: `${loadingProgress}%` }}
+            transition={{ type: "spring", stiffness: 100, damping: 20 }}
+          />
+        </motion.div>
         
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
@@ -95,7 +109,7 @@ function MainApp() {
           className="text-blue-300 text-sm font-medium flex items-center gap-2 bg-blue-900/40 px-4 py-2 rounded-full border border-blue-500/30"
         >
           <div className="w-4 h-4 rounded-full border-2 border-t-transparent border-blue-400 animate-spin" />
-          Fetching Live Data...
+          {loadingMessage || 'Fetching Live Data...'} ({loadingProgress}%)
         </motion.div>
       </div>
     );

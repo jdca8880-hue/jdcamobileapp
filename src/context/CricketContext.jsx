@@ -67,6 +67,8 @@ export function CricketProvider({ children }) {
 
   // Application Loading State
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState("Initializing...");
   const [appError, setAppError] = useState(null);
 
   // Authentication State
@@ -211,9 +213,13 @@ export function CricketProvider({ children }) {
 
     const setupDataAndSync = async () => {
       try {
+        setLoadingProgress(5);
+        setLoadingMessage("Connecting to local database...");
         const { db } = await import('../lib/db.js');
         
         // 0. Setup Auth
+        setLoadingProgress(10);
+        setLoadingMessage("Authenticating session...");
         let currentSession = null;
         if (supabase) {
           const { data: { session } } = await supabase.auth.getSession();
@@ -280,6 +286,8 @@ export function CricketProvider({ children }) {
 
 
         // 1. Immediately load whatever is in Dexie (Offline-First)
+        setLoadingProgress(20);
+        setLoadingMessage("Loading offline cache...");
         let localMatches = await db.matches.toArray();
         let localTeams = await db.teams.toArray();
         let localTournaments = [];
@@ -306,19 +314,23 @@ export function CricketProvider({ children }) {
 
         // 2. If online and Supabase is available, aggressively fetch and reconcile
         if (supabase && navigator.onLine) {
+          setLoadingProgress(30);
+          setLoadingMessage("Syncing with JDCA Servers...");
           console.log('[CricketContext] Online: Fetching fresh data from Supabase...');
           
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes, batStatsRes, bowlStatsRes, fieldStatsRes] = await Promise.allSettled([
-              supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null),
-              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)'),
-              supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null),
-              supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)').is('deleted_at', null),
-              supabase.from('v_player_career_batting').select('*'),
-              supabase.from('v_player_career_bowling').select('*'),
-              supabase.from('v_player_career_fielding').select('*')
+              supabase.from('matches').select('*, tournaments!inner(id), home_team:home_team_id(*), away_team:away_team_id(*)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 10); setLoadingMessage("Updating matches..."); return r; }),
+              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)').then(r => { setLoadingProgress(p => p + 5); setLoadingMessage("Updating teams..."); return r; }),
+              supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 5); return r; }),
+              supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 15); setLoadingMessage("Syncing player registry..."); return r; }),
+              supabase.from('v_player_career_batting').select('*').then(r => { setLoadingProgress(p => p + 5); return r; }),
+              supabase.from('v_player_career_bowling').select('*').then(r => { setLoadingProgress(p => p + 5); return r; }),
+              supabase.from('v_player_career_fielding').select('*').then(r => { setLoadingProgress(p => p + 5); return r; })
             ]);
 
+            setLoadingProgress(80);
+            setLoadingMessage("Reconciling local data...");
             // Reconcile Matches
             if (matchesRes.status === 'fulfilled' && !matchesRes.value.error && matchesRes.value.data) {
               const freshMatches = matchesRes.value.data.map(m => ({
@@ -423,6 +435,8 @@ export function CricketProvider({ children }) {
         }
 
         // Fetch Selection Processes
+        setLoadingProgress(90);
+        setLoadingMessage("Finalizing setup...");
         if (supabase) {
           try {
              const processes = await api.getSelectionProcesses();
@@ -454,7 +468,13 @@ export function CricketProvider({ children }) {
           } catch(e) { console.error('Failed to load announcements', e); }
         }
 
-        setIsAppLoading(false);
+        setLoadingProgress(100);
+        setLoadingMessage("Welcome to JDCA!");
+        
+        // Small delay so the 100% animation completes
+        setTimeout(() => {
+          setIsAppLoading(false);
+        }, 500);
 
         // RTDB subscription moved to useLiveMatchesSync hook
       } catch (err) {
@@ -1842,6 +1862,8 @@ export function CricketProvider({ children }) {
         startSuperOver,
         startSuperOverSecondInnings,
         isAppLoading,
+        loadingProgress,
+        loadingMessage,
         isPaused,
         pauseMatch,
         resumeMatch,
