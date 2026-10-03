@@ -553,6 +553,26 @@ export function CricketProvider({ children }) {
 
       if (!match) return { success: false, error: 'Match not found locally or remotely' };
 
+      // Ensure rosters are enriched with full offline persistent data (district, age, etc.)
+      try {
+        const { db } = await import('../lib/db.js');
+        const localPlayers = await db.players.toArray();
+        const enrichRoster = (roster) => {
+          if (!roster) return [];
+          return roster.map(r => {
+            const fullPlayer = localPlayers.find(p => p.id === r.id);
+            if (fullPlayer) {
+              return { ...fullPlayer, ...r }; // keep roster specific fields like isCaptain/role, but inject full details
+            }
+            return r;
+          });
+        };
+        home_team_roster = enrichRoster(home_team_roster);
+        away_team_roster = enrichRoster(away_team_roster);
+      } catch (err) {
+        console.warn('Failed to enrich rosters with persistent local data', err);
+      }
+
       setMatchSetup({
         teamA: match.home_team?.name || '',
         teamAId: match.home_team_id,
