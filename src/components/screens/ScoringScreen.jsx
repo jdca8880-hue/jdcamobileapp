@@ -25,7 +25,7 @@ export default function ScoringScreen() {
     currentOverBalls, striker, nonStriker, currentBowler, isFreeHit, toggleStriker,
     validationError, setValidationError, matchStatus, recordRuns, recordExtra,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
-    matchSetup, setMatchSetup, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
+    matchSetup, setMatchSetup, applyRevisedOvers, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
     tournaments, setActiveMatchId, isAppLoading,
@@ -1058,8 +1058,7 @@ export default function ScoringScreen() {
             innings={innings}
             onApplyRevisedOvers={async (revisedOvers) => {
                try {
-                 await api.updateMatchDetails(activeMatchId, { max_overs: revisedOvers });
-                 setMatchSetup(prev => ({ ...prev, maxOvers: revisedOvers }));
+                 await applyRevisedOvers(revisedOvers);
                  alert(`Match overs revised to ${revisedOvers}`);
                } catch (err) {
                  alert("Failed to revise overs: " + err.message);

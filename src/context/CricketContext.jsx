@@ -1692,6 +1692,34 @@ export function CricketProvider({ children }) {
     }
   };
 
+  const applyRevisedOvers = async (revisedOvers) => {
+    setMatchSetup(prev => ({ ...prev, maxOvers: revisedOvers, totalOvers: revisedOvers }));
+    setTotalMatchOvers(revisedOvers);
+    
+    try {
+      await api.updateMatchDetails(activeMatchId, { max_overs: revisedOvers });
+    } catch (err) {
+      console.error('Failed to update revised overs remotely', err);
+    }
+
+    const maxLegalBalls = revisedOvers * 6;
+    if (balls >= maxLegalBalls) {
+      const currentState = captureSnapshot();
+      let newStatus = MATCH_STATES.INNINGS_BREAK;
+      if (innings === 2 || innings === 4) {
+        newStatus = MATCH_STATES.MATCH_FINISHED;
+      }
+      applyStateResult({
+        success: true,
+        newState: {
+          ...currentState,
+          totalMatchOvers: revisedOvers,
+          matchStatus: newStatus
+        }
+      });
+    }
+  };
+
   return (
     <CricketContext.Provider
       value={{
@@ -1734,6 +1762,7 @@ export function CricketProvider({ children }) {
         setActiveMatchId,
         matchSetup,
         setMatchSetup,
+        applyRevisedOvers,
         hydrateMatchState,
         innings,
         setInnings,
