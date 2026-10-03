@@ -14,6 +14,7 @@ export default function MatchResultScreen() {
   const [selectedMotm, setSelectedMotm] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
+  const [syncStatus, setSyncStatus] = useState({ isSyncing: false, pendingCount: 0, initialCount: 0 });
   const [isDeleting, setIsDeleting] = useState(false);
   const [customResultText, setCustomResultText] = useState('');
 
@@ -87,11 +88,38 @@ export default function MatchResultScreen() {
 
   const handleFinalEndAndLock = async () => {
     if (syncService.pendingCount > 0) {
-      alert(`Cannot lock the match right now. There are still ${syncService.pendingCount} deliveries waiting to sync to the server. Please wait for the sync to finish or resolve any sync errors in the scoring screen.`);
-      return;
+      if (!window.confirm(`There are still ${syncService.pendingCount} deliveries waiting to sync. Do you want to sync them now before locking the match?`)) {
+        return;
+      }
+      
+      setIsLocking(true);
+      setSyncStatus({ isSyncing: true, pendingCount: syncService.pendingCount, initialCount: syncService.pendingCount });
+      syncService.processQueue();
+      
+      const waitForSync = () => new Promise(resolve => {
+         const check = () => {
+            if (syncService.pendingCount === 0 || !syncService.syncInProgress) {
+               resolve(syncService.pendingCount);
+            } else {
+               setSyncStatus(prev => ({ ...prev, pendingCount: syncService.pendingCount }));
+               setTimeout(check, 500);
+            }
+         };
+         check();
+      });
+
+      const finalCount = await waitForSync();
+      setSyncStatus({ isSyncing: false, pendingCount: finalCount, initialCount: 0 });
+
+      if (finalCount > 0) {
+         setIsLocking(false);
+         alert(`Sync failed or paused. ${finalCount} deliveries remain. Please check your network and try again.`);
+         return;
+      }
     }
     
     if (!window.confirm("Are you sure you want to permanently lock this match? All match statistics, scores, and player awards will be officially sealed, and the scorer screen will be refreshed.")) {
+      setIsLocking(false);
       return;
     }
 
@@ -229,10 +257,26 @@ export default function MatchResultScreen() {
               <button
                 onClick={handleFinalEndAndLock}
                 disabled={isLocking}
-                className="px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 shrink-0"
+                className="px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 relative overflow-hidden"
               >
-                <Lock size={16} />
-                <span>{isLocking ? 'Locking Match...' : 'Final End Match & Permanently Lock'}</span>
+                {syncStatus.isSyncing && (
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-emerald-700/50 transition-all duration-500" 
+                    style={{ width: `${Math.max(5, 100 - (syncStatus.pendingCount / syncStatus.initialCount) * 100)}%` }}
+                  />
+                )}
+                <div className="flex items-center gap-2 relative z-10">
+                  {syncStatus.isSyncing ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-t-transparent border-white animate-spin" />
+                  ) : (
+                    <Lock size={16} />
+                  )}
+                  <span>
+                    {syncStatus.isSyncing 
+                      ? `Syncing ${syncStatus.pendingCount} left...` 
+                      : (isLocking ? 'Locking Match...' : 'Final End Match & Permanently Lock')}
+                  </span>
+                </div>
               </button>
             )}
           </div>
