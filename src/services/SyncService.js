@@ -291,6 +291,9 @@ class SyncService {
           }
         } catch (e) {
           console.warn('[SyncService] Failed to auto-resolve or create innings via API:', e);
+          if (!navigator.onLine || e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError') || e.code === 'NETWORK_ERROR') {
+            throw e; // Rethrow network errors so the queue safely backs off instead of permanently failing
+          }
         }
       }
     }
