@@ -859,7 +859,7 @@ export default function ScoringScreen() {
             )}
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Select new bowler</div>
             <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-              {bowlingXI.filter(p => /bowler|all-rounder/i.test(p.role || '') && p.id !== lastOverBowlerId).map(player => (
+              {bowlingXI.filter(p => p.id !== lastOverBowlerId).map(player => (
                 <button 
                   key={player.id} 
                   onClick={() => selectNextBowler(player)}

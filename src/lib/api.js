@@ -251,7 +251,7 @@ export const api = {
     // We run these in parallel
     const [tRes, mRes, pRes, teamRes] = await Promise.all([
       supabase.from('tournaments').select('id, name, deleted_at, deleted_by').not('deleted_at', 'is', null),
-      supabase.from('matches').select('id, match_format, scheduled_at, deleted_at, deleted_by, home_team:home_team_id(name), away_team:away_team_id(name)').not('deleted_at', 'is', null),
+      supabase.from('matches').select('id, match_format, scheduled_at, deleted_at, deleted_by, home_team:teams!matches_home_team_id_fkey(name), away_team:teams!matches_away_team_id_fkey(name)').not('deleted_at', 'is', null),
       supabase.from('players').select('id, full_name, deleted_at, deleted_by').not('deleted_at', 'is', null),
       supabase.from('teams').select('id, name, deleted_at, deleted_by').not('deleted_at', 'is', null)
     ]);
