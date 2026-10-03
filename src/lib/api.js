@@ -711,11 +711,11 @@ export const api = {
     // 2. Fetch Match Rosters
     const { data: rosters } = await supabase
       .from('match_rosters')
-      .select('*, player:player_id(*)')
+      .select('*, player:players(*)')
       .eq('match_id', matchId);
 
-    const home_team_roster = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
-    const away_team_roster = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...r.player, role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player.primary_role, isCaptain: r.is_captain })) || [];
+    const home_team_roster = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...(r.player || {}), role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player?.primary_role, isCaptain: r.is_captain })) || [];
+    const away_team_roster = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...(r.player || {}), role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player?.primary_role, isCaptain: r.is_captain })) || [];
 
     // 3. Fetch Innings
     const { data: inningsData } = await supabase
