@@ -158,7 +158,7 @@ export default function MatchDetailScreen() {
                 </div>
                 <div className="flex justify-between p-4">
                   <span className="text-[#8a99b0] font-medium">Venue</span>
-                  <span className="font-bold text-[#101827]">{match.venue || 'Ranital Cricket Ground'}</span>
+                  <span className="font-bold text-[#101827]">{match.venue_name || match.venue || 'Unknown Venue'}</span>
                 </div>
                 <div className="flex justify-between p-4">
                   <span className="text-[#8a99b0] font-medium">Toss</span>

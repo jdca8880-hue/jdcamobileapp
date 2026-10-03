@@ -629,7 +629,7 @@ export default function HomeScreen() {
                               {m.home_team?.name || 'Unknown Team'} vs {m.away_team?.name || 'Unknown Team'}
                             </div>
                             <div className="text-xs text-slate-500 mt-0.5 font-medium">
-                              {m.date || 'Tomorrow'} • {m.venue || 'Ranital Ground'}
+                              {m.date || 'Tomorrow'} • {m.venue_name || m.venue || 'Unknown Venue'}
                             </div>
                           </div>
                           <span className="text-xs font-black px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg border border-slate-200">

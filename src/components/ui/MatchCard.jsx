@@ -160,7 +160,7 @@ export const MatchCard = ({ match, onClick }) => {
           <div className={`mt-4 pt-4 flex items-center justify-between text-xs font-medium text-slate-500 ${(!isCompleted && !isLive) ? 'border-t border-slate-100' : ''}`}>
             <div className="flex items-center gap-1.5">
               <MapPin size={12} />
-              {match.venue || 'Ranital Cricket Ground'}
+              {match.venue_name || match.venue || 'Unknown Venue'}
             </div>
             <div className="flex items-center gap-1 uppercase tracking-wider font-bold text-blue-600 group-hover:translate-x-1 transition-transform">
               MATCH CENTER
