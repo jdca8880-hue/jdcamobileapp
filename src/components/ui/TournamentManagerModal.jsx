@@ -76,18 +76,41 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
     setIsSaving(true);
     
     try {
+      // Auto-adjust tournament dates to encompass all custom matches
+      let payload = { ...formData };
+      if (payload.customMatches && payload.customMatches.length > 0) {
+        const matchDates = payload.customMatches
+          .map(m => m.date ? new Date(m.date) : new Date())
+          .filter(d => !isNaN(d));
+
+        if (matchDates.length > 0) {
+          const minMatch = new Date(Math.min(...matchDates));
+          const maxMatch = new Date(Math.max(...matchDates));
+          
+          const tStart = payload.startDate ? new Date(payload.startDate) : null;
+          const tEnd = payload.endDate ? new Date(payload.endDate) : null;
+
+          if (!tStart || minMatch < tStart) {
+            payload.startDate = minMatch.toISOString().split('T')[0];
+          }
+          if (!tEnd || maxMatch > tEnd) {
+            payload.endDate = maxMatch.toISOString().split('T')[0];
+          }
+        }
+      }
+
       if (onSave) {
-        await onSave(formData);
+        await onSave(payload);
       } else {
         let savedTournament;
         if (initialData?.id) {
-          savedTournament = await api.updateTournament(initialData.id, formData);
+          savedTournament = await api.updateTournament(initialData.id, payload);
         } else {
-          savedTournament = await api.createTournament(formData);
+          savedTournament = await api.createTournament(payload);
         }
 
-        if (formData.customMatches && formData.customMatches.length > 0) {
-          await api.createDetailedMatches(savedTournament.id, formData.format, formData.customMatches);
+        if (payload.customMatches && payload.customMatches.length > 0) {
+          await api.createDetailedMatches(savedTournament.id, payload.format, payload.customMatches);
         }
 
         if (refreshAdminData) {
