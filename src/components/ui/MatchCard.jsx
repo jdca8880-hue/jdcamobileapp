@@ -26,7 +26,7 @@ export const MatchCard = ({ match, onClick }) => {
         haptics.light();
         if (onClick) onClick(e);
       }}
-      className={`bg-white rounded-2xl cursor-pointer relative transition-colors border border-slate-200 mb-4 shadow-sm hover:shadow-md group overflow-hidden flex flex-col w-full`}
+      className={`bg-white rounded-2xl cursor-pointer relative transition-colors border border-slate-200 mb-4 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary-300 transition-all duration-300 group overflow-hidden flex flex-col w-full`}
     >
       {/* Dynamic Banner Header */}
       <div className="h-24 w-full relative">

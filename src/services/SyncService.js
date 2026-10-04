@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { getPendingActions, clearAction, updateAction } from '../lib/db';
+import { normalizeDelivery } from '../engine/deliveryContract.js';
 
 const MAX_RETRIES = 3;
 
@@ -11,6 +12,7 @@ class SyncService {
     this.status = this.isOnline ? 'ONLINE' : 'OFFLINE';
     this.pendingCount = 0;
     this.retryCounts = {}; // track per-action retry count
+    this.blockedMatches = new Set();
 
     // Listen for network changes
     window.addEventListener('online', () => this.handleOnline());
@@ -36,7 +38,11 @@ class SyncService {
 
   emit() {
     for (const listener of this.listeners) {
-      listener({ status: this.status, pendingCount: this.pendingCount });
+      listener({ 
+        status: this.status, 
+        pendingCount: this.pendingCount,
+        blockedMatches: new Set(this.blockedMatches)
+      });
     }
   }
 
@@ -86,23 +92,29 @@ class SyncService {
 
     this.syncInProgress = true;
     this.setStatus('SYNCING');
+    let actions = [];
     try {
-      const actions = await getPendingActions();
+      try {
+        actions = await getPendingActions();
+      } catch (err) {
+        console.error('[SyncService] Failed to load pending actions from storage:', err);
+        return;
+      }
       this.pendingCount = actions.filter(a => a.status !== 'FAILED_PERMANENT').length;
       this.emit();
 
       if (actions.length === 0) {
-        this.syncInProgress = false;
         this.setStatus('ONLINE');
         return;
       }
 
       console.log(`[SyncService] Processing ${actions.length} pending actions...`);
 
-      const blockedMatches = new Set();
+      const transientBlockedMatches = new Set();
       const context = {
         matchStatusCache: new Map(),
         inningsCache: new Map(),
+        inningsDetailsCache: new Map(),
         lastSequenceCache: new Map(),
         rosterCache: new Map()
       };
@@ -112,14 +124,14 @@ class SyncService {
 
         if (action.status === 'FAILED_PERMANENT') {
           if (matchId) {
-            blockedMatches.add(matchId);
+            this.blockedMatches.add(matchId);
             // Notify UI again so user isn't silently blocked after a refresh
             this.notifyPermanentFailure(matchId, action);
           }
           continue;
         }
 
-        if (matchId && blockedMatches.has(matchId)) {
+        if (matchId && (this.blockedMatches.has(matchId) || transientBlockedMatches.has(matchId))) {
           console.warn(`[SyncService] Skipping action ${action.id} because match ${matchId} is blocked.`);
           continue;
         }
@@ -134,7 +146,7 @@ class SyncService {
         try {
           if (supabase) {
              if (action.action === 'RECORD_DELIVERY') {
-               success = await this.pushDelivery(action.payload, context);
+               success = await this.pushDelivery(action.payload, context, action);
              } else if (action.action === 'UNDO_DELIVERY') {
                success = await this.deleteDelivery(action.payload);
              } else {
@@ -145,7 +157,14 @@ class SyncService {
           console.error(`[SyncService] Failed to process action ${action.id}:`, error);
           errorDetails = { code: error.code, message: error.message, details: error.details };
 
-          if (error.code === '23505') { 
+          if (error.code === 'P0001') {
+             isPermanentError = true;
+             errorDetails = {
+               code: error.code || 'P0001',
+               message: error.message || 'Database rule violation',
+               details: error.details || error.message
+             };
+          } else if (error.code === '23505') { 
              // ONLY treat idempotency duplicate as success. Other unique constraints are permanent failures.
              if (error.message?.includes('idempotency') || error.details?.includes('idempotency')) {
                 success = true; 
@@ -158,10 +177,11 @@ class SyncService {
              isAuthError = true;
           } else if (error.message?.includes('State Transition Error') || error.message?.includes('already finalized') || error.message?.includes('immutable') || error.message?.includes('check_match_immutable')) {
              isPermanentError = true;
-          } else if (error.code === '23514' || error.code === '23503' || error.message?.includes('violates check constraint') || error.message?.includes('violates foreign key constraint') || error.message?.includes('invalid input syntax')) {
+          } else if (error.code === '23514' || error.code === '23503' || error.code === '22P02' || error.message?.includes('violates check constraint') || error.message?.includes('violates foreign key constraint') || error.message?.includes('invalid input syntax') || error.message?.includes('invalid UUID')) {
              isPermanentError = true;
           } else {
-             // Unknown error -> assume transient until max retries to be safe.
+             // Unknown error -> assume transient until max retries to be safe. (e.g. 500, 502, 503, 504)
+             isNetworkError = true;
           }
         }
 
@@ -189,7 +209,10 @@ class SyncService {
              error: errorDetails,
              failedAt: Date.now()
            });
-           if (matchId) blockedMatches.add(matchId);
+           if (matchId) {
+             this.blockedMatches.add(matchId);
+             this.emit();
+           }
            delete this.retryCounts[action.id];
            
            this.notifyPermanentFailure(matchId, action);
@@ -200,27 +223,37 @@ class SyncService {
           progressMade = true;
           delete this.retryCounts[action.id];
           await clearAction(action.id);
-        }
-
-        if (isNetworkError) {
-          break; // Stop on real network error
+        } else {
+          // If a delivery fails (even transiently), we MUST stop processing the queue for this match.
+          // Otherwise, we violate delivery order (pushing D2 before D1).
+          console.warn(`[SyncService] Halting queue for match ${matchId} due to action ${action.id} failure.`);
+          if (matchId) transientBlockedMatches.add(matchId);
+          if (isNetworkError) break; // Also break entirely if network is down
         }
       }
+    } catch (unexpectedErr) {
+      console.error('[SyncService] Unexpected error in processQueue loop:', unexpectedErr);
     } finally {
       this.syncInProgress = false;
-      await this.updatePendingCount(); 
-      this.setStatus(this.isOnline ? 'ONLINE' : 'OFFLINE');
-      
-      // Auto-drain: if more actions were queued while syncing, start again shortly.
-      // But if we're looping without progress (e.g. hitting persistent network/auth errors), back off to 5 seconds.
-      if (this.pendingCount > 0 && this.isOnline) {
-        // If we didn't clear anything and just broke out due to network/auth error, back off.
-        const delay = this.pendingCount === actions.length ? 5000 : 500;
-        setTimeout(() => {
-          if (this.isOnline && !this.syncInProgress) {
-            this.processQueue();
-          }
-        }, delay);
+      try {
+        await this.updatePendingCount(); 
+        this.setStatus(this.isOnline ? 'ONLINE' : 'OFFLINE');
+        
+        // Auto-drain: if more actions were queued while syncing, start again shortly.
+        // But if we're looping without progress (e.g. hitting persistent network/auth errors), back off to 5 seconds.
+        if (this.pendingCount > 0 && this.isOnline) {
+          const initialCount = Array.isArray(actions) ? actions.length : 0;
+          const delay = this.pendingCount === initialCount ? 5000 : 500;
+          setTimeout(() => {
+            if (this.isOnline && !this.syncInProgress) {
+              this.processQueue().catch(err => {
+                console.error('[SyncService] Uncaught error in processQueue auto-drain:', err);
+              });
+            }
+          }, delay);
+        }
+      } catch (finallyErr) {
+        console.error('[SyncService] Error in processQueue finally block:', finallyErr);
       }
     }
   }
@@ -235,7 +268,9 @@ class SyncService {
 
   notifyPermanentFailure(matchId, action) {
     const seq = action.payload?.deliverySequence || '?';
-    const msg = `Match sync stopped at delivery ${seq}. Your score is saved locally but could not be synchronized. Please resolve the sync error before continuing.`;
+    const errCode = action.error?.code ? ` [${action.error.code}]` : '';
+    const errDesc = action.error?.message || 'Data integrity mismatch';
+    const msg = `Match sync stopped at delivery ${seq}${errCode}: ${errDesc}. Match and innings data are inconsistent.`;
     
     // Broadcast a custom event for the UI to pick up
     const event = new CustomEvent('sync-permanent-failure', {
@@ -262,7 +297,8 @@ class SyncService {
     }
   }
 
-  async pushDelivery(payload, context = null) {
+  async pushDelivery(rawPayload, context = null, action = null) {
+    const payload = normalizeDelivery(rawPayload);
     if (!payload.matchId) return true; // Invalid data, skip
     
     // Lifecycle events like 'innings_start' are timeline markers, not physical deliveries
@@ -299,7 +335,75 @@ class SyncService {
     }
 
     if (!inningsId) {
-      throw new Error(`[SyncService] Missing valid Supabase inningsId for match ${payload.matchId} (innings ${payload.innings}). Cannot insert delivery.`);
+      const missingErr = new Error(`[SyncService] Missing valid Supabase inningsId for match ${payload.matchId} (innings ${payload.innings}). Cannot insert delivery.`);
+      missingErr.code = 'P0001';
+      throw missingErr;
+    }
+
+    // Verify database relationship: innings.id = payload.inningsId and innings.match_id = payload.matchId
+    if (supabase && inningsId) {
+      let innData = null;
+      if (context?.inningsDetailsCache?.has(inningsId)) {
+        innData = context.inningsDetailsCache.get(inningsId);
+      } else {
+        try {
+          const { data } = await supabase
+            .from('innings')
+            .select('id, match_id, innings_number')
+            .eq('id', inningsId)
+            .maybeSingle();
+          if (data) {
+            innData = data;
+            context?.inningsDetailsCache?.set(inningsId, innData);
+          }
+        } catch (fetchInnErr) {
+          console.warn('[SyncService] Failed to verify innings details from Supabase:', fetchInnErr);
+        }
+      }
+
+      if (innData && innData.match_id !== payload.matchId) {
+        console.warn(`[SyncService] Mismatch detected: payload.matchId (${payload.matchId}) != innings.match_id (${innData.match_id}) for inningsId ${inningsId}`);
+        
+        let repaired = false;
+        const targetInningsNum = Number(payload.innings) || innData.innings_number || 1;
+        
+        try {
+          const { data: matchInnings } = await supabase
+            .from('innings')
+            .select('id, match_id, innings_number')
+            .eq('match_id', payload.matchId)
+            .eq('innings_number', targetInningsNum);
+            
+          if (matchInnings && matchInnings.length === 1) {
+            const provableInnings = matchInnings[0];
+            const { data: targetMatch } = await supabase
+              .from('matches')
+              .select('id')
+              .eq('id', payload.matchId)
+              .maybeSingle();
+
+            if (targetMatch) {
+              console.log(`[SyncService] Provable innings match found: repairing metadata for delivery ${payload.id} from innings ${inningsId} -> ${provableInnings.id}`);
+              inningsId = provableInnings.id;
+              payload.inningsId = provableInnings.id;
+              repaired = true;
+              
+              if (action?.id) {
+                await updateAction(action.id, { payload });
+              }
+            }
+          }
+        } catch (repairErr) {
+          console.warn('[SyncService] Error during provable innings repair:', repairErr);
+        }
+
+        if (!repaired) {
+          const err = new Error('Delivery innings does not belong to delivery match');
+          err.code = 'P0001';
+          err.details = `Unrecoverable mismatch between delivery match ${payload.matchId} and innings ${inningsId} (belongs to match ${innData.match_id})`;
+          throw err;
+        }
+      }
     }
 
     // Backend verification: Prevent delivery if match is COMPLETED
@@ -319,32 +423,12 @@ class SyncService {
       }
     }
 
-    // Map frontend dismissal type to Postgres enum
-    let wicketType = payload.wicket_type !== undefined ? payload.wicket_type : 'NONE';
-    if (wicketType === 'NONE' && payload.wicket) {
-      const wMap = {
-        'Bowled': 'BOWLED', 'Caught': 'CAUGHT', 'LBW': 'LBW', 'Run Out': 'RUN_OUT',
-        'Stumped': 'STUMPED', 'Hit Wicket': 'HIT_WICKET', 'Retired Hurt': 'RETIRED_HURT',
-        'Retired Out': 'RETIRED_OUT'
-      };
-      wicketType = wMap[payload.dismissalType] || 'BOWLED';
-    }
-
-    let extraType = payload.extra_type !== undefined ? payload.extra_type : 'NONE';
-    if (extraType === 'NONE' && payload.extraType) {
-      const eMap = {
-        'wide': 'WIDE', 'no_ball': 'NO_BALL', 'bye': 'BYE', 'leg_bye': 'LEG_BYE', 'penalty': 'PENALTY'
-      };
-      extraType = eMap[payload.extraType.toLowerCase()] || payload.extraType.toUpperCase();
-    }
-
-    // Strictly enforce: runs_total = runs_off_bat + runs_extras (constraint delivery_total_valid)
-    const runsOffBat = Number(payload.runs_off_bat ?? payload.runsOffBat) || 0;
-    const totalRuns = payload.runs_total ?? payload.totalRuns;
-    const extraRunsRaw = payload.runs_extras ?? payload.extraRuns;
+    const wicketType = payload.wicketType;
+    const extraType = payload.extraType;
     
-    const runsExtras = totalRuns !== undefined ? Math.max(0, Number(totalRuns) - runsOffBat) : (Number(extraRunsRaw) || 0);
-    const finalTotalRuns = runsOffBat + runsExtras;
+    const runsOffBat = payload.runsBatter;
+    const runsExtras = payload.runsExtras;
+    const finalTotalRuns = payload.runsTotal;
 
     // Resolve player UUIDs
     const strikerId = isUUID(payload.strikerId) ? payload.strikerId : null;
@@ -354,10 +438,9 @@ class SyncService {
     // Resolve dismissed player UUID (constraint wicket_player_required: wicket_type = 'NONE' or dismissed_player_id is not null)
     let dismissedPlayerId = null;
     if (wicketType !== 'NONE') {
-      const dpId = payload.dismissed_player_id ?? payload.dismissedPlayerId;
-      dismissedPlayerId = isUUID(dpId) 
-        ? dpId 
-        : (isUUID(payload.strikerId) ? payload.strikerId : null);
+      dismissedPlayerId = isUUID(payload.dismissedPlayerId) 
+        ? payload.dismissedPlayerId 
+        : strikerId;
 
       if (!dismissedPlayerId) {
         // Fallback: query any valid player from the match roster so check constraint is satisfied
@@ -378,9 +461,6 @@ class SyncService {
           }
         } catch (e) {}
       }
-
-      // DO NOT silently overwrite wicketType. If missing, it will violate check_wicket_player_required.
-      // The DB constraint will reject it, which is the correct behaviour. We must preserve original payload.
     }
 
     // Consistency constraints for fielder and wicketkeeper
@@ -407,6 +487,9 @@ class SyncService {
         deliverySequence = Math.max(1, (payload.balls || 0) + 1);
       }
     }
+
+    // Explicit log before attempting INSERT as required
+    console.log(`[SyncService] Preparing delivery insert: actionId=${action?.id}, idempotencyKey=${payload.id}, matchId=${payload.matchId}, inningsId=${inningsId}, sequence=${deliverySequence}`);
 
     const { error } = await supabase.from('deliveries').insert({
       match_id: payload.matchId,

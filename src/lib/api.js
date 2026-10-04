@@ -821,6 +821,46 @@ export const api = {
         if (localDeliveries.length > 0) deliveries = localDeliveries;
       }
       
+      // Augment with LOCAL PENDING deliveries to enable instant scorecard updates
+      const pendingQueue = await db.sync_queue
+        .where('action').equals('RECORD_DELIVERY')
+        .toArray();
+        
+      const remoteIds = new Set(deliveries.map(d => d.idempotency_key || d.id));
+      const pendingDeliveries = [];
+      
+      for (const p of pendingQueue) {
+        const d = p.payload;
+        // Strict filtering: must belong to THIS match, and not permanently failed
+        if (!d || (d.matchId !== matchId && d.match_id !== matchId) || p.status === 'FAILED_PERMANENT') continue;
+        
+        const key = d.idempotency_key || d.id;
+        if (!remoteIds.has(key)) {
+          remoteIds.add(key);
+          pendingDeliveries.push({
+            id: d.id,
+            idempotency_key: key,
+            match_id: d.matchId || d.match_id,
+            innings_id: d.inningsId || d.innings_id,
+            striker_id: d.strikerId || d.striker_id,
+            non_striker_id: d.nonStrikerId || d.non_striker_id,
+            bowler_id: d.bowlerId || d.bowler_id,
+            runs_off_bat: d.runsBatter ?? d.runs_off_bat ?? 0,
+            runs_extras: d.runsExtras ?? d.runs_extras ?? 0,
+            runs_total: d.runsTotal ?? d.runs_total ?? 0,
+            is_legal_delivery: d.isLegalDelivery ?? d.is_legal_delivery ?? true,
+            extra_type: d.extraType || d.extra_type || 'NONE',
+            wicket_type: d.wicketType || d.wicket_type || 'NONE',
+            dismissed_player_id: d.dismissedPlayerId || d.dismissed_player_id,
+            is_pending: true // Marker for UI
+          });
+        }
+      }
+      
+      if (pendingDeliveries.length > 0) {
+        deliveries = [...deliveries, ...pendingDeliveries];
+      }
+      
       // Resolve missing player names (RLS blocks players table for anon sometimes, or offline players)
       const uniquePlayerIds = new Set();
       deliveries.forEach(d => {
@@ -891,7 +931,7 @@ export const api = {
         // Bowler Stats
         if (d.bowler_id) {
           if (!bowlers[d.bowler_id]) {
-            bowlers[d.bowler_id] = { id: d.bowler_id, name: d.bowler?.full_name || d.bowler?.name || 'Unknown', balls: 0, runs: 0, wickets: 0, maidens: 0 };
+            bowlers[d.bowler_id] = { id: d.bowler_id, name: d.bowler?.full_name || d.bowler?.name || 'Unknown', balls: 0, runs: 0, wickets: 0, maidens: 0, wides: 0, noBalls: 0 };
           }
           if (d.extra_type === 'NONE' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
             bowlers[d.bowler_id].balls += 1;
@@ -899,8 +939,14 @@ export const api = {
           if (d.extra_type !== 'BYES' && d.extra_type !== 'LEG_BYES') {
             bowlers[d.bowler_id].runs += d.runs_total;
           }
-          if (d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT') {
+          if (d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT' && d.wicket_type !== 'RETIRED_HURT' && d.wicket_type !== 'OBSTRUCTING_THE_FIELD' && d.wicket_type !== 'TIMED_OUT') {
             bowlers[d.bowler_id].wickets += 1;
+          }
+          if (d.extra_type === 'WIDE') {
+            bowlers[d.bowler_id].wides += d.runs_extras;
+          }
+          if (d.extra_type === 'NO_BALL') {
+            bowlers[d.bowler_id].noBalls += d.runs_extras;
           }
         }
       });
@@ -1037,16 +1083,19 @@ export const api = {
     }
 
     // Determine batting and bowling team
+    if (!match.toss_winner_id) {
+      console.warn("Cannot create innings: toss winner not set. Wait for Match Setup.");
+      return null;
+    }
+
     let battingTeamId = match.home_team_id;
     let bowlingTeamId = match.away_team_id;
 
-    if (match.toss_winner_id) {
-      const tossWinnerBats = match.toss_decision === 'BAT';
-      const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
-      const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
-      battingTeamId = homeBatsFirst ? match.home_team_id : match.away_team_id;
-      bowlingTeamId = homeBatsFirst ? match.away_team_id : match.home_team_id;
-    }
+    const tossWinnerBats = match.toss_decision === 'BAT';
+    const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+    const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+    battingTeamId = homeBatsFirst ? match.home_team_id : match.away_team_id;
+    bowlingTeamId = homeBatsFirst ? match.away_team_id : match.home_team_id;
 
     if (Number(inningsNumber) === 2) {
       const temp = battingTeamId;
@@ -1386,6 +1435,34 @@ export const api = {
       .eq('id', matchId);
       
     if (updateError) throw updateError;
+    
+    // 4. Force Upsert Innings 1 to guarantee correct batting team
+    if (tossWinnerTeamId && tossDecision) {
+      const tossWinnerBats = tossDecision === 'BAT';
+      const tossWinnerIsHome = tossWinnerTeamId === match.home_team_id;
+      const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+      
+      const battingTeamId = homeBatsFirst ? match.home_team_id : match.away_team_id;
+      const bowlingTeamId = homeBatsFirst ? match.away_team_id : match.home_team_id;
+
+      const { data: existingInnings } = await supabase.from('innings').select('id').eq('match_id', matchId).eq('innings_number', 1).maybeSingle();
+      if (existingInnings) {
+        await supabase.from('innings').update({
+          batting_team_id: battingTeamId,
+          bowling_team_id: bowlingTeamId,
+          overs_limit: setupData.totalOvers || 20
+        }).eq('id', existingInnings.id);
+      } else {
+        await supabase.from('innings').insert({
+          match_id: matchId,
+          innings_number: 1,
+          batting_team_id: battingTeamId,
+          bowling_team_id: bowlingTeamId,
+          overs_limit: setupData.totalOvers || 20,
+          status: 'IN_PROGRESS'
+        });
+      }
+    }
     
     return true;
   },

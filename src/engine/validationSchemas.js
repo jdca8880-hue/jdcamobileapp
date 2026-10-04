@@ -26,7 +26,7 @@ export const FREE_HIT_ALLOWED_DISMISSALS = [
 export const BallEventSchema = z.object({
   type: z.enum(['run', 'extra', 'wicket']),
   runs: z.number().int().min(0).max(6).default(0),
-  extraType: z.enum(['wide', 'no_ball', 'bye', 'leg_bye', 'penalty']).nullable().optional(),
+  extraType: z.enum(['wide', 'no_ball', 'bye', 'leg_bye']).nullable().optional(),
   extraRuns: z.number().int().min(0).max(6).default(0),
   isFreeHit: z.boolean().default(false),
   dismissalType: z.enum(DISMISSAL_TYPES).nullable().optional(),

@@ -3,10 +3,28 @@ import { Radio, Users, ShieldCheck, ChevronRight, Share2, Award, Printer, ArrowL
 import { useCricket } from '../../context/CricketContext';
 import { PageHeader, TabBar } from '../ui/PageHeader';
 import { MatchStatusBadge } from '../ui/Badge';
-
 export default function ScorecardScreen() {
-  const { scorecard, navigateTo, activeMatchId, matches, goBack } = useCricket();
+  const { activeMatchId, matches, goBack } = useCricket();
   const [activeInningsTab, setActiveInningsTab] = useState('1st');
+  const [fullScorecard, setFullScorecard] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadScorecard = async () => {
+      try {
+        const { api } = await import('../../lib/api');
+        const data = await api.getMatchScorecard(activeMatchId);
+        if (isMounted) setFullScorecard(data);
+      } catch (err) {
+        console.error('Failed to load scorecard', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    if (activeMatchId) loadScorecard();
+    return () => { isMounted = false; };
+  }, [activeMatchId]);
 
   const activeMatch = matches?.find((m) => m.id === activeMatchId);
   const teamAName = activeMatch?.home_team?.name || 'Home Team';
@@ -14,11 +32,22 @@ export default function ScorecardScreen() {
   const tournamentName = activeMatch?.tournament || 'JDCA Senior District Trophy 2026';
   const venue = activeMatch?.venue || 'Wright Town Stadium, Jabalpur';
 
-  // Innings tabs
   const inningsTabs = [
     { id: '1st', label: `${teamAName} (1st Inn)` },
     { id: '2nd', label: `${teamBName} (2nd Inn)` },
   ];
+
+  if (isLoading) {
+    return <div className="p-10 text-center text-slate-500 font-bold">Loading Scorecard...</div>;
+  }
+
+  // Choose stats based on tab selection
+  const tabData = activeInningsTab === '1st' 
+    ? fullScorecard?.scorecard?.home_team
+    : fullScorecard?.scorecard?.away_team;
+    
+  const currentBatting = tabData?.batting || [];
+  const currentBowling = tabData?.bowling || [];
 
   return (
     <div className="fade-in-up" style={{ padding: '24px 20px 100px', maxWidth: 1000, margin: '0 auto' }}>
@@ -62,17 +91,24 @@ export default function ScorecardScreen() {
           <div>
             <h2 className="text-xl font-bold text-slate-900">{teamAName}</h2>
             <div className="text-3xl font-extrabold text-[#2457D6] font-tabular mt-1">
-              184<span className="text-xl font-bold text-slate-400">/4</span>
+              {fullScorecard?.home_team?.score?.split('/')[0] || '0'}<span className="text-xl font-bold text-slate-400">/{fullScorecard?.home_team?.score?.split('/')[1] || '0'}</span>
             </div>
             <div className="text-xs text-slate-500 mt-1 font-medium">
-              Overs: <strong className="text-slate-900">18.2</strong> / 20.0 (CRR: 10.09)
+              Overs: <strong className="text-slate-900">{fullScorecard?.home_team?.overs?.replace('(', '')?.replace(' ov)', '') || '0.0'}</strong>
             </div>
           </div>
 
           <div className="sm:text-right flex flex-col justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-800">{teamBName}</h2>
-              <div className="text-xs text-slate-500 mt-1">Yet to bat (Target: 185)</div>
+              {fullScorecard?.away_team?.score ? (
+                <div className="text-2xl font-extrabold text-[#2457D6] font-tabular mt-1">
+                  {fullScorecard.away_team.score.split('/')[0]}<span className="text-lg font-bold text-slate-400">/{fullScorecard.away_team.score.split('/')[1]}</span>
+                  <span className="text-xs text-slate-500 ml-2 font-medium">({fullScorecard.away_team.overs?.replace('(', '')?.replace(' ov)', '') || '0.0'})</span>
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500 mt-1">Yet to bat</div>
+              )}
             </div>
             <div className="text-xs text-slate-400 mt-2">
               Venue: <strong className="text-slate-600">{venue}</strong>
@@ -120,7 +156,7 @@ export default function ScorecardScreen() {
               </tr>
             </thead>
             <tbody>
-              {scorecard.batting.map((batter) => (
+              {currentBatting.map((batter) => (
                 <tr key={batter.id} className="hover:bg-slate-50/80">
                   <td>
                     <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
@@ -131,7 +167,7 @@ export default function ScorecardScreen() {
                   </td>
                   <td>
                     <span className="text-xs text-slate-500">
-                      {batter.dismissal}
+                      {batter.dismissal || 'not out'}
                     </span>
                   </td>
                   <td style={{ textAlign: 'right' }} className="font-tabular font-extrabold text-slate-900 text-sm">
@@ -159,10 +195,10 @@ export default function ScorecardScreen() {
         <div className="p-4 bg-slate-50 border-t border-slate-200 text-xs flex items-center justify-between flex-wrap gap-2">
           <div>
             <span className="font-bold text-slate-800">Extras: </span>
-            <span className="text-slate-600 font-medium">12 (wd 6, nb 2, b 2, lb 2)</span>
+            <span className="text-slate-600 font-medium">{activeInningsTab === '1st' ? fullScorecard?.home_team?.extras || 0 : fullScorecard?.away_team?.extras || 0}</span>
           </div>
           <div className="font-tabular font-extrabold text-sm text-slate-900">
-            Total: 184/4 (18.2 Overs) � RR: 10.09
+            Total: {activeInningsTab === '1st' ? fullScorecard?.home_team?.score || '0/0' : fullScorecard?.away_team?.score || '0/0'} {activeInningsTab === '1st' ? fullScorecard?.home_team?.overs || '(0.0 ov)' : fullScorecard?.away_team?.overs || '(0.0 ov)'}
           </div>
         </div>
       </div>
@@ -189,7 +225,7 @@ export default function ScorecardScreen() {
               </tr>
             </thead>
             <tbody>
-              {scorecard.bowling.map((bowler) => (
+              {currentBowling.map((bowler) => (
                 <tr key={bowler.id} className="hover:bg-slate-50/80">
                   <td>
                     <div className="font-bold text-slate-900 text-sm">{bowler.name}</div>
@@ -198,7 +234,7 @@ export default function ScorecardScreen() {
                     {bowler.overs}
                   </td>
                   <td style={{ textAlign: 'right' }} className="font-tabular text-slate-700 text-xs">
-                    {bowler.maidens}
+                    {bowler.maidens || 0}
                   </td>
                   <td style={{ textAlign: 'right' }} className="font-tabular font-bold text-slate-900 text-sm">
                     {bowler.runs}
@@ -210,10 +246,10 @@ export default function ScorecardScreen() {
                     {bowler.economy}
                   </td>
                   <td style={{ textAlign: 'right' }} className="font-tabular text-slate-500 text-xs">
-                    2
+                    {bowler.wides || 0}
                   </td>
                   <td style={{ textAlign: 'right' }} className="font-tabular text-slate-500 text-xs">
-                    1
+                    {bowler.noBalls || 0}
                   </td>
                 </tr>
               ))}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
@@ -6,6 +6,7 @@ import { syncService } from '../services/SyncService';
 import { queueOfflineAction } from '../lib/db';
 import {
   processDelivery,
+  processPenaltyEvent,
   formatOvers,
   calculateCRR,
   calculateProjectedScore,
@@ -13,6 +14,7 @@ import {
   MATCH_STATES,
 } from '../engine/cricketStateMachine';
 import { INITIAL_SCORECARD, FIELD_DIRECTIONS } from '../data/constants';
+import { normalizeDelivery } from '../engine/deliveryContract.js';
 
 export const INITIAL_MATCH_SETUP = {
   teamA: 'Team A',
@@ -165,13 +167,13 @@ export function useMatchScoring({
                 return {
                   id: p.id,
                   idempotency_key: p.id,
-                  runs_total: p.totalRuns || 0,
-                  runs_off_bat: p.runsOffBat || 0,
-                  runs_extras: p.extraRuns || 0,
+                  runs_total: p.runsTotal ?? p.totalRuns ?? 0,
+                  runs_off_bat: p.runsBatter ?? p.runsOffBat ?? 0,
+                  runs_extras: p.runsExtras ?? p.extraRuns ?? 0,
                   extra_type: extraType,
                   wicket_type: wicketType,
                   striker: { name: p.striker },
-                  dismissed_player_id: p.wicket ? p.strikerId : null,
+                  dismissed_player_id: p.dismissedPlayerId || (p.wicket ? p.strikerId : null),
                   striker_id: p.strikerId,
                   non_striker_id: p.nonStrikerId,
                   bowler_id: p.bowlerId,
@@ -224,10 +226,10 @@ export function useMatchScoring({
         ).map(dl => ({
           id: dl.id,
           type: dl.type,
-          value: dl.runs,
-          runs: dl.runs,
-          wicket: dl.wicket,
-          extra: !!dl.extraType
+          value: dl.runs_total,
+          runs: dl.runs_total,
+          wicket: dl.wicket_type !== 'NONE',
+          extra: dl.extra_type !== 'NONE'
         }));
         setCurrentOverBalls(currentOverBallsArr);
 
@@ -255,13 +257,19 @@ export function useMatchScoring({
                   const pendingActions = await db.sync_queue.toArray();
                   const targetInningsNum = currentInning.innings_number === 2 ? 1 : 3;
                   const offlineDelivs = pendingActions.filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.matchId === matchId && Number(a.payload?.innings || 1) === targetInningsNum);
-                  const offlineRuns = offlineDelivs.reduce((acc, a) => acc + (a.payload?.totalRuns || 0), 0);
+                  const offlineRuns = offlineDelivs.reduce((acc, a) => acc + (a.payload?.runsTotal ?? a.payload?.totalRuns ?? 0), 0);
                   firstInningsRuns += offlineRuns;
                 }
               } catch (e) {
                 console.warn('[useMatchScoring] Failed to add offline deliveries to target:', e);
               }
-              setTarget(prev => prev !== null ? prev : firstInningsRuns + 1);
+              setTarget(firstInningsRuns + 1);
+            } else {
+              let savedTarget = null;
+              try { savedTarget = localStorage.getItem(`jdca-target-${matchId}`); } catch {}
+              if (savedTarget) {
+                setTarget(Number(savedTarget));
+              }
             }
           }
 
@@ -379,46 +387,6 @@ export function useMatchScoring({
           }
         } catch (cacheErr) {}
 
-        // Calculate Target for second innings
-        if (num === 2 && !target) {
-          try {
-            let onlineRuns = 0;
-            // Fetch first innings ID
-            const { data: firstInn } = await supabase
-              .from('innings')
-              .select('id')
-              .eq('match_id', matchId)
-              .eq('innings_number', 1)
-              .maybeSingle();
-              
-            if (firstInn?.id) {
-              const { data: deliveries } = await supabase
-                .from('deliveries')
-                .select('runs_total')
-                .eq('match_id', matchId)
-                .eq('innings_id', firstInn.id);
-                
-              if (deliveries) {
-                onlineRuns = deliveries.reduce((acc, d) => acc + (d.runs_total || 0), 0);
-              }
-            }
-
-            let offlineRuns = 0;
-            try {
-              const { db } = await import('../lib/db.js');
-              if (db.sync_queue) {
-                const pending = await db.sync_queue.toArray();
-                const offline = pending.filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.matchId === matchId && Number(a.payload?.innings || 1) === 1);
-                offlineRuns = offline.reduce((acc, a) => acc + (a.payload?.totalRuns || 0), 0);
-              }
-            } catch (err) {}
-
-            setTarget(prev => prev !== null ? prev : (onlineRuns + offlineRuns) + 1);
-          } catch (e) {
-            console.error('[useMatchScoring] Failed to calculate target:', e);
-          }
-        }
-
         return inn.id;
       }
     } catch (err) {
@@ -429,6 +397,7 @@ export function useMatchScoring({
   };
 
   useEffect(() => {
+    setCurrentInningsId(null);
     if (activeMatchId) {
       resolveInningsId(activeMatchId, innings);
     }
@@ -440,6 +409,40 @@ export function useMatchScoring({
       setMatchStatus('COMPLETED');
     }
   }, [activeMatchId, matches]);
+
+  const latestDeliveryLogRef = useRef([]);
+  useEffect(() => {
+    latestDeliveryLogRef.current = deliveryLog;
+  }, [deliveryLog]);
+
+  useEffect(() => {
+    if (!activeMatchId) return;
+
+    const handleRealtimeDelivery = async (e) => {
+      const payload = e.detail;
+      if (payload.type === 'RECONNECT') {
+        console.log('[useMatchScoring] Realtime reconnect, hydrating...');
+        await hydrateMatchState(activeMatchId);
+        return;
+      }
+      
+      if (payload.eventType === 'INSERT') {
+        const isLocal = latestDeliveryLogRef.current.some(d => (d.id || d.idempotency_key) === payload.new?.idempotency_key);
+        if (!isLocal) {
+          console.log('[useMatchScoring] Remote delivery detected, hydrating state...');
+          await hydrateMatchState(activeMatchId);
+        }
+      } else if (payload.eventType === 'DELETE') {
+        console.log('[useMatchScoring] Remote delivery delete/undo detected, hydrating state...');
+        await hydrateMatchState(activeMatchId);
+      }
+    };
+
+    window.addEventListener('jdca-realtime-delivery', handleRealtimeDelivery);
+    return () => {
+      window.removeEventListener('jdca-realtime-delivery', handleRealtimeDelivery);
+    };
+  }, [activeMatchId]);
 
   const [matchFormat, setMatchFormat] = useState('T20');
   const [totalMatchOvers, setTotalMatchOvers] = useState(20);
@@ -591,21 +594,33 @@ export function useMatchScoring({
   };
 
   // Helper to snapshot current state for deterministic Undo
-  const captureSnapshot = () => ({
-    runs,
-    wickets,
-    balls,
-    currentOverBalls: [...currentOverBalls],
-    striker: { ...striker },
-    nonStriker: { ...nonStriker },
-    currentBowler: { ...currentBowler },
-    extras: { ...extras },
-    isFreeHit,
-    innings,
-    matchStatus,
-    scorecard: JSON.parse(JSON.stringify(scorecard)),
-    lastOverBowlerId,
-  });
+  const captureSnapshot = () => {
+    const isTeamABatting = scorecard?.teamBattingId === matchSetup?.teamAId;
+    const battingTeamXI = isTeamABatting ? matchSetup?.teamAXI : matchSetup?.teamBXI;
+    const bowlingTeamXI = isTeamABatting ? matchSetup?.teamBXI : matchSetup?.teamAXI;
+
+    return {
+      runs,
+      wickets,
+      balls,
+      currentOverBalls: [...currentOverBalls],
+      striker: { ...striker },
+      nonStriker: { ...nonStriker },
+      currentBowler: { ...currentBowler },
+      extras: { ...extras },
+      isFreeHit,
+      innings,
+      totalMatchOvers: matchSetup?.totalOvers || 20,
+      matchStatus,
+      scorecard: JSON.parse(JSON.stringify(scorecard)),
+      lastOverBowlerId,
+      battingTeamXI,
+      bowlingTeamXI,
+      battingTeamId: scorecard?.teamBattingId || null,
+      pendingPenalties: scorecard?.pendingPenalties || {},
+      target
+    };
+  };
 
   // Apply State Machine Result
   const applyStateResult = (result) => {
@@ -722,17 +737,20 @@ export function useMatchScoring({
 
     const eventId = `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     
-    // Ensure inningsId is always populated with the actual innings UUID
+    // Ensure inningsId is always populated with the actual innings UUID for activeMatchId
     let resolvedInningsId = currentInningsId;
-    if (!resolvedInningsId && activeMatchId) {
-      resolvedInningsId = await resolveInningsId(activeMatchId, innings);
+    if (activeMatchId) {
+      const matchInningsId = await resolveInningsId(activeMatchId, innings);
+      if (matchInningsId) {
+        resolvedInningsId = matchInningsId;
+      }
     }
 
     // Determine unique delivery sequence for this innings
     const currentInningsDeliveries = deliveryLog.filter(d => (d.innings || 1) === innings && d.type !== 'innings_start' && d.type !== 'match_start');
     const deliverySequence = currentInningsDeliveries.length + 1;
 
-    const payload = {
+    const payloadRaw = {
       id: eventId,
       timestamp: new Date().toISOString(),
       matchId: activeMatchId,
@@ -750,6 +768,8 @@ export function useMatchScoring({
       dismissedPlayerId: event.dismissedPlayerId || (event.wicket ? (striker?.id || null) : null),
       ...event,
     };
+
+    const payload = normalizeDelivery(payloadRaw);
 
     // Update local React state array
     setDeliveryLog((prev) => [...prev, payload]);
@@ -795,6 +815,9 @@ export function useMatchScoring({
 
   const startNextInnings = (targetRuns, nextInningsNum) => {
     setTarget(targetRuns);
+    if (activeMatchId && targetRuns) {
+      try { localStorage.setItem(`jdca-target-${activeMatchId}`, targetRuns); } catch {}
+    }
     setInnings(nextInningsNum);
     setCurrentInningsId(null);
     setRuns(0);
@@ -929,22 +952,7 @@ export function useMatchScoring({
   const recordRuns = (runAmount, direction = selectedDirection) => {
     if (!validateScoringState()) return;
 
-    const currentState = {
-      runs,
-      wickets,
-      balls,
-      currentOverBalls,
-      striker,
-      nonStriker,
-      currentBowler,
-      extras,
-      isFreeHit,
-      innings,
-      totalMatchOvers: matchSetup.totalOvers,
-      target,
-      scorecard,
-      lastOverBowlerId,
-    };
+    const currentState = captureSnapshot();
 
     const result = processDelivery(currentState, {
       type: 'run',
@@ -966,87 +974,112 @@ export function useMatchScoring({
     }
   };
 
-  // 2. Record Extra (Wide, No Ball, Leg Bye, Bye, Penalty)
-  const recordExtra = (type, runsWithExtra = 0) => {
+  // 2. Record Extra (Wide, No Ball, Leg Bye, Bye)
+  const recordExtra = (rawType, runsWithExtra = 0, isBoundary = false) => {
     if (!validateScoringState()) return;
 
-    const currentState = {
-      runs,
-      wickets,
-      balls,
-      currentOverBalls,
-      striker,
-      nonStriker,
-      currentBowler,
-      extras,
-      isFreeHit,
-      innings,
-      totalMatchOvers: matchSetup.totalOvers,
-      target,
-      scorecard,
-      lastOverBowlerId,
-    };
+    const currentState = captureSnapshot();
+
+    const typeMap = { 'wide': 'WIDE', 'no_ball': 'NO_BALL', 'bye': 'BYE', 'leg_bye': 'LEG_BYE' };
+    const extraType = typeMap[rawType] || rawType;
+
+    const isNoBall = extraType === 'NO_BALL';
+    const isWide = extraType === 'WIDE';
+    const extraRunsPenalty = isNoBall ? 1 : (isWide ? 1 + runsWithExtra : runsWithExtra);
+    const batRuns = isNoBall ? runsWithExtra : 0;
+    const totalRuns = extraRunsPenalty + batRuns;
+    
+    // Explicit legal delivery flag
+    const isLegalDelivery = !['WIDE', 'NO_BALL'].includes(extraType);
+    
+    const runsCompleted = isBoundary ? 0 : runsWithExtra;
 
     const result = processDelivery(currentState, {
-      type: 'extra',
-      extraType: type,
-      extraRuns: runsWithExtra,
+      extraType: extraType,
+      wicketType: 'NONE',
+      runsExtras: extraRunsPenalty,
+      runsBatter: batRuns,
+      runsTotal: totalRuns,
+      runsCompleted: runsCompleted,
+      isLegalDelivery,
+      isBoundary
     });
 
     const ok = applyStateResult(result);
     if (ok) {
-      const totalRuns = type === 'wide' || type === 'no_ball' ? 1 + runsWithExtra : (type === 'penalty' ? (runsWithExtra || 5) : runsWithExtra);
-      const extraLabel = type === 'wide'
+      const extraLabel = isWide
         ? `${totalRuns}Wd`
-        : type === 'no_ball'
+        : isNoBall
         ? `${totalRuns}Nb`
-        : type === 'penalty'
-        ? `${totalRuns}Pen`
-        : `${totalRuns}${type === 'bye' ? 'B' : 'Lb'}`;
+        : `${totalRuns}${extraType === 'BYE' ? 'B' : 'Lb'}`;
 
       recordDeliveryEvent({ 
-        type: 'extra', 
-        extraType: type, 
-        extraRuns: totalRuns, 
-        runsOffBat: 0,
-        totalRuns, 
+        extraType: extraType, 
+        runsExtras: extraRunsPenalty, 
+        runsBatter: batRuns,
+        runsTotal: totalRuns, 
+        runsCompleted,
+        isLegalDelivery,
+        isBoundary,
         label: extraLabel 
       });
     }
   };
 
-  // 3. Record Wicket / Dismissal (Bowled, Caught, LBW, Run Out, Stumped, etc.)
-  const recordWicket = (dismissalType, outPlayerName = striker.name, fielder = '', wicketkeeper = '') => {
+  // 2.5 Record Standalone Penalty Event
+  const recordPenaltyEventAction = (recipientTeamId, penaltyRuns = 5, reasonCode = '') => {
     if (!validateScoringState()) return;
 
-    const currentState = {
-      runs,
-      wickets,
-      balls,
-      currentOverBalls,
-      striker,
-      nonStriker,
-      currentBowler,
-      extras,
-      isFreeHit,
-      innings,
-      totalMatchOvers: matchSetup.totalOvers,
-      target,
-      scorecard,
-      lastOverBowlerId,
-    };
+    const currentState = captureSnapshot();
 
-    const result = processDelivery(currentState, {
-      type: 'wicket',
-      dismissalType,
-      outPlayerName,
-      fielderName: fielder,
-      wicketkeeperName: wicketkeeper,
+    const result = processPenaltyEvent(currentState, {
+      eventType: 'PENALTY',
+      recipientTeamId,
+      penaltyRuns,
+      reasonCode
     });
 
     const ok = applyStateResult(result);
     if (ok) {
-      recordDeliveryEvent({ type: 'wicket', wicket: true, dismissalType, outPlayerName, fielderName: fielder, wicketkeeperName: wicketkeeper, totalRuns: 0, label: 'W' });
+      // NOTE: Here we pass the event structure directly to `recordDeliveryEvent`
+      // which relies on `normalizePenaltyEvent` later down the line, or we can just pass it directly 
+      // if `deliveryLog` takes generic events.
+      // `recordDeliveryEvent` currently logs to `deliveryLog`. We'll just push it.
+      recordDeliveryEvent({ 
+        eventType: 'PENALTY', 
+        recipientTeamId,
+        penaltyRuns,
+        reasonCode,
+        label: `+${penaltyRuns} Pen` 
+      });
+    }
+  };
+
+  // 3. Record Wicket / Dismissal (Bowled, Caught, LBW, Run Out, Stumped, etc.)
+  const recordWicket = (dismissalType, outPlayerId = null, fielder = '', wicketkeeper = '', runsCompleted = 0) => {
+    if (!validateScoringState()) return;
+
+    const currentState = captureSnapshot();
+
+    // Resolve explicit names for legacy events
+    const finalOutName = (outPlayerId === striker?.id) ? striker?.name : 
+                         (outPlayerId === nonStriker?.id) ? nonStriker?.name : 
+                         (dismissalType !== 'Run Out' ? striker?.name : null);
+
+    const result = processDelivery(currentState, {
+      type: 'wicket',
+      dismissalType,
+      dismissedPlayerId: outPlayerId || (dismissalType !== 'Run Out' ? striker?.id : null),
+      outPlayerName: finalOutName,
+      fielderName: fielder,
+      wicketkeeperName: wicketkeeper,
+      runsBatter: runsCompleted,
+      runsCompleted: runsCompleted
+    });
+
+    const ok = applyStateResult(result);
+    if (ok) {
+      recordDeliveryEvent({ type: 'wicket', wicket: true, dismissalType, outPlayerId, outPlayerName: finalOutName, fielderName: fielder, wicketkeeperName: wicketkeeper, runsBatter: runsCompleted, runsCompleted, label: 'W' });
       setDismissalModalOpen(false);
     }
   };
@@ -1176,7 +1209,7 @@ export function useMatchScoring({
     markScoringFirstRunDone,
     startInnings, startNextInnings, startSecondInnings, startSuperOver, startSuperOverSecondInnings,
     replaceStriker, replaceBatter, replaceBowler, handleRetireBatter, continueAfterOver,
-    validateScoringState, recordRuns, recordExtra, recordWicket, undoLastAction,
+    validateScoringState, recordRuns, recordExtra, recordPenaltyEvent: recordPenaltyEventAction, recordWicket, undoLastAction,
     applyRevisedOvers,
     MATCH_STATES
   };

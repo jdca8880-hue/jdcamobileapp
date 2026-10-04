@@ -4,30 +4,24 @@ import { db } from '../lib/db';
 import { useCricket } from '../context/CricketContext';
 
 export function useLiveMatchesSync() {
-  const { setMatches, setTournaments } = useCricket();
+  const { setMatches, setTournaments, activeMatchId } = useCricket();
 
   useEffect(() => {
-    let subscription = null;
+    let matchesSub = null;
+    let deliveriesSub = null;
 
     if (!supabase) return;
 
-    subscription = supabase.channel('public:matches')
+    matchesSub = supabase.channel('public:matches')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
-        console.log('[Realtime] Match update received:', payload);
-        
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const matchData = payload.new;
-          
           if (matchData.deleted_at) {
             await db.matches.delete(matchData.id);
             setMatches(prev => prev.filter(m => m.id !== matchData.id));
             return;
           }
-
-          // Update Local Dexie
           await db.matches.put(matchData);
-          
-          // Update React State
           setMatches(prev => {
             const existingIndex = prev.findIndex(m => m.id === matchData.id);
             if (existingIndex >= 0) {
@@ -38,23 +32,18 @@ export function useLiveMatchesSync() {
             return [matchData, ...prev];
           });
         } else if (payload.eventType === 'DELETE') {
-          const matchId = payload.old.id;
-          await db.matches.delete(matchId);
-          setMatches(prev => prev.filter(m => m.id !== matchId));
+          await db.matches.delete(payload.old.id);
+          setMatches(prev => prev.filter(m => m.id !== payload.old.id));
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, async (payload) => {
-        console.log('[Realtime] Tournament update received:', payload);
-        
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const tData = payload.new;
-          
           if (tData.deleted_at) {
             await db.tournaments.delete(tData.id);
             setTournaments(prev => prev.filter(t => t.id !== tData.id));
             return;
           }
-
           await db.tournaments.put(tData);
           setTournaments(prev => {
             const existingIndex = prev.findIndex(t => t.id === tData.id);
@@ -66,19 +55,45 @@ export function useLiveMatchesSync() {
             return [tData, ...prev];
           });
         } else if (payload.eventType === 'DELETE') {
-          const tId = payload.old.id;
-          await db.tournaments.delete(tId);
-          setTournaments(prev => prev.filter(t => t.id !== tId));
+          await db.tournaments.delete(payload.old.id);
+          setTournaments(prev => prev.filter(t => t.id !== payload.old.id));
         }
       })
-      .subscribe((status) => {
-        console.log('[Realtime] Subscription status:', status);
+      .subscribe();
+
+    // Deliveries Realtime Subscription (Once per active match)
+    if (activeMatchId) {
+      const topic = `public:deliveries:${activeMatchId}`;
+      const existing = supabase.getChannels?.()?.find(ch => ch.topic === `realtime:${topic}`);
+      if (existing) {
+        supabase.removeChannel(existing);
+      }
+
+      deliveriesSub = supabase.channel(topic);
+
+      deliveriesSub.on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'deliveries',
+        filter: `match_id=eq.${activeMatchId}`
+      }, async (payload) => {
+        // Dispatch global event for local state to hydrate
+        window.dispatchEvent(new CustomEvent('jdca-realtime-delivery', { detail: payload }));
+      });
+      
+      deliveriesSub.on('system', { event: '*' }, (payload) => {
+        if (payload.status === 'SUBSCRIBED') {
+           // Hydrate state on reconnect
+           window.dispatchEvent(new CustomEvent('jdca-realtime-delivery', { detail: { type: 'RECONNECT' } }));
+        }
       });
 
+      deliveriesSub.subscribe();
+    }
+
     return () => {
-      if (subscription) {
-        supabase.removeChannel(subscription);
-      }
+      if (matchesSub) supabase.removeChannel(matchesSub);
+      if (deliveriesSub) supabase.removeChannel(deliveriesSub);
     };
-  }, [setMatches, setTournaments]);
+  }, [setMatches, setTournaments, activeMatchId]);
 }

@@ -14,7 +14,7 @@ import PageHeader from '../ui/PageHeader';
 import Badge from '../ui/Badge';
 
 export default function MatchOverviewScreen() {
-  const { officials = [], navigateTo, goBack } = useCricket();
+  const { officials = [], navigateTo, goBack, scoring } = useCricket();
 
   return (
     <div className="space-y-5 pb-20 max-w-5xl mx-auto animate-in fade-in duration-200">
@@ -35,57 +35,80 @@ export default function MatchOverviewScreen() {
 
       {/* 2. Key Metrics 4-Column Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        {/* Metric 1: Run Rate - Blue */}
+        {/* Metric 1: Score */}
         <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-blue-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
           <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
-            Run Rate
+            Current Score
           </span>
           <div className="text-2xl sm:text-3xl font-black text-slate-900 font-tabular leading-none">
-            8.45
+            {scoring.runs}/{scoring.wickets}
           </div>
           <div className="text-xs text-slate-500 font-semibold mt-1.5">
-            Req: <strong className="text-blue-600">9.10</strong>
+            Overs: <strong className="text-blue-600">{scoring.formatOversDisplay()}</strong>
           </div>
         </div>
 
-        {/* Metric 2: Overs Progress - Emerald */}
+        {/* Metric 2: Current Striker */}
         <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
           <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
-            Overs Progress
+            Current Striker
           </span>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 font-tabular leading-none">
-            14.2 <span className="text-sm font-bold text-slate-400">/ 20</span>
+          <div className="text-lg sm:text-xl font-black text-slate-900 leading-none truncate mb-1">
+            {scoring.striker?.name || 'Waiting...'}
           </div>
-          <div className="text-xs text-slate-500 font-semibold mt-1.5">
-            34 balls left
+          <div className="text-xs text-slate-500 font-semibold">
+            {scoring.striker?.id ? `Batting` : '-'}
           </div>
         </div>
 
-        {/* Metric 3: Extras - Amber */}
+        {/* Metric 3: Current Non-Striker */}
         <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-amber-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
           <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
-            Extras Given
+            Non-Striker
           </span>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 font-tabular leading-none">
-            12
+          <div className="text-lg sm:text-xl font-black text-slate-900 leading-none truncate mb-1">
+            {scoring.nonStriker?.name || 'Waiting...'}
           </div>
-          <div className="text-xs text-slate-500 font-semibold mt-1.5">
-            Wd: 8 • Nb: 2 • Lb: 2
+          <div className="text-xs text-slate-500 font-semibold">
+            {scoring.nonStriker?.id ? `Batting` : '-'}
           </div>
         </div>
 
-        {/* Metric 4: Current Partnership - Purple */}
+        {/* Metric 4: Current Bowler */}
         <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-purple-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
           <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
-            Current Stand
+            Current Bowler
           </span>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 font-tabular leading-none">
-            45
+          <div className="text-lg sm:text-xl font-black text-slate-900 leading-none truncate mb-1">
+            {scoring.currentBowler?.name || 'Waiting...'}
           </div>
-          <div className="text-xs text-slate-500 font-semibold mt-1.5">
-            from 28 balls (RR 9.6)
+          <div className="text-xs text-slate-500 font-semibold">
+            {scoring.currentBowler?.id ? `Bowling` : '-'}
           </div>
         </div>
+      </div>
+      
+      {/* 2.5 Recent Balls */}
+      <div className="jdca-card p-4 space-y-2 mt-4">
+         <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
+            Recent Deliveries
+          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+             {scoring.deliveryLog?.slice(-12).map((d, i) => (
+                <div key={d.id || i} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                   d.wicket_type !== 'NONE' || d.wicket ? 'bg-red-500 text-white' : 
+                   d.runs_total === 4 ? 'bg-blue-500 text-white' : 
+                   d.runs_total === 6 ? 'bg-purple-600 text-white' : 
+                   d.extra_type !== 'NONE' && d.extra_type ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                   'bg-slate-100 text-slate-700'
+                }`}>
+                   {d.label || (d.wicket_type !== 'NONE' || d.wicket ? 'W' : d.extra_type !== 'NONE' && d.extra_type ? 'Ex' : d.runs_total || '0')}
+                </div>
+             ))}
+             {(!scoring.deliveryLog || scoring.deliveryLog.length === 0) && (
+                <span className="text-slate-400 text-sm italic">No recent deliveries</span>
+             )}
+          </div>
       </div>
 
       {/* 3. Official Assignments Card */}

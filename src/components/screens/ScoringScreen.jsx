@@ -23,7 +23,7 @@ export default function ScoringScreen() {
   const {
     runs, wickets, balls, formatOvers, calculateCRR, calculateProjectedScore,
     currentOverBalls, striker, nonStriker, currentBowler, isFreeHit, toggleStriker,
-    validationError, setValidationError, matchStatus, recordRuns, recordExtra,
+    validationError, setValidationError, matchStatus, recordRuns, recordExtra, recordPenaltyEvent,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
     matchSetup, setMatchSetup, applyRevisedOvers, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
@@ -37,7 +37,8 @@ export default function ScoringScreen() {
   const [dismissalOpen, setDismissalOpen] = useState(false);
   const [selectedDismissal, setSelectedDismissal] = useState('Caught');
   const [fielder, setFielder] = useState('');
-  const [runOutPlayer, setRunOutPlayer] = useState('');
+  const [runOutPlayerId, setRunOutPlayerId] = useState(null);
+  const [runsCompleted, setRunsCompleted] = useState(0);
   const [newBatterOpen, setNewBatterOpen] = useState(false);
   const [replacingBatterType, setReplacingBatterType] = useState('striker');
   const [retireModalOpen, setRetireModalOpen] = useState(false);
@@ -48,6 +49,8 @@ export default function ScoringScreen() {
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [extraCategory, setExtraCategory] = useState('wide');
   const [extraRuns, setExtraRuns] = useState(0);
+  const [isExtraBoundary, setIsExtraBoundary] = useState(false);
+  const [recipientTeamId, setRecipientTeamId] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
   const [syncError, setSyncError] = useState(null);
@@ -95,44 +98,13 @@ export default function ScoringScreen() {
     return () => { isMounted = false; };
   }, [activeMatchId]); // intentionally excluding matchSetup to avoid loop
 
-  // Realtime listener for cross-device updates
+  const hydrateMatchStateRef = React.useRef(hydrateMatchState);
   useEffect(() => {
-    if (!activeMatchId) return;
-    let channel;
-    const setupRealtime = async () => {
-      const { supabase } = await import('../../lib/supabase.js');
-      if (!supabase) return;
+    hydrateMatchStateRef.current = hydrateMatchState;
+  });
 
-      channel = supabase.channel(`public:deliveries:${activeMatchId}`)
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'deliveries',
-          filter: `match_id=eq.${activeMatchId}`
-        }, async (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const isLocal = latestDeliveryLogRef.current.some(d => d.id === payload.new?.idempotency_key);
-            if (!isLocal) {
-              console.log('[ScoringScreen] Remote delivery detected, hydrating state...');
-              await hydrateMatchState(activeMatchId);
-            }
-          } else if (payload.eventType === 'DELETE') {
-            console.log('[ScoringScreen] Remote delivery delete/undo detected, hydrating state...');
-            await hydrateMatchState(activeMatchId);
-          }
-        })
-        .subscribe();
-    };
-    setupRealtime();
+  // Realtime listener for cross-device updates
 
-    return () => {
-      if (channel) {
-        import('../../lib/supabase.js').then(({ supabase }) => {
-          if (supabase) supabase.removeChannel(channel);
-        });
-      }
-    };
-  }, [activeMatchId, hydrateMatchState]);
 
   useEffect(() => {
     const unsubscribe = syncService.subscribe((state) => {
@@ -335,16 +307,21 @@ export default function ScoringScreen() {
   };
 
   const submitWicket = () => {
+    let finalDismissedId = striker?.id;
     let outName = striker?.name;
-    if (selectedDismissal === 'Run Out') outName = runOutPlayer || striker?.name;
+    
+    if (selectedDismissal === 'Run Out') {
+      finalDismissedId = runOutPlayerId;
+      outName = runOutPlayerId === striker?.id ? striker?.name : nonStriker?.name;
+    }
 
     let wk = '';
     if (selectedDismissal === 'Stumped') {
       wk = bowlingXI.find(p => /wicket/i.test(p.primary_role || p.role))?.full_name || bowlingXI.find(p => /wicket/i.test(p.primary_role || p.role))?.name || fielder;
     }
 
-    setReplacingBatterType(outName === nonStriker?.name ? 'nonStriker' : 'striker');
-    recordWicket(selectedDismissal, outName, fielder, wk);
+    setReplacingBatterType(finalDismissedId === nonStriker?.id ? 'nonStriker' : 'striker');
+    recordWicket(selectedDismissal, finalDismissedId, fielder, wk, runsCompleted);
     
     // Trigger push notification for wicket
     supabase.functions.invoke('send-push', {
@@ -359,7 +336,8 @@ export default function ScoringScreen() {
 
     setDismissalOpen(false);
     setFielder('');
-    setRunOutPlayer('');
+    setRunOutPlayerId(null);
+    setRunsCompleted(0);
     setNewBatterOpen(true);
   };
 
@@ -595,6 +573,17 @@ export default function ScoringScreen() {
               </div>
             )}
 
+            {syncState.blockedMatches?.has(activeMatchId) && (
+              <div className="mt-4 bg-coral text-white border border-coral-200 px-4 py-3 rounded-xl inline-flex flex-col items-center justify-center w-full max-w-sm mx-auto shadow-md">
+                <div className="flex items-center gap-2 text-[14px] font-bold">
+                  <ShieldAlert size={16} /> Sync Blocked
+                </div>
+                <div className="text-[12px] opacity-90 text-center leading-tight mt-1">
+                  A previous delivery failed to save and requires your attention. Scoring is paused to prevent chronological errors.
+                </div>
+              </div>
+            )}
+
             {innings === 2 && target && (
               <div className="mt-4 bg-jade-50 border border-jade-100 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-jade-700">
                 <div className="text-[12px] font-bold uppercase tracking-widest opacity-80 mb-0.5">Target: {target}</div>
@@ -633,25 +622,25 @@ export default function ScoringScreen() {
             <button onClick={() => toggleStriker?.()} className="bg-white rounded-[12px] p-4 text-left border border-slate-200 shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors">
               <div className="absolute top-0 right-0 w-2 h-full bg-jade" />
               <div className="text-xs font-bold text-jade uppercase tracking-wider mb-1 flex items-center gap-1">Striker <span>*</span></div>
-              <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker?.name}</div>
-              <div className="text-[18px] font-black tabular-nums leading-none text-slate-900">{striker?.runs} <span className="text-[12px] text-slate-500">({striker?.balls})</span></div>
+              <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker?.name || 'Select Striker'}</div>
+              <div className="text-[18px] font-black tabular-nums leading-none text-slate-900">{striker?.runs ?? 0} <span className="text-[12px] text-slate-500">({striker?.balls ?? 0})</span></div>
             </button>
             
             <button onClick={() => toggleStriker?.()} className="bg-slate-50 rounded-[12px] p-4 text-left border border-slate-200 active:bg-slate-100 transition-colors">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Non-Striker</div>
-              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonStriker?.name}</div>
-              <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonStriker?.runs} <span className="text-[12px] text-slate-500">({nonStriker?.balls})</span></div>
+              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonStriker?.name || 'Select Non-Striker'}</div>
+              <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonStriker?.runs ?? 0} <span className="text-[12px] text-slate-500">({nonStriker?.balls ?? 0})</span></div>
             </button>
           </div>
 
           <div className="bg-white rounded-[12px] p-4 border border-slate-200 flex items-center justify-between mb-3 shadow-sm">
              <div>
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10}/> Bowler</div>
-               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name}</div>
+               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler'}</div>
              </div>
              <div className="text-right">
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
-               <div className="text-[16px] font-black tabular-nums text-slate-900">{currentBowler?.overs}-{currentBowler?.maidens}-{currentBowler?.runs}-{currentBowler?.wickets}</div>
+               <div className="text-[16px] font-black tabular-nums text-slate-900">{currentBowler ? `${currentBowler.overs || 0}-${currentBowler.maidens || 0}-${currentBowler.runs || 0}-${currentBowler.wickets || 0}` : '0-0-0-0'}</div>
              </div>
           </div>
 
@@ -764,13 +753,59 @@ export default function ScoringScreen() {
               </div>
             )}
 
+            {selectedDismissal === 'Run Out' && (
+              <div className="mb-4">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Who was run out?</label>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button 
+                    onClick={() => setRunOutPlayerId(striker?.id)}
+                    className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${runOutPlayerId === striker?.id ? 'bg-coral text-white border-coral' : 'bg-white text-slate-700 border-slate-200'}`}
+                  >
+                    {striker?.name} (Striker)
+                  </button>
+                  <button 
+                    onClick={() => setRunOutPlayerId(nonStriker?.id)}
+                    className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${runOutPlayerId === nonStriker?.id ? 'bg-coral text-white border-coral' : 'bg-white text-slate-700 border-slate-200'}`}
+                  >
+                    {nonStriker?.name} (Non-Striker)
+                  </button>
+                </div>
+                
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Completed Runs before Wicket</label>
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                  {[0, 1, 2, 3].map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setRunsCompleted(r)}
+                      className={`min-w-[44px] h-[44px] rounded-full font-bold flex items-center justify-center ${runsCompleted === r ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700'}`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Fielder Involved</label>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {bowlingXI.filter(p => (p.full_name || p.name) !== striker?.name && (p.full_name || p.name) !== nonStriker?.name).map(p => (
+                    <button 
+                      key={p.id} 
+                      className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === (p.full_name || p.name) ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
+                      onClick={() => setFielder(p.full_name || p.name)}
+                    >
+                      {p.full_name || p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 mt-6">
               <button className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700" onClick={() => setDismissalOpen(false)}>Cancel</button>
               <motion.button 
                 whileTap={{ scale: 0.96 }}
                 className="flex-1 py-3 rounded-[10px] font-bold bg-coral text-white disabled:opacity-50 shadow-md" 
                 onClick={() => { haptics.heavy(); submitWicket(); }} 
-                disabled={(selectedDismissal === 'Caught' || selectedDismissal === 'Run Out') && !fielder}
+                disabled={((selectedDismissal === 'Caught' || selectedDismissal === 'Run Out') && !fielder) || (selectedDismissal === 'Run Out' && !runOutPlayerId)}
               >
                 Confirm Wicket
               </motion.button>
@@ -950,6 +985,7 @@ export default function ScoringScreen() {
                   onClick={() => {
                     haptics.light();
                     setExtraRuns(num);
+                    if (num !== 4 && num !== 6) setIsExtraBoundary(false);
                   }}
                   className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${
                     extraRuns === num
@@ -962,6 +998,22 @@ export default function ScoringScreen() {
               ))}
             </div>
 
+            {extraCategory === 'penalty' && (
+              <div className="mb-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Award Penalty To</div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setRecipientTeamId(battingTeamId)}
+                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${recipientTeamId === battingTeamId ? 'bg-jade text-white border-jade shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                  >Batting Side</button>
+                  <button 
+                    onClick={() => setRecipientTeamId(bowlingTeamId)}
+                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${recipientTeamId === bowlingTeamId ? 'bg-jade text-white border-jade shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                  >Fielding Side</button>
+                </div>
+              </div>
+            )}
+
             <div className="bg-slate-50 border border-slate-200 rounded-[12px] p-3 mb-5 text-center">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Recording Summary</div>
               <div className="text-sm font-extrabold text-slate-900">
@@ -969,9 +1021,25 @@ export default function ScoringScreen() {
                 {extraCategory === 'no_ball' && `${1 + extraRuns} No-Ball Run${(1 + extraRuns) > 1 ? 's' : ''} (Free Hit Next)`}
                 {extraCategory === 'bye' && `${extraRuns} Bye Run${extraRuns > 1 ? 's' : ''} (Legal ball counted)`}
                 {extraCategory === 'leg_bye' && `${extraRuns} Leg Bye Run${extraRuns > 1 ? 's' : ''} (Legal ball counted)`}
-                {extraCategory === 'penalty' && `${extraRuns} Penalty Runs (No delivery bowled)`}
+                {extraCategory === 'penalty' && `${extraRuns} Penalty Runs awarded to ${recipientTeamId === battingTeamId ? 'Batting' : (recipientTeamId === bowlingTeamId ? 'Fielding' : 'Selected')} Side (Standalone event)`}
+                {isExtraBoundary && extraRuns >= 4 && <div className="text-emerald-600 mt-1">Boundary Allowance (No physical runs)</div>}
               </div>
             </div>
+
+            {(extraRuns === 4 || extraRuns === 6) && (
+              <div className="flex items-center gap-3 mb-5 px-1">
+                <input 
+                  type="checkbox" 
+                  id="extraBoundary"
+                  checked={isExtraBoundary}
+                  onChange={(e) => setIsExtraBoundary(e.target.checked)}
+                  className="w-5 h-5 rounded text-jade focus:ring-jade border-slate-300"
+                />
+                <label htmlFor="extraBoundary" className="text-sm font-bold text-slate-700">
+                  Mark as Boundary (No physical crossings)
+                </label>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button 
@@ -984,7 +1052,15 @@ export default function ScoringScreen() {
                 className="flex-1 py-3 rounded-[10px] font-bold bg-jade text-white shadow-sm hover:bg-emerald-600 transition-colors" 
                 onClick={() => {
                   haptics.medium();
-                  recordExtra(extraCategory, extraRuns);
+                  if (extraCategory === 'penalty') {
+                    if (!recipientTeamId) {
+                      alert('Please select a recipient team for the penalty runs.');
+                      return;
+                    }
+                    recordPenaltyEvent(recipientTeamId, extraRuns, 'UMPIRE_AWARD');
+                  } else {
+                    recordExtra(extraCategory, extraRuns, isExtraBoundary && extraRuns >= 4);
+                  }
                   setExtrasOpen(false);
                 }}
               >

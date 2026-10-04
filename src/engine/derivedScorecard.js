@@ -5,30 +5,27 @@
  * Do not manually store derived statistics when they can be calculated from deliveries.
  */
 
+import { normalizeDelivery, normalizePenaltyEvent } from './deliveryContract.js';
+
 export function deriveScorecardFromDeliveries(deliveries, teamBattingId, teamBowlingId) {
   const scorecard = {
     teamBattingId,
     teamBowlingId,
     runs: 0,
     wickets: 0,
-    balls: 0, // legal balls
-    extras: {
-      wides: 0,
-      noBalls: 0,
-      byes: 0,
-      legByes: 0,
-      penalty: 0,
-      total: 0
-    },
-    batting: {}, // keyed by playerId/name
-    bowling: {}, // keyed by playerId/name
-    fielding: {}, // keyed by playerId/name
-    wicketkeeping: {}, // keyed by playerId/name
+    balls: 0,
+    overs: '0.0',
+    extras: { total: 0, wides: 0, noBalls: 0, byes: 0, legByes: 0, penalty: 0 },
+    batting: {}, // Map of strikerId -> Stats
+    bowling: {}, // Map of bowlerId -> Stats
+    fielding: {}, 
+    wicketkeeping: {},
     wicketSummary: {
-      'Bowled': 0, 'Caught': 0, 'LBW': 0, 'Run Out': 0, 'Stumped': 0, 'Hit Wicket': 0, 'Other': 0
+      'BOWLED': 0, 'CAUGHT': 0, 'LBW': 0, 'RUN_OUT': 0, 'STUMPED': 0, 'HIT_WICKET': 0, 'OTHER': 0
     },
     fallOfWickets: [],
-    partnerships: []
+    partnerships: [],
+    pendingPenalties: {}
   };
 
   if (!deliveries || deliveries.length === 0) return scorecard;
@@ -40,10 +37,25 @@ export function deriveScorecardFromDeliveries(deliveries, teamBattingId, teamBow
   // Over tracking for Maidens
   let activeOver = { bowlerId: null, runsConceded: 0, legalBalls: 0 };
 
-  deliveries.forEach((delivery, index) => {
+  deliveries.forEach((rawDelivery) => {
+    if (rawDelivery.eventType === 'PENALTY') {
+      const penalty = normalizePenaltyEvent(rawDelivery);
+      if (teamBattingId && penalty.recipientTeamId === teamBattingId) {
+        scorecard.runs += penalty.penaltyRuns;
+        scorecard.extras.penalty += penalty.penaltyRuns;
+        scorecard.extras.total += penalty.penaltyRuns;
+      } else if (penalty.recipientTeamId) {
+        // According to requirements: create a deterministic pending state per team
+        scorecard.pendingPenalties[penalty.recipientTeamId] = (scorecard.pendingPenalties[penalty.recipientTeamId] || 0) + penalty.penaltyRuns;
+      }
+      return;
+    }
+
+    const delivery = normalizeDelivery(rawDelivery);
     const { 
-      type, runs, extraType, extraRuns, dismissalType, outPlayerId, outPlayerName,
-      strikerId, nonStrikerId, bowlerId, fielderName, wicketkeeperName
+      runsBatter, runsExtras, extraType, wicketType, dismissedPlayerId, dismissedPlayerName,
+      strikerId, nonStrikerId, bowlerId, fielderName, fielderId, wicketkeeperName, wicketkeeperId,
+      isLegalDelivery
     } = delivery;
 
     // Initialize players
@@ -54,54 +66,33 @@ export function deriveScorecardFromDeliveries(deliveries, teamBattingId, teamBow
     if (strikerId) currentPartnershipPlayers.add(strikerId);
     if (nonStrikerId) currentPartnershipPlayers.add(nonStrikerId);
 
-    const isWide = extraType === 'wide';
-    const isNoBall = extraType === 'no_ball';
-    const isBye = extraType === 'bye';
-    const isLegBye = extraType === 'leg_bye';
-    const isPenalty = extraType === 'penalty';
-    const isLegalDelivery = !isWide && !isNoBall && !isPenalty;
+    const isWide = extraType === 'WIDE';
+    const isNoBall = extraType === 'NO_BALL';
+    const isBye = extraType === 'BYE';
+    const isLegBye = extraType === 'LEG_BYE';
 
-    let runsThisBall = 0;
-    let runsOffBat = 0;
-    let extrasThisBall = 0;
-
-    if (type === 'run') {
-      runsOffBat = runs;
-      runsThisBall = runs;
-    } else if (type === 'extra') {
-      if (isWide || isNoBall) {
-        extrasThisBall = 1 + extraRuns;
-        runsThisBall = extrasThisBall;
-      } else if (isBye || isLegBye) {
-        extrasThisBall = extraRuns || 1;
-        runsThisBall = extrasThisBall;
-      } else if (isPenalty) {
-        extrasThisBall = extraRuns;
-        runsThisBall = extrasThisBall;
-      }
-    } else if (type === 'wicket') {
-      runsOffBat = runs || 0;
-      runsThisBall = runs || 0;
-    }
+    const runsThisBall = delivery.runsTotal || 0;
+    const extrasThisBall = delivery.runsExtras || 0;
 
     // Update Team Totals
     scorecard.runs += runsThisBall;
     if (isLegalDelivery) scorecard.balls += 1;
 
     // Update Extras
-    if (isWide) scorecard.extras.wides += extrasThisBall;
-    if (isNoBall) scorecard.extras.noBalls += extrasThisBall;
-    if (isBye) scorecard.extras.byes += extrasThisBall;
-    if (isLegBye) scorecard.extras.legByes += extrasThisBall;
-    if (isPenalty) scorecard.extras.penalty += extrasThisBall;
-    scorecard.extras.total += extrasThisBall;
+    if (extraType !== 'NONE') {
+      if (isWide) scorecard.extras.wides += extrasThisBall;
+      if (isNoBall) scorecard.extras.noBalls += extrasThisBall;
+      if (isBye) scorecard.extras.byes += extrasThisBall;
+      if (isLegBye) scorecard.extras.legByes += extrasThisBall;
+      scorecard.extras.total += extrasThisBall;
+    }
 
     // Update Batter
-    if (strikerId && (runsOffBat > 0 || isLegalDelivery || isNoBall)) {
-      scorecard.batting[strikerId].runs += runsOffBat;
+    if (strikerId && (runsBatter > 0 || isLegalDelivery || isNoBall)) {
+      scorecard.batting[strikerId].runs += runsBatter;
       if (isLegalDelivery || isNoBall) scorecard.batting[strikerId].balls += 1;
-      if (runsOffBat === 4) scorecard.batting[strikerId].fours += 1;
-      if (runsOffBat === 6) scorecard.batting[strikerId].sixes += 1;
+      if (runsBatter === 4) scorecard.batting[strikerId].fours += 1;
+      if (runsBatter === 6) scorecard.batting[strikerId].sixes += 1;
     }
 
     // Update Bowler & Maidens
@@ -110,7 +101,7 @@ export function deriveScorecardFromDeliveries(deliveries, teamBattingId, teamBow
       bowlerChargeableRuns = runsThisBall;
     }
 
-    if (bowlerId && !isPenalty) {
+    if (bowlerId) {
       if (activeOver.bowlerId !== bowlerId) {
         // Change of bowler mid-over or start of new over
         if (activeOver.legalBalls === 6 && activeOver.runsConceded === 0 && activeOver.bowlerId) {
@@ -143,43 +134,46 @@ export function deriveScorecardFromDeliveries(deliveries, teamBattingId, teamBow
     if (isLegalDelivery || isNoBall) currentPartnershipBalls += 1;
 
     // Handle Wickets
-    if (type === 'wicket') {
+    if (wicketType !== 'NONE') {
       scorecard.wickets += 1;
       
-      const outId = outPlayerId || outPlayerName || strikerId;
+      const outId = dismissedPlayerId || strikerId;
+      const finalFielderName = fielderName || fielderId;
+      const finalWkName = wicketkeeperName || wicketkeeperId;
+
       if (outId && scorecard.batting[outId]) {
-        scorecard.batting[outId].dismissalType = dismissalType || 'Caught';
+        scorecard.batting[outId].dismissalType = wicketType || 'CAUGHT';
         scorecard.batting[outId].bowlerId = bowlerId;
-        scorecard.batting[outId].fielderName = fielderName;
-        scorecard.batting[outId].wicketkeeperName = wicketkeeperName;
+        scorecard.batting[outId].fielderName = finalFielderName;
+        scorecard.batting[outId].wicketkeeperName = finalWkName;
         
         // Format dismissal text properly based on type
-        scorecard.batting[outId].dismissal = formatDismissalText(dismissalType, fielderName, wicketkeeperName, bowlerId);
+        scorecard.batting[outId].dismissal = formatDismissalText(wicketType, finalFielderName, finalWkName, bowlerId);
       }
 
       // Wicket Summary
-      const sumType = scorecard.wicketSummary[dismissalType] !== undefined ? dismissalType : 'Other';
+      const sumType = scorecard.wicketSummary[wicketType] !== undefined ? wicketType : 'OTHER';
       scorecard.wicketSummary[sumType] += 1;
 
       // Bowler Wickets
-      const isBowlerWicket = !['Run Out', 'Obstructing Field', 'Retired Out'].includes(dismissalType);
+      const isBowlerWicket = !['RUN_OUT', 'OBSTRUCTING_FIELD', 'RETIRED_OUT'].includes(wicketType);
       if (isBowlerWicket && bowlerId) {
         scorecard.bowling[bowlerId].wickets += 1;
       }
 
       // Fielding & Wicketkeeping Stats
-      if (dismissalType === 'Caught' && fielderName) {
-        if (!scorecard.fielding[fielderName]) initFielder(scorecard.fielding, fielderName);
-        scorecard.fielding[fielderName].catches += 1;
-        scorecard.fielding[fielderName].totalDismissals += 1;
-      } else if (dismissalType === 'Stumped' && wicketkeeperName) {
-        if (!scorecard.wicketkeeping[wicketkeeperName]) initWicketkeeper(scorecard.wicketkeeping, wicketkeeperName);
-        scorecard.wicketkeeping[wicketkeeperName].stumpings += 1;
-        scorecard.wicketkeeping[wicketkeeperName].totalDismissals += 1;
-      } else if (dismissalType === 'Run Out' && fielderName) {
-        if (!scorecard.fielding[fielderName]) initFielder(scorecard.fielding, fielderName);
-        scorecard.fielding[fielderName].runOuts += 1;
-        scorecard.fielding[fielderName].totalDismissals += 1;
+      if (wicketType === 'CAUGHT' && finalFielderName) {
+        if (!scorecard.fielding[finalFielderName]) initFielder(scorecard.fielding, finalFielderName);
+        scorecard.fielding[finalFielderName].catches += 1;
+        scorecard.fielding[finalFielderName].totalDismissals += 1;
+      } else if (wicketType === 'STUMPED' && finalWkName) {
+        if (!scorecard.wicketkeeping[finalWkName]) initWicketkeeper(scorecard.wicketkeeping, finalWkName);
+        scorecard.wicketkeeping[finalWkName].stumpings += 1;
+        scorecard.wicketkeeping[finalWkName].totalDismissals += 1;
+      } else if (wicketType === 'RUN_OUT' && finalFielderName) {
+        if (!scorecard.fielding[finalFielderName]) initFielder(scorecard.fielding, finalFielderName);
+        scorecard.fielding[finalFielderName].runOuts += 1;
+        scorecard.fielding[finalFielderName].totalDismissals += 1;
       }
 
       // FOW
@@ -252,12 +246,12 @@ function initWicketkeeper(map, id) {
 }
 
 function formatDismissalText(type, fielder, wk, bowler) {
-  if (type === 'Caught') return `c ${fielder || 'Unknown'} b ${bowler || 'Unknown'}`;
-  if (type === 'Stumped') return `st ${wk || 'Unknown'} b ${bowler || 'Unknown'}`;
-  if (type === 'Run Out') return `run out (${fielder || 'Unknown'})`;
-  if (type === 'Bowled') return `b ${bowler || 'Unknown'}`;
+  if (type === 'CAUGHT') return `c ${fielder || 'Unknown'} b ${bowler || 'Unknown'}`;
+  if (type === 'STUMPED') return `st ${wk || 'Unknown'} b ${bowler || 'Unknown'}`;
+  if (type === 'RUN_OUT') return `run out (${fielder || 'Unknown'})`;
+  if (type === 'BOWLED') return `b ${bowler || 'Unknown'}`;
   if (type === 'LBW') return `lbw b ${bowler || 'Unknown'}`;
-  if (type === 'Hit Wicket') return `hit wicket b ${bowler || 'Unknown'}`;
+  if (type === 'HIT_WICKET') return `hit wicket b ${bowler || 'Unknown'}`;
   return type || 'Out';
 }
 

@@ -1,4 +1,4 @@
-import { BallEventSchema, FREE_HIT_ALLOWED_DISMISSALS } from './validationSchemas.js';
+import { normalizeDelivery } from './deliveryContract.js';
 
 export const MATCH_STATES = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -49,24 +49,130 @@ export function canBowlerBowlNextOver(candidateBowlerId, lastOverBowlerId) {
  * @param {Object} ballInput Raw action payload (runs, extras, wicket)
  * @returns {Object} { success: boolean, newState?: Object, error?: string }
  */
+
+/**
+ * Pure helper to resolve physical positioning and dismissals.
+ * Returns the final objects to be assigned to striker and nonStriker.
+ */
+function resolveWicketTransition(originalStriker, originalNonStriker, dismissedIdOrName, runsCompleted) {
+  const isOdd = runsCompleted % 2 !== 0;
+  
+  // Who is where AFTER the runs but BEFORE the dismissal?
+  const playerAtStrikerEnd = isOdd ? originalNonStriker : originalStriker;
+  const playerAtNonStrikerEnd = isOdd ? originalStriker : originalNonStriker;
+
+  // Evaluate who was dismissed at their current end
+  const isDismissedAtStrikerEnd = playerAtStrikerEnd && (dismissedIdOrName === playerAtStrikerEnd.id || dismissedIdOrName === playerAtStrikerEnd.name);
+  const isDismissedAtNonStrikerEnd = playerAtNonStrikerEnd && (dismissedIdOrName === playerAtNonStrikerEnd.id || dismissedIdOrName === playerAtNonStrikerEnd.name);
+
+  // Return the new occupants of each end (null means vacated)
+  return {
+    newStriker: isDismissedAtStrikerEnd ? null : playerAtStrikerEnd,
+    newNonStriker: isDismissedAtNonStrikerEnd ? null : playerAtNonStrikerEnd
+  };
+}
 export function processDelivery(currentState, ballInput) {
-  // 1. Zod Validation
-  const validation = BallEventSchema.safeParse({
+  // Normalize to canonical contract
+  const ball = normalizeDelivery({
     ...ballInput,
     isFreeHit: currentState.isFreeHit || false,
   });
 
-  if (!validation.success) {
-    const firstError = validation.error.errors[0]?.message || 'Invalid delivery data';
-    return { success: false, error: firstError };
+  // Verify MCC Laws for Free Hit
+  if (ball.isFreeHit && ball.wicketType !== 'NONE' && !['RUN_OUT', 'OBSTRUCTING_FIELD', 'RETIRED_OUT'].includes(ball.wicketType)) {
+    return { success: false, error: `Cannot be dismissed '${ball.wicketType}' on a Free Hit. Only Run Out / Obstructing Field is allowed.` };
   }
 
-  const ball = validation.data;
-  const isWide = ball.extraType === 'wide';
-  const isNoBall = ball.extraType === 'no_ball';
-  const isLegByeOrBye = ball.extraType === 'leg_bye' || ball.extraType === 'bye';
-  const isPenalty = ball.extraType === 'penalty';
-  const isLegalDelivery = !isWide && !isNoBall && !isPenalty;
+  // Wides cannot have certain dismissals
+  if (ball.extraType === 'WIDE' && ball.wicketType !== 'NONE') {
+    if (['BOWLED', 'LBW', 'CAUGHT'].includes(ball.wicketType)) {
+      return { success: false, error: `Cannot be dismissed '${ball.wicketType}' on a Wide.` };
+    }
+  }
+
+  if (ball.wicketType === 'RUN_OUT') {
+    const dismissedIdOrName = ball.dismissedPlayerId || ball.dismissedPlayerName;
+    if (!dismissedIdOrName) {
+      return { success: false, error: 'Run Out requires a dismissed player.' };
+    }
+    
+    const isStrikerOut = dismissedIdOrName === currentState.striker.id || dismissedIdOrName === currentState.striker.name;
+    const isNonStrikerOut = dismissedIdOrName === currentState.nonStriker.id || dismissedIdOrName === currentState.nonStriker.name;
+    
+    if (!isStrikerOut && !isNonStrikerOut) {
+      return { success: false, error: 'Run Out dismissed player must be either the striker or non-striker.' };
+    }
+  }
+
+  if (ball.runsBatter < 0 || ball.runsExtras < 0 || ball.runsCompleted < 0) {
+    return { success: false, error: 'Runs cannot be negative.' };
+  }
+  if (ball.runsTotal !== ball.runsBatter + ball.runsExtras) {
+    return { success: false, error: 'Total runs do not match bat runs + extras.' };
+  }
+  
+  if (ball.extraType === 'NO_BALL' && ball.isLegalDelivery) {
+    return { success: false, error: 'A No-Ball cannot be a legal delivery.' };
+  }
+
+  if (ball.extraType === 'WIDE') {
+    if (ball.isLegalDelivery) {
+      return { success: false, error: 'A Wide cannot be a legal delivery.' };
+    }
+    if (ball.runsBatter > 0) {
+      return { success: false, error: 'A Wide cannot have batter runs.' };
+    }
+    if (ball.runsExtras < 1) {
+      return { success: false, error: 'A Wide must have at least 1 extra run.' };
+    }
+  }
+
+  if (ball.extraType === 'BYE' || ball.extraType === 'LEG_BYE') {
+    if (!ball.isLegalDelivery) {
+      return { success: false, error: 'A pure Bye or Leg-Bye must be a legal delivery.' };
+    }
+    if (ball.runsBatter > 0) {
+      return { success: false, error: 'A pure Bye or Leg-Bye cannot have batter runs.' };
+    }
+    if (ball.runsExtras < 1) {
+      return { success: false, error: 'A pure Bye or Leg-Bye must have at least 1 extra run.' };
+    }
+  }
+  
+  // Base validations
+  if (!currentState.striker?.id || !currentState.nonStriker?.id || !currentState.currentBowler?.id) {
+    return { success: false, error: 'Missing active batter or bowler.' };
+  }
+
+  const sId = currentState.striker.id;
+  const nsId = currentState.nonStriker.id;
+  const bId = currentState.currentBowler.id;
+
+  if (sId === bId || nsId === bId) {
+    return { success: false, error: 'A player cannot be both a batter and the bowler simultaneously.' };
+  }
+  if (sId === nsId) {
+    return { success: false, error: 'The striker and non-striker cannot be the same player.' };
+  }
+
+  // Authoritative XI Validation
+  if (currentState.battingTeamXI && Array.isArray(currentState.battingTeamXI)) {
+    const isStrikerInXI = currentState.battingTeamXI.some(p => p.id === sId);
+    if (!isStrikerInXI) return { success: false, error: 'Striker is not in the batting playing XI.' };
+    
+    const isNonStrikerInXI = currentState.battingTeamXI.some(p => p.id === nsId);
+    if (!isNonStrikerInXI) return { success: false, error: 'Non-striker is not in the batting playing XI.' };
+  }
+
+  if (currentState.bowlingTeamXI && Array.isArray(currentState.bowlingTeamXI)) {
+    const isBowlerInXI = currentState.bowlingTeamXI.some(p => p.id === bId);
+    if (!isBowlerInXI) return { success: false, error: 'Bowler is not in the bowling playing XI.' };
+  }
+
+  const isWide = ball.extraType === 'WIDE';
+  const isNoBall = ball.extraType === 'NO_BALL';
+  const isLegByeOrBye = ball.extraType === 'LEG_BYE' || ball.extraType === 'BYE';
+  const isLegalDelivery = ball.isLegalDelivery;
 
   // Clone current state for deterministic update
   const state = {
@@ -95,41 +201,29 @@ export function processDelivery(currentState, ballInput) {
   let runsOffBat = 0;
   let extraRunsAdded = 0;
 
-  if (ball.type === 'run') {
-    runsOffBat = ball.runs;
-    runsThisBall = ball.runs;
-  } else if (ball.type === 'extra') {
+  runsThisBall = ball.runsTotal || 0;
+  runsOffBat = ball.runsBatter || 0;
+  extraRunsAdded = ball.runsExtras || 0;
+
+  if (ball.extraType !== 'NONE') {
     if (isWide) {
-      extraRunsAdded = 1 + ball.extraRuns;
       state.extras.wides = (state.extras.wides || 0) + extraRunsAdded;
-      runsThisBall = extraRunsAdded;
     } else if (isNoBall) {
-      extraRunsAdded = 1 + ball.extraRuns;
       state.extras.noBalls = (state.extras.noBalls || 0) + extraRunsAdded;
-      runsThisBall = extraRunsAdded;
     } else if (isLegByeOrBye) {
-      extraRunsAdded = ball.extraRuns || 1;
-      if (ball.extraType === 'bye') {
+      if (ball.extraType === 'BYE') {
         state.extras.byes = (state.extras.byes || 0) + extraRunsAdded;
       } else {
         state.extras.legByes = (state.extras.legByes || 0) + extraRunsAdded;
       }
-      runsThisBall = extraRunsAdded;
-    } else if (isPenalty) {
-      extraRunsAdded = ball.extraRuns || 5;
-      state.extras.penalty = (state.extras.penalty || 0) + extraRunsAdded;
-      runsThisBall = extraRunsAdded;
     }
-  } else if (ball.type === 'wicket') {
-    runsThisBall = ball.runs || 0;
-    runsOffBat = ball.runs || 0;
   }
 
   // Update total team runs
   state.runs += runsThisBall;
 
   // 3. Update Bowler Stats
-  const bowlerRunsConceded = (isLegByeOrBye || isPenalty) ? 0 : runsThisBall;
+  const bowlerRunsConceded = isLegByeOrBye ? 0 : runsThisBall;
   state.currentBowler.runs = (state.currentBowler.runs || 0) + bowlerRunsConceded;
 
   if (isLegalDelivery) {
@@ -158,64 +252,61 @@ export function processDelivery(currentState, ballInput) {
       : '0.0';
   }
 
-  // 5. Handle Wicket / Dismissal
+  // 5. Strike Rotation & Wicket Handling
   let wasWicket = false;
-  if (ball.type === 'wicket') {
+  
+  if (ball.wicketType !== 'NONE') {
     wasWicket = true;
     state.wickets += 1;
 
-    const isBowlerWicket = !['Run Out', 'Obstructing Field', 'Retired Out'].includes(ball.dismissalType);
+    const isBowlerWicket = !['RUN_OUT', 'OBSTRUCTING_FIELD', 'RETIRED_OUT'].includes(ball.wicketType);
     if (isBowlerWicket) {
       state.currentBowler.wickets = (state.currentBowler.wickets || 0) + 1;
     }
+
+    const dismissedIdOrName = ball.dismissedPlayerId || ball.dismissedPlayerName;
 
     // Add Fall of Wicket (FOW)
     state.scorecard.fallOfWickets.push({
       wicketNumber: state.wickets,
       score: state.runs,
-      player: ball.outPlayerName || state.striker.name,
+      player: dismissedIdOrName || 'Unknown',
       over: `${formatOvers(state.balls)} ov`,
-      dismissalType: ball.dismissalType || 'Caught',
+      dismissalType: ball.wicketType,
     });
 
-    // Handle outgoing batter by setting them to a placeholder so the UI forces selection
-    const placeholderBatter = {
-      id: null,
-      name: '',
-      runs: 0,
-      balls: 0,
-      fours: 0,
-      sixes: 0,
-      strikeRate: '0.0'
-    };
+    // Pure resolution of ends based on crossings and dismissal
+    const { newStriker, newNonStriker } = resolveWicketTransition(
+      state.striker, 
+      state.nonStriker, 
+      dismissedIdOrName, 
+      ball.runsCompleted
+    );
 
-    if (ball.outPlayerName === state.striker.name) {
-      state.striker = placeholderBatter;
-    } else {
-      state.nonStriker = placeholderBatter;
+    state.striker = newStriker;
+    state.nonStriker = newNonStriker;
+
+  } else {
+    // No wicket, just physical crossings
+    if (ball.runsCompleted % 2 !== 0) {
+      const temp = state.striker;
+      state.striker = state.nonStriker;
+      state.nonStriker = temp;
     }
   }
 
-  // 6. Over Pill Visual Labels
-  let overPill = { type: ball.type, label: `${runsThisBall}`, runs: runsThisBall };
-  if (ball.type === 'wicket') {
-    overPill = { type: 'wicket', label: 'W', dismissalType: ball.dismissalType, player: ball.outPlayerName };
+  // 7. Over Pill Visual Labels
+  let overPill = { type: ball.wicketType !== 'NONE' ? 'wicket' : ball.extraType !== 'NONE' ? 'extra' : 'run', label: `${runsThisBall}`, runs: runsThisBall };
+  if (ball.wicketType !== 'NONE') {
+    overPill = { type: 'wicket', label: 'W', dismissalType: ball.wicketType, player: ball.dismissedPlayerName || ball.dismissedPlayerId };
   } else if (isWide) {
-    overPill = { type: 'extra', label: ball.extraRuns > 0 ? `${ball.extraRuns + 1}Wd` : 'Wd', isWide: true };
+    overPill = { type: 'extra', label: ball.runsExtras > 1 ? `${ball.runsExtras}Wd` : 'Wd', isWide: true };
   } else if (isNoBall) {
-    overPill = { type: 'extra', label: ball.extraRuns > 0 ? `${ball.extraRuns + 1}Nb` : 'Nb', isNoBall: true };
+    overPill = { type: 'extra', label: ball.runsExtras > 1 ? `${ball.runsExtras}Nb` : 'Nb', isNoBall: true };
   } else if (isLegByeOrBye) {
-    overPill = { type: 'extra', label: `${runsThisBall}${ball.extraType === 'bye' ? 'B' : 'Lb'}` };
+    overPill = { type: 'extra', label: `${runsThisBall}${ball.extraType === 'BYE' ? 'B' : 'Lb'}` };
   }
   state.currentOverBalls.push(overPill);
-
-  // 7. Strike Rotation (Odd Runs)
-  const runsExchanged = runsOffBat + (isLegByeOrBye ? runsThisBall : 0) + (isWide || isNoBall ? ball.extraRuns : 0);
-  if (runsExchanged % 2 !== 0 && !wasWicket) {
-    const temp = state.striker;
-    state.striker = state.nonStriker;
-    state.nonStriker = temp;
-  }
 
   // 8. Free Hit State Update
   if (isNoBall) {
@@ -252,6 +343,64 @@ export function processDelivery(currentState, ballInput) {
     if (isTargetChased || isAllOut || isOversFinished) {
       state.matchStatus = MATCH_STATES.MATCH_FINISHED;
     }
+  }
+
+  return { success: true, newState: state };
+}
+
+export function processPenaltyEvent(currentState, penaltyEvent) {
+  // Validate penalty event
+  if (penaltyEvent.eventType !== 'PENALTY') {
+    return { success: false, error: 'Not a penalty event.' };
+  }
+  if (!penaltyEvent.penaltyRuns || penaltyEvent.penaltyRuns <= 0) {
+    return { success: false, error: 'Penalty runs must be greater than zero.' };
+  }
+  if (!penaltyEvent.recipientTeamId) {
+    return { success: false, error: 'Missing recipient team ID.' };
+  }
+
+  // Clone current state deterministically
+  const state = {
+    runs: currentState.runs,
+    wickets: currentState.wickets,
+    balls: currentState.balls,
+    currentOverBalls: [...currentState.currentOverBalls],
+    striker: { ...currentState.striker },
+    nonStriker: { ...currentState.nonStriker },
+    currentBowler: { ...currentState.currentBowler },
+    extras: { ...currentState.extras },
+    isFreeHit: currentState.isFreeHit || false,
+    innings: currentState.innings || 1,
+    totalMatchOvers: currentState.totalMatchOvers || 20,
+    target: currentState.target || null,
+    scorecard: {
+      ...currentState.scorecard,
+      fallOfWickets: [...(currentState.scorecard?.fallOfWickets || [])],
+    },
+    matchStatus: currentState.matchStatus || MATCH_STATES.IN_PROGRESS,
+    lastOverBowlerId: currentState.lastOverBowlerId || null,
+    battingTeamId: currentState.battingTeamId || null,
+    pendingPenalties: { ...(currentState.pendingPenalties || {}) }
+  };
+
+  const isBattingTeamRecipient = state.battingTeamId && state.battingTeamId === penaltyEvent.recipientTeamId;
+
+  if (isBattingTeamRecipient) {
+    state.runs += penaltyEvent.penaltyRuns;
+    state.extras.penalty = (state.extras.penalty || 0) + penaltyEvent.penaltyRuns;
+    
+    // Check if target is chased
+    if (state.innings === 2 || state.innings === 4) {
+      if (state.target && state.runs >= state.target) {
+        state.matchStatus = MATCH_STATES.MATCH_FINISHED;
+      }
+    }
+  } else {
+    // A penalty awarded to a team currently NOT batting (or unknown)
+    // We add it to a pending field per team that can be applied to their innings externally.
+    const currentPending = state.pendingPenalties[penaltyEvent.recipientTeamId] || 0;
+    state.pendingPenalties[penaltyEvent.recipientTeamId] = currentPending + penaltyEvent.penaltyRuns;
   }
 
   return { success: true, newState: state };
