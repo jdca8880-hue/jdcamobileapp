@@ -110,6 +110,7 @@ class SyncService {
 
       console.log(`[SyncService] Processing ${actions.length} pending actions...`);
 
+      this.blockedMatches.clear();
       const transientBlockedMatches = new Set();
       const context = {
         matchStatusCache: new Map(),
@@ -488,6 +489,9 @@ class SyncService {
       }
     }
 
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+
     // Explicit log before attempting INSERT as required
     console.log(`[SyncService] Preparing delivery insert: actionId=${action?.id}, idempotencyKey=${payload.id}, matchId=${payload.matchId}, inningsId=${inningsId}, sequence=${deliverySequence}`);
 
@@ -509,12 +513,16 @@ class SyncService {
       fielder_id: fielderId,
       wicketkeeper_id: wicketkeeperId,
       wagon_zone: payload.wagonZone || null,
-      idempotency_key: payload.id // Unique ID from frontend event
+      idempotency_key: payload.id, // Unique ID from frontend event
+      created_by: userId
     });
 
     if (error) {
       if (error.code === '23505') {
-        if (error.message?.includes('idempotency') || error.details?.includes('idempotency')) {
+        if (
+          error.message?.includes('idempotency') || error.details?.includes('idempotency') ||
+          error.message?.includes('delivery_sequence') || error.details?.includes('delivery_sequence')
+        ) {
            context?.lastSequenceCache?.set(inningsId, deliverySequence); // Cache it even if duplicate
            return true; 
         }

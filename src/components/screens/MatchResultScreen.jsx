@@ -98,10 +98,20 @@ export default function MatchResultScreen() {
       
       const waitForSync = () => new Promise(resolve => {
          let backoffAttempts = 0;
+         
+         const handlePermanentError = (e) => {
+            window.removeEventListener('sync-permanent-failure', handlePermanentError);
+            alert("A permanent sync error occurred: " + e.detail.message + "\n\nPlease return to the Scoring screen to resolve it.");
+            resolve(syncService.pendingCount);
+         };
+         window.addEventListener('sync-permanent-failure', handlePermanentError);
+
          const check = () => {
             if (syncService.pendingCount === 0) {
+               window.removeEventListener('sync-permanent-failure', handlePermanentError);
                resolve(0);
             } else if (!syncService.isOnline) {
+               window.removeEventListener('sync-permanent-failure', handlePermanentError);
                resolve(syncService.pendingCount);
             } else {
                setSyncStatus(prev => ({ ...prev, pendingCount: syncService.pendingCount }));
@@ -128,7 +138,7 @@ export default function MatchResultScreen() {
 
       if (finalCount > 0) {
          setIsLocking(false);
-         alert(`Sync failed or paused. ${finalCount} deliveries remain. Please check your network and try again.`);
+         // Don't alert twice if we already alerted on permanent error, but the count logic will handle it
          return;
       }
     }

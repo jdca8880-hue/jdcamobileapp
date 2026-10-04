@@ -396,6 +396,45 @@ export function useMatchScoring({
     return null;
   };
 
+  const [matchFormat, setMatchFormat] = useState('T20');
+  const [totalMatchOvers, setTotalMatchOvers] = useState(20);
+  const [runs, setRuns] = useState(0);
+  const [wickets, setWickets] = useState(0);
+  const [balls, setBalls] = useState(0);
+  const [currentOverBalls, setCurrentOverBalls] = useState([]);
+  const [extras, setExtras] = useState({
+    wides: 0,
+    noBalls: 0,
+    legByes: 0,
+    byes: 0,
+    penalty: 0
+  });
+
+  // Current Batters & Bowler on Pitch
+  const [striker, setStriker] = useState(null);
+  const [nonStriker, setNonStriker] = useState(null);
+  const [currentBowler, setCurrentBowler] = useState(null);
+
+  // Ball Direction / Shot Sector & State Machine Attributes
+  const [selectedDirection, setSelectedDirection] = useState('Cover');
+  const [ballHistory, setBallHistory] = useState([]);
+  // Permanent-in-session delivery events: the raw source for scorecards and future analytics.
+  const [deliveryLog, setDeliveryLog] = useState([]);
+  const [lastOverBowlerId, setLastOverBowlerId] = useState(null);
+  const [scoringFirstRunDone, setScoringFirstRunDone] = useState(() => {
+    try { return localStorage.getItem('jdca-scoring-first-run') === '1'; } catch { return false; }
+  });
+  const [isFreeHit, setIsFreeHit] = useState(false);
+  const [validationError, setValidationError] = useState(null);
+  const [matchStatus, setMatchStatus] = useState('IN_PROGRESS');
+  const [isPaused, setIsPaused] = useState(() => {
+    try {
+      return activeMatchId ? localStorage.getItem(`jdca_match_paused_${activeMatchId}`) === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
+
   useEffect(() => {
     setCurrentInningsId(null);
     if (activeMatchId) {
@@ -443,45 +482,6 @@ export function useMatchScoring({
       window.removeEventListener('jdca-realtime-delivery', handleRealtimeDelivery);
     };
   }, [activeMatchId]);
-
-  const [matchFormat, setMatchFormat] = useState('T20');
-  const [totalMatchOvers, setTotalMatchOvers] = useState(20);
-  const [runs, setRuns] = useState(0);
-  const [wickets, setWickets] = useState(0);
-  const [balls, setBalls] = useState(0);
-  const [currentOverBalls, setCurrentOverBalls] = useState([]);
-  const [extras, setExtras] = useState({
-    wides: 0,
-    noBalls: 0,
-    legByes: 0,
-    byes: 0,
-    penalty: 0
-  });
-
-  // Current Batters & Bowler on Pitch
-  const [striker, setStriker] = useState(null);
-  const [nonStriker, setNonStriker] = useState(null);
-  const [currentBowler, setCurrentBowler] = useState(null);
-
-  // Ball Direction / Shot Sector & State Machine Attributes
-  const [selectedDirection, setSelectedDirection] = useState('Cover');
-  const [ballHistory, setBallHistory] = useState([]);
-  // Permanent-in-session delivery events: the raw source for scorecards and future analytics.
-  const [deliveryLog, setDeliveryLog] = useState([]);
-  const [lastOverBowlerId, setLastOverBowlerId] = useState(null);
-  const [scoringFirstRunDone, setScoringFirstRunDone] = useState(() => {
-    try { return localStorage.getItem('jdca-scoring-first-run') === '1'; } catch { return false; }
-  });
-  const [isFreeHit, setIsFreeHit] = useState(false);
-  const [validationError, setValidationError] = useState(null);
-  const [matchStatus, setMatchStatus] = useState('IN_PROGRESS');
-  const [isPaused, setIsPaused] = useState(() => {
-    try {
-      return activeMatchId ? localStorage.getItem(`jdca_match_paused_${activeMatchId}`) === 'true' : false;
-    } catch {
-      return false;
-    }
-  });
 
   useEffect(() => {
     if (activeMatchId) {

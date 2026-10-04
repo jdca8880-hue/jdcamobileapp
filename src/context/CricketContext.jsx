@@ -176,6 +176,7 @@ export function CricketProvider({ children }) {
         ...auth,
         ...data,
         ...scoring,
+        scoring,
         activeMatchId,
         setActiveMatchId,
         toggleShortlist,

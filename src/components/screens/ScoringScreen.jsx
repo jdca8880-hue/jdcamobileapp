@@ -420,7 +420,7 @@ export default function ScoringScreen() {
                 onClick={async () => {
                   if(window.confirm("DANGER: This will delete ALL pending offline deliveries for ALL matches. Only do this if your queue is permanently corrupted!")) {
                     const { db } = await import('../../lib/db.js');
-                    await db.offline_queue.clear();
+                    await db.sync_queue.clear();
                     syncService.updatePendingCount();
                     setSyncError(null);
                     alert("Queue cleared!");

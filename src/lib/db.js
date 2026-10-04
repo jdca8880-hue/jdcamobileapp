@@ -43,6 +43,17 @@ db.version(5).stores({
   sync_queue: '++id, action, timestamp'
 });
 
+db.version(6).stores({
+  matches: 'id, tournament, date, status',
+  players: 'id, teamId, name, role',
+  teams: 'id, name, district_id',
+  tournaments: 'id, name, status',
+  deliveries: 'id, match_id, innings_id, over_number, ball_number',
+  innings: 'id, match_id, innings_number, [match_id+innings_number]',
+  sync_queue: '++id, action, timestamp'
+});
+
+
 /**
  * Helper to queue an action when offline
  */
