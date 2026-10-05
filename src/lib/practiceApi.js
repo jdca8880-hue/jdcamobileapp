@@ -9,6 +9,26 @@ export const practiceApi = {
     return [];
   },
 
+  async getAgeCategories() {
+    return await practiceDb.age_categories.toArray();
+  },
+
+  async getDistricts() {
+    return await practiceDb.districts.toArray();
+  },
+
+  async getTeams() {
+    return await practiceDb.teams.toArray();
+  },
+
+  async getPlayers() {
+    return await practiceDb.players.toArray();
+  },
+
+  async getTournaments() {
+    return await practiceDb.tournaments.toArray();
+  },
+
   async getDefaults() {
     const ageCategories = await practiceDb.age_categories.toArray();
     const districts = await practiceDb.districts.toArray();

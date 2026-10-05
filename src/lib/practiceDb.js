@@ -22,8 +22,15 @@ export const initializePracticeDb = async () => {
     await practiceDb.seasons.add({ id: 'season-1', name: '2026-27', is_current_active: true });
     await practiceDb.age_categories.bulkAdd([
       { id: 'ac-1', name: 'Senior', short_name: 'SEN' },
-      { id: 'ac-2', name: 'Under-19', short_name: 'U19' }
+      { id: 'ac-2', name: 'Under-19', short_name: 'U19' },
+      { id: 'ac-3', name: 'Under-16', short_name: 'U16' },
+      { id: 'ac-4', name: 'Under-14', short_name: 'U14' },
+      { id: 'ac-5', name: 'Women', short_name: 'WOM' }
     ]);
-    await practiceDb.districts.add({ id: 'dist-1', name: 'Practice District' });
+    await practiceDb.districts.bulkAdd([
+      { id: 'dist-1', name: 'Practice District 1' },
+      { id: 'dist-2', name: 'Practice District 2' },
+      { id: 'dist-3', name: 'Practice District 3' }
+    ]);
   }
 };

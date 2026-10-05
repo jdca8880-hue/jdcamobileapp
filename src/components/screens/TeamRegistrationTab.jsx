@@ -91,9 +91,9 @@ export default function TeamRegistrationTab({ userRole }) {
 
   useEffect(() => {
     const fetchDropdowns = async () => {
-      const [{ data: ac }, { data: dist }] = await Promise.all([
-        supabase.from('age_categories').select('*').eq('is_active', true),
-        supabase.from('districts').select('*').eq('is_active', true)
+      const [ac, dist] = await Promise.all([
+        api.getAgeCategories(),
+        api.getDistricts()
       ]);
       if (ac && ac.length > 0) {
         setAgeCategories(ac);
