@@ -714,8 +714,20 @@ export const api = {
       .select('*, player:players(*)')
       .eq('match_id', matchId);
 
-    const home_team_roster = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({ ...(r.player || {}), role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player?.primary_role, isCaptain: r.is_captain })) || [];
-    const away_team_roster = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({ ...(r.player || {}), role: r.is_wicketkeeper ? 'Wicket Keeper' : r.player?.primary_role, isCaptain: r.is_captain })) || [];
+    const home_team_roster = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({
+      ...(r.player || {}),
+      id: r.player_id || r.player?.id,
+      name: r.player?.full_name || r.player?.name || 'Player',
+      role: r.is_wicketkeeper ? 'Wicket Keeper' : (r.player?.primary_role || r.player?.role || 'Batter'),
+      isCaptain: !!r.is_captain
+    })) || [];
+    const away_team_roster = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({
+      ...(r.player || {}),
+      id: r.player_id || r.player?.id,
+      name: r.player?.full_name || r.player?.name || 'Player',
+      role: r.is_wicketkeeper ? 'Wicket Keeper' : (r.player?.primary_role || r.player?.role || 'Batter'),
+      isCaptain: !!r.is_captain
+    })) || [];
 
     // 3. Fetch Innings
     const { data: inningsData } = await supabase
@@ -1057,16 +1069,39 @@ export const api = {
    */
   async getOrCreateInnings(matchId, inningsNumber = 1) {
     if (!matchId || !supabase) return null;
+    const innNum = Number(inningsNumber) || 1;
 
     // 1. Check if innings already exists
     const { data: existing, error: fetchErr } = await supabase
       .from('innings')
       .select('*')
       .eq('match_id', matchId)
-      .eq('innings_number', Number(inningsNumber) || 1)
+      .eq('innings_number', innNum)
       .maybeSingle();
 
     if (!fetchErr && existing) {
+      // In innings 2, verify it doesn't match innings 1 batting team
+      if (innNum === 2 && existing.batting_team_id) {
+        try {
+          const { data: inn1 } = await supabase
+            .from('innings')
+            .select('batting_team_id, bowling_team_id')
+            .eq('match_id', matchId)
+            .eq('innings_number', 1)
+            .maybeSingle();
+          if (inn1 && inn1.batting_team_id && existing.batting_team_id === inn1.batting_team_id) {
+            console.warn('[api.getOrCreateInnings] Innings 2 batting_team_id was identical to Innings 1. Reversing...');
+            const correctBatting = inn1.bowling_team_id;
+            const correctBowling = inn1.batting_team_id;
+            await supabase.from('innings').update({
+              batting_team_id: correctBatting,
+              bowling_team_id: correctBowling
+            }).eq('id', existing.id);
+            existing.batting_team_id = correctBatting;
+            existing.bowling_team_id = correctBowling;
+          }
+        } catch (e) {}
+      }
       return existing;
     }
 
@@ -1083,31 +1118,53 @@ export const api = {
     }
 
     // Determine batting and bowling team
-    if (!match.toss_winner_id) {
-      console.warn("Cannot create innings: toss winner not set. Wait for Match Setup.");
-      return null;
-    }
-
     let battingTeamId = match.home_team_id;
     let bowlingTeamId = match.away_team_id;
 
-    const tossWinnerBats = match.toss_decision === 'BAT';
-    const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
-    const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
-    battingTeamId = homeBatsFirst ? match.home_team_id : match.away_team_id;
-    bowlingTeamId = homeBatsFirst ? match.away_team_id : match.home_team_id;
-
-    if (Number(inningsNumber) === 2) {
-      const temp = battingTeamId;
-      battingTeamId = bowlingTeamId;
-      bowlingTeamId = temp;
+    if (innNum === 2) {
+      // Check Innings 1 first
+      try {
+        const { data: inn1 } = await supabase
+          .from('innings')
+          .select('batting_team_id, bowling_team_id')
+          .eq('match_id', matchId)
+          .eq('innings_number', 1)
+          .maybeSingle();
+        if (inn1 && inn1.batting_team_id && inn1.bowling_team_id) {
+          battingTeamId = inn1.bowling_team_id;
+          bowlingTeamId = inn1.batting_team_id;
+        } else {
+          // If no Innings 1, determine from match toss then invert
+          const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
+          const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+          const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+          battingTeamId = homeBatsFirst ? match.away_team_id : match.home_team_id;
+          bowlingTeamId = homeBatsFirst ? match.home_team_id : match.away_team_id;
+        }
+      } catch (e) {
+        battingTeamId = match.away_team_id;
+        bowlingTeamId = match.home_team_id;
+      }
+    } else {
+      // Innings 1
+      if (match.toss_winner_id) {
+        const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
+        const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+        const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+        battingTeamId = homeBatsFirst ? match.home_team_id : match.away_team_id;
+        bowlingTeamId = homeBatsFirst ? match.away_team_id : match.home_team_id;
+      } else {
+        // Fallback to home team batting first if toss not yet recorded
+        battingTeamId = match.home_team_id;
+        bowlingTeamId = match.away_team_id;
+      }
     }
 
     const { data: newInnings, error: insertErr } = await supabase
       .from('innings')
       .insert({
         match_id: matchId,
-        innings_number: Number(inningsNumber) || 1,
+        innings_number: innNum,
         batting_team_id: battingTeamId,
         bowling_team_id: bowlingTeamId,
         overs_limit: match.max_overs || 20,

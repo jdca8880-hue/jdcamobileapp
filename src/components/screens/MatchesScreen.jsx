@@ -11,8 +11,13 @@ export default function MatchesScreen() {
   const { matches = [], navigateTo, setActiveMatchId, userRole, userName, userEmail, userId } = useCricket();
   const [activeTab, setActiveTab] = useState(userRole === 'SCORER' ? 'my_matches' : 'all');
 
+  const isMatchLive = (status) => {
+    const s = String(status || '').toUpperCase();
+    return s === 'LIVE' || s === 'IN_PROGRESS' || s === 'INNINGS_BREAK';
+  };
+
   const allLiveMatches = useMemo(() => {
-    return matches.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
+    return matches.filter(m => isMatchLive(m.status));
   }, [matches]);
 
   const TABS = useMemo(() => {
@@ -52,7 +57,7 @@ export default function MatchesScreen() {
     }
 
     const status = String(m.status || '').toUpperCase();
-    const live = status === 'LIVE' || status === 'IN_PROGRESS';
+    const live = isMatchLive(status);
     const upcoming = status === 'UPCOMING' || status === 'SCHEDULED';
     const completed = status === 'COMPLETED' || status === 'FINISHED';
     
@@ -70,7 +75,7 @@ export default function MatchesScreen() {
   const myScoringMatches = filtered;
   const liveMatches = activeTab === 'all' 
     ? allLiveMatches 
-    : filtered.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
+    : filtered.filter(m => isMatchLive(m.status));
   const upcomingMatches = filtered.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
   const completedMatches = filtered.filter(m => m.status === 'COMPLETED' || m.status === 'FINISHED');
 
@@ -153,7 +158,7 @@ export default function MatchesScreen() {
             {myScoringMatches.length > 0 ? (
               <div className="space-y-3">
                 {myScoringMatches.map(match => {
-                  const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
+                  const isLive = isMatchLive(match.status);
                   if (isLive) {
                     return <LiveMatchCard key={match.id} match={match} onClick={() => openMatch(match)} />;
                   }

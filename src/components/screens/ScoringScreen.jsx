@@ -141,12 +141,13 @@ export default function ScoringScreen() {
   let bowlingTeamId = matchSetup?.teamBId;
   
   if (tossWinnerTeamId) {
+    const isBat = String(electedTo || '').toUpperCase() === 'BAT';
     if (tossWinnerTeamId === matchSetup?.teamAId) {
-      battingTeamId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
-      bowlingTeamId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+      battingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
+      bowlingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
     } else {
-      battingTeamId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
-      bowlingTeamId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+      battingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
+      bowlingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
     }
   }
 
@@ -160,14 +161,37 @@ export default function ScoringScreen() {
 
   const battingXI = battingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
   const bowlingXI = bowlingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
+  const currentBattingTeamName = battingTeamId === matchSetup?.teamAId ? teamAName : teamBName;
+  const currentBowlingTeamName = bowlingTeamId === matchSetup?.teamAId ? teamAName : teamBName;
 
   // Only force full InningsInitScreen at the very beginning of the innings
   const needsInitialization = balls === 0 && (!striker?.id || !nonStriker?.id || !currentBowler?.id);
 
+  // Track all dismissed batters in the current innings to prevent selecting already out players
+  const dismissedBatterIds = useMemo(() => {
+    const ids = new Set();
+    deliveryLog.forEach(d => {
+      const inn = d.innings || 1;
+      if (inn === innings) {
+        if (d.dismissedPlayerId) ids.add(String(d.dismissedPlayerId));
+        if (d.dismissed_player_id) ids.add(String(d.dismissed_player_id));
+        if (d.wicket && d.strikerId) ids.add(String(d.strikerId));
+        if (d.wicket && d.striker_id) ids.add(String(d.striker_id));
+        if (d.type === 'wicket' && d.outPlayerName) ids.add(d.outPlayerName);
+        if (d.type === 'retire' && d.outPlayerName) ids.add(d.outPlayerName);
+      }
+    });
+    return ids;
+  }, [deliveryLog, innings]);
+
   const batters = useMemo(() => battingXI.filter(p => {
     const pName = p?.full_name || p?.name;
-    return pName && pName !== striker?.name && pName !== nonStriker?.name;
-  }), [battingXI, striker?.name, nonStriker?.name]);
+    const pId = String(p?.id);
+    const isCurrentStriker = pId === String(striker?.id) || (pName && pName === striker?.name);
+    const isCurrentNonStriker = pId === String(nonStriker?.id) || (pName && pName === nonStriker?.name);
+    const isDismissed = dismissedBatterIds.has(pId) || (pName && dismissedBatterIds.has(pName));
+    return pName && !isCurrentStriker && !isCurrentNonStriker && !isDismissed;
+  }), [battingXI, striker, nonStriker, dismissedBatterIds]);
   const lastBalls = deliveryLog.length ? deliveryLog.filter(d => d.type !== 'innings_start' && d.type !== 'match_start').slice(-6).map(b => {
     const isWicket = b.wicket_type && b.wicket_type !== 'NONE' || b.wicket === true;
     const isExtra = b.extra_type && b.extra_type !== 'NONE' || b.extra === true;
@@ -294,7 +318,16 @@ export default function ScoringScreen() {
         </div>
       );
     }
-    return <InningsInitScreen battingXI={battingXI} bowlingXI={bowlingXI} />;
+    return (
+      <InningsInitScreen
+        battingXI={battingXI}
+        bowlingXI={bowlingXI}
+        battingTeamName={currentBattingTeamName}
+        bowlingTeamName={currentBowlingTeamName}
+        innings={innings}
+        target={target}
+      />
+    );
   }
 
   const doRun = (value) => {
@@ -528,7 +561,7 @@ export default function ScoringScreen() {
         <div className="px-4 py-6 bg-white">
           <div className="text-center">
             <div className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-              {innings === 1 ? '1st Innings' : '2nd Innings'} • {innings === 1 ? teamAName : teamBName}
+              {innings === 1 ? '1st Innings' : '2nd Innings'} • {currentBattingTeamName}
             </div>
             <div className="text-[80px] font-black leading-none tracking-tighter tabular-nums mb-2 text-slate-900 flex items-baseline justify-center">
               <motion.span
@@ -878,8 +911,16 @@ export default function ScoringScreen() {
 
         {newBatterOpen && wickets < 10 && (
           <Modal title="New Batter" onClose={() => setNewBatterOpen(false)}>
-            <p className="text-[13px] text-slate-600 mb-4">Select the next batter. The wicket has been recorded.</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[13px] text-slate-600">Select next batter for <span className="font-bold text-slate-900">{currentBattingTeamName}</span>.</p>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
+                {currentBattingTeamName}
+              </span>
+            </div>
             <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+              {batters.length === 0 && (
+                <div className="py-6 text-center text-sm text-slate-400">No more eligible batters available in Playing XI</div>
+              )}
               {batters.map(player => (
                 <button 
                   key={player.id} 
@@ -890,7 +931,10 @@ export default function ScoringScreen() {
                     <div className="text-[14px] font-bold text-slate-900 text-left">{player.full_name || player.name}</div>
                     <div className="text-xs text-slate-500 text-left">{player.primary_role || player.role || 'Batter'}</div>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300"/>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{currentBattingTeamName}</span>
+                    <ChevronRight size={16} className="text-slate-300"/>
+                  </div>
                 </button>
               ))}
             </div>
@@ -905,17 +949,22 @@ export default function ScoringScreen() {
                 <div className="text-[12px] font-bold text-slate-600">after {formatOvers(balls)} overs</div>
               </div>
             )}
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Select new bowler</div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Select new bowler</span>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                {currentBowlingTeamName}
+              </span>
+            </div>
             <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
               {bowlingXI.filter(p => p.id !== lastOverBowlerId).map(player => (
                 <button 
                   key={player.id} 
                   onClick={() => selectNextBowler(player)}
-                  className="flex items-center justify-between p-3 rounded-[10px] bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors"
+                  className="flex items-center justify-between p-3 rounded-[10px] bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors shrink-0 min-w-[160px]"
                 >
                   <div>
                     <div className="text-[14px] font-bold text-slate-900 text-left">{player.full_name || player.name}</div>
-                    <div className="text-xs text-slate-500 text-left">{player.primary_role || player.role}</div>
+                    <div className="text-xs text-slate-500 text-left">{player.primary_role || player.role || 'Bowler'}</div>
                   </div>
                   <ChevronRight size={16} className="text-slate-300"/>
                 </button>

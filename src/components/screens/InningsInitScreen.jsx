@@ -37,7 +37,7 @@ const getRoleBadge = (role) => {
 };
 
 /* ────────── Custom Select Component ────────── */
-function PlayerSelect({ id, icon: Icon, label, sublabel, value, onChange, players, disabledIds = [], completed }) {
+function PlayerSelect({ id, icon: Icon, label, sublabel, value, onChange, players, disabledIds = [], completed, teamName = '' }) {
   const [open, setOpen] = useState(false);
   const selectedPlayer = players.find(p => String(p.id) === String(value));
 
@@ -69,7 +69,14 @@ function PlayerSelect({ id, icon: Icon, label, sublabel, value, onChange, player
             {completed ? <Check size={18} strokeWidth={3} /> : <Icon className="w-5 h-5" />}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-300">{label}</div>
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-300">{label}</span>
+              {teamName && (
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full truncate max-w-[120px]">
+                  {teamName}
+                </span>
+              )}
+            </div>
             <div className="text-[10px] text-ink-300/70 mt-0.5">{sublabel}</div>
           </div>
           {selectedPlayer?.isCaptain && (
@@ -86,7 +93,7 @@ function PlayerSelect({ id, icon: Icon, label, sublabel, value, onChange, player
           <span className={`text-[15px] font-semibold truncate ${selectedPlayer ? 'text-ink' : 'text-ink-300'}`}>
             {selectedPlayer 
               ? (selectedPlayer.name || selectedPlayer.full_name)
-              : '— Select Player —'
+              : `— Select from ${teamName || 'Team'} —`
             }
           </span>
           <div className="flex items-center gap-2">
@@ -116,7 +123,7 @@ function PlayerSelect({ id, icon: Icon, label, sublabel, value, onChange, player
             >
               <div className="border-t border-ink-100/40 max-h-52 overflow-y-auto">
                 {players.length === 0 && (
-                  <div className="px-4 py-6 text-center text-sm text-ink-300">No players available</div>
+                  <div className="px-4 py-6 text-center text-sm text-ink-300">No players available in {teamName || 'this team'} Playing XI</div>
                 )}
                 {players.map(p => {
                   const isDisabled = disabledIds.includes(String(p.id));
@@ -179,7 +186,7 @@ function PlayerSelect({ id, icon: Icon, label, sublabel, value, onChange, player
 }
 
 /* ────────── Main Component ────────── */
-export default function InningsInitScreen({ battingXI, bowlingXI }) {
+export default function InningsInitScreen({ battingXI = [], bowlingXI = [], battingTeamName = 'Batting Team', bowlingTeamName = 'Bowling Team', innings = 1, target = null }) {
   const { replaceStriker, replaceBatter, replaceBowler, startInnings, matchSetup } = useCricket();
   
   const [selectedStriker, setSelectedStriker] = useState('');
@@ -206,7 +213,7 @@ export default function InningsInitScreen({ battingXI, bowlingXI }) {
     const b = bowlingXI.find(p => String(p.id) === String(selectedBowler));
 
     if (s && ns && b) {
-      if (window.confirm("You are about to start live scoring. Are you sure?")) {
+      if (window.confirm(`You are about to start scoring Innings ${innings} (${battingTeamName} batting). Are you sure?`)) {
         replaceStriker({ ...s, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
         replaceBatter(false, { ...ns, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
         replaceBowler(b);
@@ -225,25 +232,48 @@ export default function InningsInitScreen({ battingXI, bowlingXI }) {
         <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-jade/[0.04] rounded-full blur-3xl" />
       </div>
 
-      <div className="relative flex-1 flex flex-col max-w-md mx-auto w-full px-5 pt-16 pb-8">
+      <div className="relative flex-1 flex flex-col max-w-md mx-auto w-full px-5 pt-12 pb-8">
         {/* ───── Header ───── */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8"
+          className="mb-6"
         >
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-2">
             <div className="w-11 h-11 rounded-2xl bg-cobalt/10 flex items-center justify-center">
               <Shield size={20} className="text-cobalt" />
             </div>
-            <div>
-              <h2 className="text-xl font-black text-ink tracking-tight leading-tight">
-                Innings Setup
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cobalt text-white">
+                  Innings {innings}
+                </span>
+                {target && (
+                  <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    Target: {target}
+                  </span>
+                )}
+              </div>
+              <h2 className="text-xl font-black text-ink tracking-tight leading-tight mt-0.5">
+                Innings {innings} Setup
               </h2>
-              <p className="text-xs text-ink-300 mt-0.5">
-                Select openers & bowler to begin
-              </p>
+            </div>
+          </div>
+
+          {/* Matchup Team Banner */}
+          <div className="bg-white rounded-2xl p-3 border border-ink-100/60 shadow-xs flex items-center justify-between mt-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+              <div className="truncate">
+                <div className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Batting Side</div>
+                <div className="text-[13px] font-black text-slate-900 truncate max-w-[130px]">{battingTeamName}</div>
+              </div>
+            </div>
+            <span className="text-[10px] font-extrabold text-slate-400 px-2 py-0.5 bg-slate-100 rounded shrink-0">VS</span>
+            <div className="text-right min-w-0">
+              <div className="text-[9px] font-black uppercase tracking-wider text-blue-600">Bowling Side</div>
+              <div className="text-[13px] font-black text-slate-900 truncate max-w-[130px]">{bowlingTeamName}</div>
             </div>
           </div>
 
@@ -275,10 +305,10 @@ export default function InningsInitScreen({ battingXI, bowlingXI }) {
               <div className="text-[13px] font-bold text-mango-700">Insufficient Playing XI</div>
               <p className="text-[11px] text-mango-700/70 mt-1 leading-relaxed">
                 {insufficientBatters && (
-                  <>Batting side has only <strong>{battingXI.length}</strong> player{battingXI.length !== 1 ? 's' : ''} — need at least 2 openers. </>
+                  <><strong>{battingTeamName}</strong> has only <strong>{battingXI.length}</strong> player{battingXI.length !== 1 ? 's' : ''} — need at least 2 openers. </>
                 )}
                 {insufficientBowlers && (
-                  <>Bowling side has <strong>{bowlingXI.length}</strong> player{bowlingXI.length !== 1 ? 's' : ''} — need at least 1 bowler. </>
+                  <><strong>{bowlingTeamName}</strong> has only <strong>{bowlingXI.length}</strong> player{bowlingXI.length !== 1 ? 's' : ''} — need at least 1 bowler. </>
                 )}
                 Go back to <strong>Match Setup</strong> to add more players to the Playing XI.
               </p>
@@ -292,7 +322,8 @@ export default function InningsInitScreen({ battingXI, bowlingXI }) {
             id="select-striker"
             icon={BatIcon}
             label="Striker"
-            sublabel="Opening batter on strike"
+            sublabel={`Opening batter for ${battingTeamName}`}
+            teamName={battingTeamName}
             value={selectedStriker}
             onChange={setSelectedStriker}
             players={battingXI}
@@ -304,7 +335,8 @@ export default function InningsInitScreen({ battingXI, bowlingXI }) {
             id="select-non-striker"
             icon={BatIcon}
             label="Non-Striker"
-            sublabel="Opening batter at non-striker end"
+            sublabel={`Second opener for ${battingTeamName}`}
+            teamName={battingTeamName}
             value={selectedNonStriker}
             onChange={setSelectedNonStriker}
             players={battingXI}
@@ -316,7 +348,8 @@ export default function InningsInitScreen({ battingXI, bowlingXI }) {
             id="select-bowler"
             icon={BallIcon}
             label="Opening Bowler"
-            sublabel="First over bowler"
+            sublabel={`First over bowler from ${bowlingTeamName}`}
+            teamName={bowlingTeamName}
             value={selectedBowler}
             onChange={setSelectedBowler}
             players={bowlingXI}

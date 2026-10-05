@@ -21,15 +21,23 @@ export function useLiveMatchesSync() {
             setMatches(prev => prev.filter(m => m.id !== matchData.id));
             return;
           }
-          await db.matches.put(matchData);
+          let enriched = { ...matchData };
+          try {
+            const hTeam = await db.teams.get(matchData.home_team_id);
+            const aTeam = await db.teams.get(matchData.away_team_id);
+            if (hTeam) enriched.home_team = { id: hTeam.id, name: hTeam.name, short_name: hTeam.short_name || '' };
+            if (aTeam) enriched.away_team = { id: aTeam.id, name: aTeam.name, short_name: aTeam.short_name || '' };
+          } catch (e) {}
+
+          await db.matches.put(enriched);
           setMatches(prev => {
             const existingIndex = prev.findIndex(m => m.id === matchData.id);
             if (existingIndex >= 0) {
               const newArr = [...prev];
-              newArr[existingIndex] = { ...newArr[existingIndex], ...matchData };
+              newArr[existingIndex] = { ...newArr[existingIndex], ...enriched };
               return newArr;
             }
-            return [matchData, ...prev];
+            return [enriched, ...prev];
           });
         } else if (payload.eventType === 'DELETE') {
           await db.matches.delete(payload.old.id);

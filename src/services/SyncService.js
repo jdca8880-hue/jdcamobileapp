@@ -281,15 +281,17 @@ class SyncService {
   }
 
   async retryFailedAction(actionId) {
+    this.blockedMatches.clear();
     await updateAction(actionId, { status: 'PENDING', error: null, failedAt: null });
     delete this.retryCounts[actionId];
-    this.updatePendingCount();
+    await this.updatePendingCount();
     if (this.isOnline) {
       this.processQueue();
     }
   }
 
   async deleteFailedAction(actionId) {
+    this.blockedMatches.clear();
     await clearAction(actionId);
     delete this.retryCounts[actionId];
     await this.updatePendingCount();
@@ -350,7 +352,7 @@ class SyncService {
         try {
           const { data } = await supabase
             .from('innings')
-            .select('id, match_id, innings_number')
+            .select('id, match_id, innings_number, batting_team_id, bowling_team_id')
             .eq('id', inningsId)
             .maybeSingle();
           if (data) {
@@ -359,6 +361,33 @@ class SyncService {
           }
         } catch (fetchInnErr) {
           console.warn('[SyncService] Failed to verify innings details from Supabase:', fetchInnErr);
+        }
+      }
+
+      // Auto-heal Innings 2 team assignments if identical to Innings 1
+      if (innData && Number(innData.innings_number) === 2 && innData.batting_team_id) {
+        try {
+          const { data: inn1 } = await supabase
+            .from('innings')
+            .select('batting_team_id, bowling_team_id')
+            .eq('match_id', payload.matchId)
+            .eq('innings_number', 1)
+            .maybeSingle();
+
+          if (inn1 && inn1.batting_team_id && innData.batting_team_id === inn1.batting_team_id) {
+            console.warn(`[SyncService] Innings 2 had identical batting_team_id as Innings 1. Auto-reversing Innings 2 teams.`);
+            const newBatting = inn1.bowling_team_id;
+            const newBowling = inn1.batting_team_id;
+            await supabase
+              .from('innings')
+              .update({ batting_team_id: newBatting, bowling_team_id: newBowling })
+              .eq('id', inningsId);
+            innData.batting_team_id = newBatting;
+            innData.bowling_team_id = newBowling;
+            context?.inningsDetailsCache?.set(inningsId, innData);
+          }
+        } catch (repairInnErr) {
+          console.warn('[SyncService] Failed to check/repair Innings 2 team assignments:', repairInnErr);
         }
       }
 
@@ -371,7 +400,7 @@ class SyncService {
         try {
           const { data: matchInnings } = await supabase
             .from('innings')
-            .select('id, match_id, innings_number')
+            .select('id, match_id, innings_number, batting_team_id, bowling_team_id')
             .eq('match_id', payload.matchId)
             .eq('innings_number', targetInningsNum);
             
@@ -387,6 +416,8 @@ class SyncService {
               console.log(`[SyncService] Provable innings match found: repairing metadata for delivery ${payload.id} from innings ${inningsId} -> ${provableInnings.id}`);
               inningsId = provableInnings.id;
               payload.inningsId = provableInnings.id;
+              innData = provableInnings;
+              context?.inningsDetailsCache?.set(inningsId, innData);
               repaired = true;
               
               if (action?.id) {
@@ -421,6 +452,16 @@ class SyncService {
       if (matchStatus === 'COMPLETED' || matchStatus === 'FINISHED' || matchStatus === 'CANCELLED') {
         console.warn(`[SyncService] Match ${payload.matchId} is ${matchStatus}. Rejecting delivery record.`);
         return true; // Clear from offline queue gracefully
+      }
+
+      // Ensure active match status in DB is IN_PROGRESS so other users see it LIVE
+      if (matchStatus && !['IN_PROGRESS', 'INNINGS_BREAK', 'COMPLETED', 'FINISHED', 'CANCELLED', 'ABANDONED'].includes(matchStatus)) {
+        try {
+          await supabase.from('matches').update({ status: 'IN_PROGRESS' }).eq('id', payload.matchId);
+          context?.matchStatusCache?.set(payload.matchId, 'IN_PROGRESS');
+        } catch (statusUpdateErr) {
+          console.warn('[SyncService] Failed to update match status to IN_PROGRESS:', statusUpdateErr);
+        }
       }
     }
 
@@ -494,6 +535,42 @@ class SyncService {
 
     // Explicit log before attempting INSERT as required
     console.log(`[SyncService] Preparing delivery insert: actionId=${action?.id}, idempotencyKey=${payload.id}, matchId=${payload.matchId}, inningsId=${inningsId}, sequence=${deliverySequence}`);
+
+    // Auto-ensure Playing XI in match_rosters so DB check_delivery_roster trigger can never throw P0001
+    if (supabase && innData && innData.batting_team_id && innData.bowling_team_id) {
+      try {
+        const rosterUpserts = [];
+        if (strikerId) {
+          rosterUpserts.push({
+            match_id: payload.matchId,
+            team_id: innData.batting_team_id,
+            player_id: strikerId,
+            is_playing_xi: true
+          });
+        }
+        if (nonStrikerId && nonStrikerId !== strikerId) {
+          rosterUpserts.push({
+            match_id: payload.matchId,
+            team_id: innData.batting_team_id,
+            player_id: nonStrikerId,
+            is_playing_xi: true
+          });
+        }
+        if (bowlerId) {
+          rosterUpserts.push({
+            match_id: payload.matchId,
+            team_id: innData.bowling_team_id,
+            player_id: bowlerId,
+            is_playing_xi: true
+          });
+        }
+        if (rosterUpserts.length > 0) {
+          await supabase.from('match_rosters').upsert(rosterUpserts, { onConflict: 'match_id, player_id' });
+        }
+      } catch (rosterErr) {
+        console.warn('[SyncService] Non-fatal error ensuring playing XI roster:', rosterErr);
+      }
+    }
 
     const { error } = await supabase.from('deliveries').insert({
       match_id: payload.matchId,

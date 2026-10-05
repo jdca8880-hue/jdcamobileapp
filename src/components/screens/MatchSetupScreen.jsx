@@ -277,12 +277,16 @@ export default function MatchSetupScreen() {
   const openersReady = selectedStriker && selectedNonStriker && selectedBowler && !hasDuplicate;
 
   const addPlayerToXI = (player) => {
-    if (activeXI.length >= 20) return alert(`Maximum 20 players allowed in ${activeTeamTab === 'A' ? matchSetup.teamA : matchSetup.teamB} XI.`);
+    const activeTeamName = activeTeamTab === 'A' ? matchSetup.teamA : matchSetup.teamB;
+    const otherXI = activeTeamTab === 'A' ? matchSetup.teamBXI : matchSetup.teamAXI;
+    const otherTeamName = activeTeamTab === 'A' ? matchSetup.teamB : matchSetup.teamA;
+    if (activeXI.length >= 20) return alert(`Maximum 20 players allowed in ${activeTeamName} XI.`);
     if (activeXI.find(p => p.id === player.id)) return alert("Player already in Playing XI.");
+    if (otherXI.find(p => p.id === player.id)) return alert(`Player is already in ${otherTeamName}'s Playing XI.`);
     
     setMatchSetup(prev => ({
       ...prev,
-      [targetArrayName]: [...prev[targetArrayName], { ...player, isCaptain: false, role: player.role || 'Batter' }]
+      [targetArrayName]: [...prev[targetArrayName], { ...player, isCaptain: false, role: player.role || player.primary_role || 'Batter' }]
     }));
   };
 
@@ -784,35 +788,63 @@ export default function MatchSetupScreen() {
       </div>
 
       {/* ADD PLAYER MODAL */}
-      {isAddPlayerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#101827]/65 p-3 sm:p-5">
-           <div className="w-full max-w-sm bg-white rounded-[24px] shadow-2xl overflow-hidden animate-slide-up">
+      {isAddPlayerModalOpen && (() => {
+        const activeTeamName = activeTeamTab === 'A' ? matchSetup.teamA : matchSetup.teamB;
+        const activeTeamId = activeTeamTab === 'A' ? matchSetup.teamAId : matchSetup.teamBId;
+        const otherXI = activeTeamTab === 'A' ? matchSetup.teamBXI : matchSetup.teamAXI;
+
+        const availablePlayers = players.filter(p => {
+          const inActive = activeXI.some(xi => xi.id === p.id);
+          const inOther = otherXI.some(xi => xi.id === p.id);
+          const matchesSearch = (p.full_name || p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase());
+          return !inActive && !inOther && matchesSearch;
+        }).sort((a, b) => {
+          const aBelongs = a.team_players?.some(tp => tp.team_id === activeTeamId);
+          const bBelongs = b.team_players?.some(tp => tp.team_id === activeTeamId);
+          if (aBelongs && !bBelongs) return -1;
+          if (!aBelongs && bBelongs) return 1;
+          return (a.full_name || a.name || '').localeCompare(b.full_name || b.name || '');
+        });
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#101827]/65 p-3 sm:p-5">
+            <div className="w-full max-w-sm bg-white rounded-[24px] shadow-2xl overflow-hidden animate-slide-up">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-[16px] font-black text-[#101827]">Available Players</h3>
+                <div>
+                  <h3 className="text-[16px] font-black text-[#101827]">Add to {activeTeamName}</h3>
+                  <p className="text-[11px] text-[#596579]">Select players to join the Playing XI</p>
+                </div>
                 <button onClick={() => setIsAddPlayerModalOpen(false)} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center"><X size={16} className="text-[#596579]" /></button>
               </div>
               <div className="p-4">
-                 <input type="text" placeholder="Search players..." value={rosterSearchQuery} onChange={e => setRosterSearchQuery(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] outline-none mb-4" />
-                 <div className="max-h-60 overflow-y-auto space-y-2">
-                    {players.filter(p => {
-                      const isAvailable = !activeXI.find(xi => xi.id === p.id);
-                      const matchesSearch = (p.full_name || p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase());
-                      // All registered players are shown — team_players assignment not required for grassroots matches
-                      return isAvailable && matchesSearch;
-                    }).map(p => (
-                       <button key={p.id} onClick={() => { addPlayerToXI(p); setIsAddPlayerModalOpen(false); }} className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-[12px] active:bg-gray-50">
-                          <div className="text-left">
-                            <div className="font-bold text-[14px] text-[#101827]">{p.full_name || p.name}</div>
-                            <div className="text-xs text-[#8a99b0]">{p.role}</div>
+                <input type="text" placeholder={`Search players for ${activeTeamName}...`} value={rosterSearchQuery} onChange={e => setRosterSearchQuery(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] outline-none mb-4" />
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {availablePlayers.length === 0 && (
+                    <div className="py-6 text-center text-xs text-slate-400">No eligible players found</div>
+                  )}
+                  {availablePlayers.map(p => {
+                    const isClubMember = p.team_players?.some(tp => tp.team_id === activeTeamId);
+                    return (
+                      <button key={p.id} onClick={() => { addPlayerToXI(p); setIsAddPlayerModalOpen(false); }} className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-[12px] active:bg-gray-50 hover:border-blue-300 transition-colors">
+                        <div className="text-left">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-[14px] text-[#101827]">{p.full_name || p.name}</span>
+                            {isClubMember && (
+                              <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">Squad</span>
+                            )}
                           </div>
-                          <Plus size={18} className="text-[#2457D6]"/>
-                       </button>
-                    ))}
-                 </div>
+                          <div className="text-xs text-[#8a99b0]">{p.primary_role || p.role || 'Player'}</div>
+                        </div>
+                        <Plus size={18} className="text-[#2457D6]"/>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-           </div>
-        </div>
-      )}
+            </div>
+          </div>
+        );
+      })()}
 
       </div>
     </div>

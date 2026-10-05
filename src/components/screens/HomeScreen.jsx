@@ -96,7 +96,10 @@ export default function HomeScreen() {
     filteredMatches.filter(m => m.tournament_id === selectedTournamentTab || m.tournament === selectedTournamentTab)
   );
 
-  const liveMatches = filteredMatches.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
+  const liveMatches = filteredMatches.filter(m => {
+    const s = String(m.status || '').toUpperCase();
+    return s === 'LIVE' || s === 'IN_PROGRESS' || s === 'INNINGS_BREAK';
+  });
   const upcomingMatches = filteredMatches.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
 
   // Filtered districts

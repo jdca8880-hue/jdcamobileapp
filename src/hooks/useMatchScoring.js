@@ -125,7 +125,7 @@ export function useMatchScoring({
         teamAShort: match.home_team?.short_name || '',
         teamBShort: match.away_team?.short_name || '',
         tossWinnerTeamId: match.toss_winner_id,
-        electedTo: match.toss_decision === 'BAT' ? 'Bat' : 'Bowl',
+        electedTo: String(match.toss_decision || '').toUpperCase() === 'BAT' ? 'Bat' : 'Bowl',
         totalOvers: match.max_overs || 20,
         teamAXI: home_team_roster, // Temporarily alias for components in Phase 1
         teamBXI: away_team_roster  // Temporarily alias for components in Phase 1
@@ -323,15 +323,43 @@ export function useMatchScoring({
             const cachedStriker = JSON.parse(localStorage.getItem(`jdca-striker-${matchId}`));
             const cachedNonStriker = JSON.parse(localStorage.getItem(`jdca-nonstriker-${matchId}`));
             const cachedBowler = JSON.parse(localStorage.getItem(`jdca-bowler-${matchId}`));
-            if (cachedStriker && cachedNonStriker && cachedBowler) {
+
+            // Validate that cached players belong to the current innings' batting and bowling XIs
+            const currentInningsNum = currentInning?.innings_number || 1;
+            let currentBattingXI = home_team_roster;
+            let currentBowlingXI = away_team_roster;
+            if (currentInning?.batting_team_id) {
+              currentBattingXI = currentInning.batting_team_id === match.home_team_id ? home_team_roster : away_team_roster;
+              currentBowlingXI = currentInning.bowling_team_id === match.home_team_id ? home_team_roster : away_team_roster;
+            } else {
+              const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
+              const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+              const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+              const inn1Batting = homeBatsFirst ? match.home_team_id : match.away_team_id;
+              const isHomeBatting = currentInningsNum === 2 ? inn1Batting !== match.home_team_id : inn1Batting === match.home_team_id;
+              currentBattingXI = isHomeBatting ? home_team_roster : away_team_roster;
+              currentBowlingXI = isHomeBatting ? away_team_roster : home_team_roster;
+            }
+
+            const isStrikerValid = cachedStriker && currentBattingXI.some(p => p.id === cachedStriker.id);
+            const isNonStrikerValid = cachedNonStriker && currentBattingXI.some(p => p.id === cachedNonStriker.id);
+            const isBowlerValid = cachedBowler && currentBowlingXI.some(p => p.id === cachedBowler.id);
+
+            if (isStrikerValid && isNonStrikerValid && isBowlerValid) {
               setStriker(cachedStriker);
               setNonStriker(cachedNonStriker);
               setCurrentBowler(cachedBowler);
             } else {
+              // Stale cache from different innings or mismatched XI - reset safely
               setStriker(null);
               setNonStriker(null);
               setCurrentBowler(null);
               setLastOverBowlerId(null);
+              try {
+                localStorage.removeItem(`jdca-striker-${matchId}`);
+                localStorage.removeItem(`jdca-nonstriker-${matchId}`);
+                localStorage.removeItem(`jdca-bowler-${matchId}`);
+              } catch {}
             }
           } catch (e) {
             setStriker(null);
@@ -599,12 +627,13 @@ export function useMatchScoring({
     let bowlingTId = matchSetup?.teamBId;
     
     if (matchSetup?.tossWinnerTeamId) {
+      const isBat = String(matchSetup.electedTo || '').toUpperCase() === 'BAT';
       if (matchSetup.tossWinnerTeamId === matchSetup?.teamAId) {
-        battingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
-        bowlingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+        battingTId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
+        bowlingTId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
       } else {
-        battingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
-        bowlingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+        battingTId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
+        bowlingTId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
       }
     }
 
@@ -830,6 +859,15 @@ export function useMatchScoring({
       label: 'Start'
     });
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
+
+    // Update match status in database so all other viewers see the match LIVE
+    if (activeMatchId && supabase) {
+      supabase.from('matches').update({ status: 'IN_PROGRESS' }).eq('id', activeMatchId).then(() => {
+        setMatches(prev => prev.map(m => m.id === activeMatchId ? { ...m, status: 'IN_PROGRESS' } : m));
+      }).catch(err => {
+        console.warn('[useMatchScoring] Failed to update match status to IN_PROGRESS:', err);
+      });
+    }
   };
 
   const startNextInnings = (targetRuns, nextInningsNum) => {
@@ -846,6 +884,16 @@ export function useMatchScoring({
     setStriker(null);
     setNonStriker(null);
     setCurrentBowler(null);
+    setLastOverBowlerId(null);
+
+    // Clear stale openers from localStorage to prevent cross-innings pollution
+    if (activeMatchId) {
+      try {
+        localStorage.removeItem(`jdca-striker-${activeMatchId}`);
+        localStorage.removeItem(`jdca-nonstriker-${activeMatchId}`);
+        localStorage.removeItem(`jdca-bowler-${activeMatchId}`);
+      } catch {}
+    }
     // startInnings() will be called by InningsInitScreen once the user selects players
   };
 
@@ -925,15 +973,16 @@ export function useMatchScoring({
 
   const continueAfterOver = (bowler) => {
     if (!bowler) return;
+    const bName = bowler.full_name || bowler.name || 'Bowler';
     setCurrentBowler((prev) => {
       // If the same bowler is selected again (returning for another spell), preserve their cumulative stats
       if (prev && prev.id === bowler.id) {
         return { ...prev };
       }
       // New bowler - start fresh
-      return {
+      const newBowlerState = {
         id: bowler.id,
-        name: bowler.name,
+        name: bName,
         overs: 0,
         ballsBowled: 0,
         maidens: 0,
@@ -942,6 +991,10 @@ export function useMatchScoring({
         economy: '0.00',
         wk: '',
       };
+      if (activeMatchId) {
+        try { localStorage.setItem(`jdca-bowler-${activeMatchId}`, JSON.stringify(newBowlerState)); } catch {}
+      }
+      return newBowlerState;
     });
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
     setCurrentOverBalls([]);
