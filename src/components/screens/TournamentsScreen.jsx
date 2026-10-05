@@ -236,7 +236,8 @@ export default function TournamentsScreen() {
   const [editingTournament, setEditingTournament] = useState(null);
   const [activeTournamentForMatch, setActiveTournamentForMatch] = useState(null);
   const [editingMatchData, setEditingMatchData] = useState(null);
-  const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || userRole === 'Admin' || userRole === 'SuperAdmin';
+  const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
+  const isAdmin = isPracticeMode() || userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || userRole === 'Admin' || userRole === 'SuperAdmin';
   
   // Fallback group matches by tournament ID in case they don't match a tournament
   const getTournamentMatches = (tId) => {

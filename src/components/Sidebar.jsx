@@ -119,7 +119,14 @@ export default function Sidebar() {
               </div>
             </div>
           </div>
-          <RoleBadge role={userRole} />
+          <div className="flex items-center gap-2">
+            <RoleBadge role={userRole} />
+            {(() => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } })() && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 uppercase tracking-wider">
+                Practice
+              </span>
+            )}
+          </div>
         </div>
         <button
           onClick={logout}

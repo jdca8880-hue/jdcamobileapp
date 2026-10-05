@@ -179,8 +179,35 @@ export default function AuthScreen() {
             </motion.button>
           </form>
 
+          {/* Practice Mode Button */}
+          <div className="mt-6 flex flex-col items-center">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-px w-16 bg-slate-200"></div>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">or</span>
+              <div className="h-px w-16 bg-slate-200"></div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                haptics.light();
+                try { localStorage.setItem('JDCA_PRACTICE_MODE', 'true'); } catch (e) {}
+                // Since we bypass supabase auth, we trigger navigation manually after setting the flag.
+                // The hook in useDataSync will then see the flag on the next reload. 
+                // But it's better to just reload the window so the entire app starts in practice mode.
+                window.location.reload();
+              }}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl p-3 text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+            >
+              <span className="text-lg">🏏</span>
+              <span>Practice Mode (Local)</span>
+            </button>
+            <p className="text-[11px] text-slate-500 font-medium text-center mt-3 max-w-[260px]">
+              A fully isolated environment to practice scoring and app features offline.
+            </p>
+          </div>
+
           {/* Footer */}
-          <div className="mt-10 pt-6 border-t border-slate-200 text-center">
+          <div className="mt-8 pt-6 border-t border-slate-200 text-center">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
               JDCA Version 2.4
             </p>

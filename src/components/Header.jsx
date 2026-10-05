@@ -61,6 +61,8 @@ export default function Header() {
   if (currentScreen === 'welcome') return null;
 
   const info = SCREEN_TITLES[currentScreen] || { title: 'JDCA', showBack: false };
+  const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
+  const inPractice = isPracticeMode();
 
   return (
     <header className={`lg:hidden sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-200 pt-safe px-4 shadow-none h-[56px] flex items-center justify-between transition-transform duration-300 ease-in-out ${
@@ -86,6 +88,11 @@ export default function Header() {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        {inPractice && (
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-orange-100 text-orange-700 border border-orange-200 uppercase">
+            Practice
+          </span>
+        )}
         <span className="hidden sm:inline-flex text-xs font-medium px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
           {userRole}
         </span>

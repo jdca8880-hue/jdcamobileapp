@@ -57,7 +57,8 @@ export default function TeamsScreen() {
   const [printSuccessToast, setPrintSuccessToast] = useState(false);
   const [showOverviewStats, setShowOverviewStats] = useState(false);
   const [isTeamManagerOpen, setIsTeamManagerOpen] = useState(false);
-  const isAdmin = userRole === 'Admin' || userRole === 'SUPER_ADMIN';
+  const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
+  const isAdmin = isPracticeMode() || userRole === 'Admin' || userRole === 'SUPER_ADMIN';
 
   const [isRebuildingTeams, setIsRebuildingTeams] = useState(false);
 

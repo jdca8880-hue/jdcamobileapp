@@ -41,13 +41,28 @@ export function useDataSync({ auth, ui }) {
       try {
         setLoadingProgress(5);
         setLoadingMessage("Connecting to local database...");
-        const { db } = await import('../lib/db.js');
+        const { db, getActiveDb } = await import('../lib/db.js');
+        const activeDb = await getActiveDb();
         
         // 0. Setup Auth
         setLoadingProgress(10);
         setLoadingMessage("Authenticating session...");
         let currentSession = null;
-        if (supabase) {
+        
+        const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
+        
+        if (isPracticeMode()) {
+            setUserEmail('practice.scorer@jdca.local');
+            setUserName('Practice Scorer');
+            setUserId('practice-user');
+            setUserRole('SCORER'); // Scorer UI for practice
+            setIsAuthenticated(true);
+            setUserPermissions({
+                can_add: true,
+                can_edit: true,
+                can_delete: true
+            });
+        } else if (supabase) {
           const { data: { session } } = await supabase.auth.getSession();
           currentSession = session;
           
@@ -111,17 +126,17 @@ export function useDataSync({ auth, ui }) {
         // 1. Immediately load whatever is in Dexie (Offline-First)
         setLoadingProgress(20);
         setLoadingMessage("Loading offline cache...");
-        let localMatches = await db.matches.toArray();
-        let localTeams = await db.teams.toArray();
+        let localMatches = await activeDb.matches.toArray();
+        let localTeams = await activeDb.teams.toArray();
         let localTournaments = [];
-        try { localTournaments = await db.tournaments.toArray(); } catch (e) {}
-        let localPlayers = await db.players.toArray();
+        try { localTournaments = await activeDb.tournaments.toArray(); } catch (e) {}
+        let localPlayers = await activeDb.players.toArray();
 
         // --- MIGRATION: Purge old mock data from local cache ---
         if (localMatches.some(m => m.id === 'match-live-1' || m.id === 'match-completed-1')) {
           console.log('[useDataSync] Legacy mock data detected in cache. Purging...');
-          await db.matches.clear();
-          await db.players.clear();
+          await activeDb.matches.clear();
+          await activeDb.players.clear();
           localMatches = [];
           localPlayers = [];
         }
@@ -134,7 +149,7 @@ export function useDataSync({ auth, ui }) {
         if (localPlayers.length > 0) setSelectedPlayer(localPlayers[0]);
 
         // 2. If online and Supabase is available, aggressively fetch and reconcile
-        if (supabase && navigator.onLine) {
+        if (supabase && navigator.onLine && !isPracticeMode()) {
           setLoadingProgress(30);
           setLoadingMessage("Syncing with JDCA Servers...");
           console.log('[useDataSync] Online: Fetching fresh data from Supabase...');
@@ -179,16 +194,16 @@ export function useDataSync({ auth, ui }) {
                 venue_name: m.venue_name || m.venue,
                 deleted_at: m.deleted_at
               }));
-              await db.matches.clear();
-              await db.matches.bulkAdd(freshMatches);
+              await activeDb.matches.clear();
+              await activeDb.matches.bulkAdd(freshMatches);
               setMatches(freshMatches);
             }
 
             // Reconcile Teams
             if (teamsRes.status === 'fulfilled' && !teamsRes.value.error && teamsRes.value.data) {
               const freshTeams = teamsRes.value.data;
-              await db.teams.clear();
-              await db.teams.bulkAdd(freshTeams);
+              await activeDb.teams.clear();
+              await activeDb.teams.bulkAdd(freshTeams);
               setTeams(freshTeams);
             }
 
@@ -196,8 +211,8 @@ export function useDataSync({ auth, ui }) {
             if (tournamentsRes.status === 'fulfilled' && !tournamentsRes.value.error && tournamentsRes.value.data) {
               const freshTournaments = tournamentsRes.value.data;
               try {
-                await db.tournaments.clear();
-                await db.tournaments.bulkAdd(freshTournaments);
+                await activeDb.tournaments.clear();
+                await activeDb.tournaments.bulkAdd(freshTournaments);
               } catch (e) {}
               setTournaments(freshTournaments);
             }
@@ -249,8 +264,8 @@ export function useDataSync({ auth, ui }) {
                   bowlingAvg: null
                 };
               });
-              await db.players.clear();
-              await db.players.bulkAdd(freshPlayers);
+              await activeDb.players.clear();
+              await activeDb.players.bulkAdd(freshPlayers);
               setPlayers(freshPlayers);
               if (freshPlayers.length > 0 && localPlayers.length === 0) {
                  setSelectedPlayer(freshPlayers[0]);
@@ -315,21 +330,33 @@ export function useDataSync({ auth, ui }) {
   }, []);
 
   const refreshAdminData = async () => {
-    if (!supabase) return;
     try {
-      const { db } = await import('../lib/db.js');
+      const { getActiveDb } = await import('../lib/db.js');
+      const activeDb = await getActiveDb();
+      
+      const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
+      
+      if (isPracticeMode()) {
+        const localTournaments = await activeDb.tournaments.toArray();
+        const localMatches = await activeDb.matches.toArray();
+        setTournaments(localTournaments);
+        setMatches(localMatches);
+        return;
+      }
+      
+      if (!supabase) return;
       
       const { data: tData, error: tErr } = await supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null);
       if (!tErr && tData) {
-        await db.tournaments.clear();
-        await db.tournaments.bulkAdd(tData);
+        await activeDb.tournaments.clear();
+        await activeDb.tournaments.bulkAdd(tData);
         setTournaments(tData);
       }
 
       const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)').is('deleted_at', null);
       if (!mErr && mData) {
-        await db.matches.clear();
-        await db.matches.bulkAdd(mData);
+        await activeDb.matches.clear();
+        await activeDb.matches.bulkAdd(mData);
         setMatches(mData);
       }
     } catch (err) {
