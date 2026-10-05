@@ -781,14 +781,12 @@ export function useMatchScoring({
         }
         
         api.updateMatchDetails(activeMatchId, { 
-          status: 'COMPLETED',
           winner_team_id: winnerId, 
           result_margin: margin, 
           result_text: text 
         }).then(() => {
           setMatches(prev => prev.map(m => m.id === activeMatchId ? {
             ...m,
-            status: 'COMPLETED',
             winner_team_id: winnerId,
             result_margin: margin,
             result_text: text

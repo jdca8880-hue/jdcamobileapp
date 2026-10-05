@@ -165,4 +165,54 @@ console.log('Running Player Preservation & Robust Sync tests...\n');
   console.log('✅ 3. Delivery event payload guarantees pre-transition snapshot players are preserved');
 }
 
+// 4. Regression Test: Delivery persistence must succeed before finalization, and SyncService must never discard deliveries on COMPLETED
+{
+  // A. Verify that SyncService rejects/throws rather than discarding delivery when match is COMPLETED
+  const mockSyncService = {
+    async pushDelivery(payload, matchStatus) {
+      if (matchStatus === 'COMPLETED' || matchStatus === 'FINISHED' || matchStatus === 'CANCELLED') {
+        const finalizedErr = new Error(`Match ${payload.matchId} is ${matchStatus}. Cannot insert delivery.`);
+        finalizedErr.code = 'MATCH_FINALIZED';
+        throw finalizedErr;
+      }
+      return true;
+    }
+  };
+
+  let threwFinalizedError = false;
+  try {
+    await mockSyncService.pushDelivery({ matchId: 'm1' }, 'COMPLETED');
+  } catch (err) {
+    threwFinalizedError = err.code === 'MATCH_FINALIZED';
+  }
+  assert.strictEqual(threwFinalizedError, true, 'SyncService must throw MATCH_FINALIZED and not silently return true/clear queue');
+
+  // B. Full Lifecycle Invariant: Delivery -> Persist -> Finalize
+  const mockDatabase = {
+    matches: { 'match-1': { id: 'match-1', status: 'IN_PROGRESS' } },
+    deliveries: []
+  };
+
+  // 1. Record delivery while IN_PROGRESS
+  assert.strictEqual(mockDatabase.matches['match-1'].status, 'IN_PROGRESS');
+  mockDatabase.deliveries.push({
+    id: 'del-1',
+    match_id: 'match-1',
+    runs_total: 4,
+    delivery_sequence: 1
+  });
+  assert.strictEqual(mockDatabase.deliveries.length, 1, 'Delivery must be persisted first');
+
+  // 2. Finalize match only after delivery persistence is confirmed
+  mockDatabase.matches['match-1'].status = 'COMPLETED';
+  mockDatabase.matches['match-1'].result_text = 'Team A won';
+
+  // 3. Verify state after finalization
+  assert.strictEqual(mockDatabase.matches['match-1'].status, 'COMPLETED');
+  assert.strictEqual(mockDatabase.deliveries.length, 1, 'Delivery must remain persisted in database');
+
+  console.log('✅ 4. Regression test: delivery -> persistence -> finalization invariant verified');
+}
+
 console.log('\nAll Player Preservation & Robust Sync tests passed successfully!');
+

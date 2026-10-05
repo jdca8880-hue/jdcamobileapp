@@ -502,8 +502,9 @@ class SyncService {
       }
       
       if (matchStatus === 'COMPLETED' || matchStatus === 'FINISHED' || matchStatus === 'CANCELLED') {
-        console.warn(`[SyncService] Match ${payload.matchId} is ${matchStatus}. Rejecting delivery record.`);
-        return true; // Clear from offline queue gracefully
+        const finalizedErr = new Error(`Match ${payload.matchId} is ${matchStatus}. Cannot insert delivery.`);
+        finalizedErr.code = 'MATCH_FINALIZED';
+        throw finalizedErr;
       }
 
       // Ensure active match status in DB is IN_PROGRESS so other users see it LIVE

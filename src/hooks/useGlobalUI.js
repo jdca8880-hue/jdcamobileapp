@@ -86,6 +86,7 @@ export function useGlobalUI() {
       'match-overview': '/match-overview',
       'innings-break': '/innings-break',
       'match-result': '/match-result',
+      'match-detail': '/match-detail',
       'tournaments': '/tournaments',
       'teams': '/teams',
       'players': '/players',
