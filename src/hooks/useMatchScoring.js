@@ -273,99 +273,98 @@ export function useMatchScoring({
             }
           }
 
+          const currentInningsNum = currentInning?.innings_number || 1;
+          let currentBattingXI = home_team_roster;
+          let currentBowlingXI = away_team_roster;
+          if (currentInning?.batting_team_id) {
+            currentBattingXI = currentInning.batting_team_id === match.home_team_id ? home_team_roster : away_team_roster;
+            currentBowlingXI = currentInning.bowling_team_id === match.home_team_id ? home_team_roster : away_team_roster;
+          } else {
+            const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
+            const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+            const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+            const inn1Batting = homeBatsFirst ? match.home_team_id : match.away_team_id;
+            const isHomeBatting = currentInningsNum === 2 ? inn1Batting !== match.home_team_id : inn1Batting === match.home_team_id;
+            currentBattingXI = isHomeBatting ? home_team_roster : away_team_roster;
+            currentBowlingXI = isHomeBatting ? away_team_roster : home_team_roster;
+          }
+
+          let cachedStriker = null;
+          let cachedNonStriker = null;
+          let cachedBowler = null;
+          try {
+            cachedStriker = JSON.parse(localStorage.getItem(`jdca-striker-${matchId}`));
+            cachedNonStriker = JSON.parse(localStorage.getItem(`jdca-nonstriker-${matchId}`));
+            cachedBowler = JSON.parse(localStorage.getItem(`jdca-bowler-${matchId}`));
+          } catch {}
+
+          const isStrikerValid = cachedStriker && currentBattingXI.some(p => p.id === cachedStriker.id);
+          const isNonStrikerValid = cachedNonStriker && currentBattingXI.some(p => p.id === cachedNonStriker.id);
+          const isBowlerValid = cachedBowler && currentBowlingXI.some(p => p.id === cachedBowler.id);
+
           const currentStats = scorecard?.innings?.[currentInning.innings_number - 1];
           const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
 
-          if (lastDel) {
-            if (lastDel.striker_id) {
+          // 1. Resolve Striker
+          if (isStrikerValid) {
+            const stat = currentStats?.batting?.find(bt => bt.id === cachedStriker.id);
+            setStriker({ ...cachedStriker, ...(stat || {}), strikeRate: stat?.strikeRate || cachedStriker.strikeRate || '0.00' });
+          } else if (lastDel && lastDel.striker_id) {
+            const dismissedId = lastDel.dismissed_player_id || (lastDel.wicket_type !== 'NONE' ? lastDel.striker_id : null);
+            if (lastDel.striker_id !== dismissedId) {
               let strikerStat = currentStats?.batting?.find(bt => bt.id === lastDel.striker_id);
               if (!strikerStat) {
-                // Fallback for offline/unsynced players
-                const teamAXI = matchSetup.teamAXI || [];
-                const teamBXI = matchSetup.teamBXI || [];
-                const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.striker_id);
-                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id).reduce((sum, d) => sum + d.runs_off_bat, 0);
+                const p = currentBattingXI.find(x => x.id === lastDel.striker_id);
+                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id).reduce((sum, d) => sum + (d.runs_off_bat || 0), 0);
                 const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id && d.extra_type !== 'WIDE').length;
                 strikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
               }
               if (strikerStat) setStriker({ ...strikerStat, strikeRate: strikerStat.strikeRate || '0.00' });
+            } else {
+              setStriker(null);
             }
-            if (lastDel.non_striker_id) {
+          } else {
+            setStriker(null);
+          }
+
+          // 2. Resolve Non-Striker
+          if (isNonStrikerValid) {
+            const stat = currentStats?.batting?.find(bt => bt.id === cachedNonStriker.id);
+            setNonStriker({ ...cachedNonStriker, ...(stat || {}), strikeRate: stat?.strikeRate || cachedNonStriker.strikeRate || '0.00' });
+          } else if (lastDel && lastDel.non_striker_id) {
+            const dismissedId = lastDel.dismissed_player_id;
+            if (lastDel.non_striker_id !== dismissedId) {
               let nonStrikerStat = currentStats?.batting?.find(bt => bt.id === lastDel.non_striker_id);
               if (!nonStrikerStat) {
-                const teamAXI = matchSetup.teamAXI || [];
-                const teamBXI = matchSetup.teamBXI || [];
-                const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.non_striker_id);
-                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id).reduce((sum, d) => sum + d.runs_off_bat, 0);
+                const p = currentBattingXI.find(x => x.id === lastDel.non_striker_id);
+                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id).reduce((sum, d) => sum + (d.runs_off_bat || 0), 0);
                 const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id && d.extra_type !== 'WIDE').length;
                 nonStrikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
               }
               if (nonStrikerStat) setNonStriker({ ...nonStrikerStat, strikeRate: nonStrikerStat.strikeRate || '0.00' });
-            }
-            if (lastDel.bowler_id) {
-              let bowlerStat = currentStats?.bowling?.find(bw => bw.id === lastDel.bowler_id);
-              if (!bowlerStat) {
-                const teamAXI = matchSetup.teamAXI || [];
-                const teamBXI = matchSetup.teamBXI || [];
-                const p = [...teamAXI, ...teamBXI].find(x => x.id === lastDel.bowler_id);
-                const bRuns = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE').reduce((sum, d) => sum + d.runs_total, 0);
-                const bBalls = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'WIDE' && d.extra_type !== 'NO_BALL').length;
-                const bWickets = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT').length;
-                bowlerStat = p ? { ...p, runsConceded: bRuns, overs: Math.floor(bBalls/6) + '.' + (bBalls%6), wickets: bWickets, maidens: 0, economy: '0.00' } : null;
-              }
-              if (bowlerStat) setCurrentBowler({ ...bowlerStat, economy: bowlerStat.economy || '0.00', overs: bowlerStat.overs || '0.0' });
-              setLastOverBowlerId(lastDel.bowler_id);
-            }
-          }
-        } else {
-          // Try to recover from local storage if no deliveries yet (prevents reset on refresh before first ball)
-          try {
-            const cachedStriker = JSON.parse(localStorage.getItem(`jdca-striker-${matchId}`));
-            const cachedNonStriker = JSON.parse(localStorage.getItem(`jdca-nonstriker-${matchId}`));
-            const cachedBowler = JSON.parse(localStorage.getItem(`jdca-bowler-${matchId}`));
-
-            // Validate that cached players belong to the current innings' batting and bowling XIs
-            const currentInningsNum = currentInning?.innings_number || 1;
-            let currentBattingXI = home_team_roster;
-            let currentBowlingXI = away_team_roster;
-            if (currentInning?.batting_team_id) {
-              currentBattingXI = currentInning.batting_team_id === match.home_team_id ? home_team_roster : away_team_roster;
-              currentBowlingXI = currentInning.bowling_team_id === match.home_team_id ? home_team_roster : away_team_roster;
             } else {
-              const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
-              const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
-              const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
-              const inn1Batting = homeBatsFirst ? match.home_team_id : match.away_team_id;
-              const isHomeBatting = currentInningsNum === 2 ? inn1Batting !== match.home_team_id : inn1Batting === match.home_team_id;
-              currentBattingXI = isHomeBatting ? home_team_roster : away_team_roster;
-              currentBowlingXI = isHomeBatting ? away_team_roster : home_team_roster;
-            }
-
-            const isStrikerValid = cachedStriker && currentBattingXI.some(p => p.id === cachedStriker.id);
-            const isNonStrikerValid = cachedNonStriker && currentBattingXI.some(p => p.id === cachedNonStriker.id);
-            const isBowlerValid = cachedBowler && currentBowlingXI.some(p => p.id === cachedBowler.id);
-
-            if (isStrikerValid && isNonStrikerValid && isBowlerValid) {
-              setStriker(cachedStriker);
-              setNonStriker(cachedNonStriker);
-              setCurrentBowler(cachedBowler);
-            } else {
-              // Stale cache from different innings or mismatched XI - reset safely
-              setStriker(null);
               setNonStriker(null);
-              setCurrentBowler(null);
-              setLastOverBowlerId(null);
-              try {
-                localStorage.removeItem(`jdca-striker-${matchId}`);
-                localStorage.removeItem(`jdca-nonstriker-${matchId}`);
-                localStorage.removeItem(`jdca-bowler-${matchId}`);
-              } catch {}
             }
-          } catch (e) {
-            setStriker(null);
+          } else {
             setNonStriker(null);
-            setCurrentBowler(null);
-            setLastOverBowlerId(null);
+          }
+
+          // 3. Resolve Bowler
+          if (isBowlerValid) {
+            const stat = currentStats?.bowling?.find(bw => bw.id === cachedBowler.id);
+            setCurrentBowler({ ...cachedBowler, ...(stat || {}) });
+            setLastOverBowlerId(cachedBowler.id);
+          } else if (lastDel && lastDel.bowler_id) {
+            let bowlerStat = currentStats?.bowling?.find(bw => bw.id === lastDel.bowler_id);
+            if (!bowlerStat) {
+              const p = currentBowlingXI.find(x => x.id === lastDel.bowler_id);
+              const bRuns = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE').reduce((sum, d) => sum + (d.runs_total || 0), 0);
+              const bBalls = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'WIDE' && d.extra_type !== 'NO_BALL').length;
+              const bWickets = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT').length;
+              bowlerStat = p ? { ...p, runsConceded: bRuns, overs: Math.floor(bBalls/6) + '.' + (bBalls%6), wickets: bWickets, maidens: 0, economy: '0.00' } : null;
+            }
+            if (bowlerStat) setCurrentBowler({ ...bowlerStat, economy: bowlerStat.economy || '0.00', overs: bowlerStat.overs || '0.0' });
+            setLastOverBowlerId(lastDel.bowler_id);
           }
         }
       }
@@ -619,6 +618,14 @@ export function useMatchScoring({
     const temp = striker;
     setStriker(nonStriker);
     setNonStriker(temp);
+    if (activeMatchId) {
+      try {
+        if (nonStriker) localStorage.setItem(`jdca-striker-${activeMatchId}`, JSON.stringify(nonStriker));
+        else localStorage.removeItem(`jdca-striker-${activeMatchId}`);
+        if (temp) localStorage.setItem(`jdca-nonstriker-${activeMatchId}`, JSON.stringify(temp));
+        else localStorage.removeItem(`jdca-nonstriker-${activeMatchId}`);
+      } catch {}
+    }
   };
 
   // Helper to snapshot current state for deterministic Undo
@@ -652,9 +659,9 @@ export function useMatchScoring({
       wickets,
       balls,
       currentOverBalls: [...currentOverBalls],
-      striker: { ...striker },
-      nonStriker: { ...nonStriker },
-      currentBowler: { ...currentBowler },
+      striker: striker ? { ...striker } : null,
+      nonStriker: nonStriker ? { ...nonStriker } : null,
+      currentBowler: currentBowler ? { ...currentBowler } : null,
       extras: { ...extras },
       isFreeHit,
       innings,
@@ -693,6 +700,24 @@ export function useMatchScoring({
     setMatchStatus(newState.matchStatus);
     if (newState.lastOverBowlerId !== undefined) setLastOverBowlerId(newState.lastOverBowlerId);
     setValidationError(null);
+
+    if (activeMatchId) {
+      try {
+        if (newState.striker) {
+          localStorage.setItem(`jdca-striker-${activeMatchId}`, JSON.stringify(newState.striker));
+        } else {
+          localStorage.removeItem(`jdca-striker-${activeMatchId}`);
+        }
+        if (newState.nonStriker) {
+          localStorage.setItem(`jdca-nonstriker-${activeMatchId}`, JSON.stringify(newState.nonStriker));
+        } else {
+          localStorage.removeItem(`jdca-nonstriker-${activeMatchId}`);
+        }
+        if (newState.currentBowler) {
+          localStorage.setItem(`jdca-bowler-${activeMatchId}`, JSON.stringify(newState.currentBowler));
+        }
+      } catch (e) {}
+    }
 
     // Check innings or match termination
     if (newState.matchStatus === MATCH_STATES.INNINGS_BREAK) {
@@ -778,7 +803,7 @@ export function useMatchScoring({
     return true;
   };
 
-  const recordDeliveryEvent = async (event) => {
+  const recordDeliveryEvent = async (event, snapshot = null) => {
     // If it's just a timeline marker like 'innings_start' or 'match_start', store locally but don't treat as a delivery
     if (event.type === 'innings_start' || event.type === 'match_start') {
       const markerPayload = {
@@ -807,6 +832,12 @@ export function useMatchScoring({
     const currentInningsDeliveries = deliveryLog.filter(d => (d.innings || 1) === innings && d.type !== 'innings_start' && d.type !== 'match_start');
     const deliverySequence = currentInningsDeliveries.length + 1;
 
+    // Use immutable snapshot players from the exact moment of delivery
+    const activeStriker = snapshot?.striker || striker;
+    const activeNonStriker = snapshot?.nonStriker || nonStriker;
+    const activeBowler = snapshot?.currentBowler || currentBowler;
+    const activeBalls = Number.isFinite(snapshot?.balls) ? snapshot.balls : balls;
+
     const payloadRaw = {
       id: eventId,
       timestamp: new Date().toISOString(),
@@ -814,15 +845,15 @@ export function useMatchScoring({
       inningsId: resolvedInningsId || null,
       innings,
       deliverySequence,
-      over: formatOvers(balls),
-      balls,
-      strikerId: striker?.id || null,
-      striker: striker?.name || 'Striker',
-      nonStrikerId: nonStriker?.id || null,
-      nonStriker: nonStriker?.name || 'Non-Striker',
-      bowlerId: currentBowler?.id || null,
-      bowler: currentBowler?.name || 'Bowler',
-      dismissedPlayerId: event.dismissedPlayerId || (event.wicket ? (striker?.id || null) : null),
+      over: formatOvers(activeBalls),
+      balls: activeBalls,
+      strikerId: event.strikerId || activeStriker?.id || null,
+      striker: event.striker || activeStriker?.name || 'Striker',
+      nonStrikerId: event.nonStrikerId || activeNonStriker?.id || null,
+      nonStriker: event.nonStriker || activeNonStriker?.name || 'Non-Striker',
+      bowlerId: event.bowlerId || activeBowler?.id || null,
+      bowler: event.bowler || activeBowler?.name || 'Bowler',
+      dismissedPlayerId: event.dismissedPlayerId || event.outPlayerId || (event.wicket ? (activeStriker?.id || null) : null),
       ...event,
     };
 
@@ -1050,7 +1081,20 @@ export function useMatchScoring({
 
     const ok = applyStateResult(result);
     if (ok) {
-      recordDeliveryEvent({ type: 'run', runs: runAmount, runsOffBat: runAmount, totalRuns: runAmount, label: String(runAmount), wagonZone: direction });
+      recordDeliveryEvent({
+        type: 'run',
+        runs: runAmount,
+        runsOffBat: runAmount,
+        totalRuns: runAmount,
+        label: String(runAmount),
+        wagonZone: direction,
+        strikerId: currentState.striker.id,
+        striker: currentState.striker.name,
+        nonStrikerId: currentState.nonStriker.id,
+        nonStriker: currentState.nonStriker.name,
+        bowlerId: currentState.currentBowler.id,
+        bowler: currentState.currentBowler.name,
+      }, currentState);
     }
     if (ok && runAmount === 6) {
       confetti({
@@ -1109,8 +1153,14 @@ export function useMatchScoring({
         runsCompleted,
         isLegalDelivery,
         isBoundary,
-        label: extraLabel 
-      });
+        label: extraLabel,
+        strikerId: currentState.striker.id,
+        striker: currentState.striker.name,
+        nonStrikerId: currentState.nonStriker.id,
+        nonStriker: currentState.nonStriker.name,
+        bowlerId: currentState.currentBowler.id,
+        bowler: currentState.currentBowler.name,
+      }, currentState);
     }
   };
 
@@ -1129,17 +1179,13 @@ export function useMatchScoring({
 
     const ok = applyStateResult(result);
     if (ok) {
-      // NOTE: Here we pass the event structure directly to `recordDeliveryEvent`
-      // which relies on `normalizePenaltyEvent` later down the line, or we can just pass it directly 
-      // if `deliveryLog` takes generic events.
-      // `recordDeliveryEvent` currently logs to `deliveryLog`. We'll just push it.
       recordDeliveryEvent({ 
         eventType: 'PENALTY', 
         recipientTeamId,
         penaltyRuns,
         reasonCode,
         label: `+${penaltyRuns} Pen` 
-      });
+      }, currentState);
     }
   };
 
@@ -1149,15 +1195,15 @@ export function useMatchScoring({
 
     const currentState = captureSnapshot();
 
-    // Resolve explicit names for legacy events
-    const finalOutName = (outPlayerId === striker?.id) ? striker?.name : 
-                         (outPlayerId === nonStriker?.id) ? nonStriker?.name : 
-                         (dismissalType !== 'Run Out' ? striker?.name : null);
+    const actualDismissedId = outPlayerId || (dismissalType !== 'Run Out' ? currentState.striker?.id : null);
+    const finalOutName = (actualDismissedId === currentState.striker?.id) ? currentState.striker?.name : 
+                         (actualDismissedId === currentState.nonStriker?.id) ? currentState.nonStriker?.name : 
+                         (dismissalType !== 'Run Out' ? currentState.striker?.name : null);
 
     const result = processDelivery(currentState, {
       type: 'wicket',
       dismissalType,
-      dismissedPlayerId: outPlayerId || (dismissalType !== 'Run Out' ? striker?.id : null),
+      dismissedPlayerId: actualDismissedId,
       outPlayerName: finalOutName,
       fielderName: fielder,
       wicketkeeperName: wicketkeeper,
@@ -1167,7 +1213,25 @@ export function useMatchScoring({
 
     const ok = applyStateResult(result);
     if (ok) {
-      recordDeliveryEvent({ type: 'wicket', wicket: true, dismissalType, outPlayerId, outPlayerName: finalOutName, fielderName: fielder, wicketkeeperName: wicketkeeper, runsBatter: runsCompleted, runsCompleted, label: 'W' });
+      recordDeliveryEvent({
+        type: 'wicket',
+        wicket: true,
+        dismissalType,
+        dismissedPlayerId: actualDismissedId,
+        outPlayerId: actualDismissedId,
+        outPlayerName: finalOutName,
+        fielderName: fielder,
+        wicketkeeperName: wicketkeeper,
+        runsBatter: runsCompleted,
+        runsCompleted,
+        label: 'W',
+        strikerId: currentState.striker.id,
+        striker: currentState.striker.name,
+        nonStrikerId: currentState.nonStriker.id,
+        nonStriker: currentState.nonStriker.name,
+        bowlerId: currentState.currentBowler.id,
+        bowler: currentState.currentBowler.name,
+      }, currentState);
       setDismissalModalOpen(false);
     }
   };

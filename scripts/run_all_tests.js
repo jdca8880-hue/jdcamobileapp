@@ -9,6 +9,7 @@ const commands = [
   'node test_wide.js',
   'node test_byes_legbyes.js',
   'node tests/test_penalty_runs.js',
+  'node tests/test_player_preservation_and_sync.js',
   'npm run build'
 ];
 

@@ -396,7 +396,13 @@ export default function ScoringScreen() {
 
   const selectNewBatter = (player) => {
     if (player) {
-      replaceBatter(replacingBatterType === 'striker', { ...player, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
+      let isStrikerTarget = replacingBatterType === 'striker';
+      if (!striker?.id && nonStriker?.id) {
+        isStrikerTarget = true;
+      } else if (!nonStriker?.id && striker?.id) {
+        isStrikerTarget = false;
+      }
+      replaceBatter(isStrikerTarget, { ...player, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
     }
     setNewBatterOpen(false);
     setReplacingBatterType('striker'); // reset
@@ -674,24 +680,49 @@ export default function ScoringScreen() {
         {/* PLAYERS ON FIELD */}
         <div className="px-4 mb-8 pb-80">
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <button onClick={() => toggleStriker?.()} className="bg-white rounded-[12px] p-4 text-left border border-slate-200 shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors">
+            <button 
+              onClick={() => {
+                if (!striker?.id) {
+                  setReplacingBatterType('striker');
+                  setNewBatterOpen(true);
+                } else {
+                  toggleStriker?.();
+                }
+              }} 
+              className={`bg-white rounded-[12px] p-4 text-left border shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors ${!striker?.id ? 'border-amber-400 ring-2 ring-amber-100 bg-amber-50/20' : 'border-slate-200'}`}
+            >
               <div className="absolute top-0 right-0 w-2 h-full bg-jade" />
               <div className="text-xs font-bold text-jade uppercase tracking-wider mb-1 flex items-center gap-1">Striker <span>*</span></div>
-              <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker?.name || 'Select Striker'}</div>
+              <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker?.name || 'Select Striker ➕'}</div>
               <div className="text-[18px] font-black tabular-nums leading-none text-slate-900">{striker?.runs ?? 0} <span className="text-[12px] text-slate-500">({striker?.balls ?? 0})</span></div>
             </button>
             
-            <button onClick={() => toggleStriker?.()} className="bg-slate-50 rounded-[12px] p-4 text-left border border-slate-200 active:bg-slate-100 transition-colors">
+            <button 
+              onClick={() => {
+                if (!nonStriker?.id) {
+                  setReplacingBatterType('nonStriker');
+                  setNewBatterOpen(true);
+                } else {
+                  toggleStriker?.();
+                }
+              }} 
+              className={`rounded-[12px] p-4 text-left border active:bg-slate-100 transition-colors ${!nonStriker?.id ? 'border-amber-400 ring-2 ring-amber-100 bg-amber-50/20' : 'bg-slate-50 border-slate-200'}`}
+            >
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Non-Striker</div>
-              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonStriker?.name || 'Select Non-Striker'}</div>
+              <div className="text-[15px] font-bold text-slate-700 truncate mb-2">{nonStriker?.name || 'Select Non-Striker ➕'}</div>
               <div className="text-[18px] font-black tabular-nums leading-none text-slate-700">{nonStriker?.runs ?? 0} <span className="text-[12px] text-slate-500">({nonStriker?.balls ?? 0})</span></div>
             </button>
           </div>
 
-          <div className="bg-white rounded-[12px] p-4 border border-slate-200 flex items-center justify-between mb-3 shadow-sm">
+          <div 
+            onClick={() => {
+              if (!currentBowler?.id) setOverOpen(true);
+            }}
+            className={`bg-white rounded-[12px] p-4 border flex items-center justify-between mb-3 shadow-sm ${!currentBowler?.id ? 'border-amber-400 ring-2 ring-amber-100 cursor-pointer hover:bg-slate-50' : 'border-slate-200'}`}
+          >
              <div>
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10}/> Bowler</div>
-               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler'}</div>
+               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler (Tap here) ➕'}</div>
              </div>
              <div className="text-right">
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
@@ -711,6 +742,33 @@ export default function ScoringScreen() {
 
         {/* SCORING PAD */}
         <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-slate-50 border-t border-x border-slate-200 p-3 sm:p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] pb-safe pt-4">
+          {(!striker?.id || !nonStriker?.id || !currentBowler?.id) && (
+            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="text-amber-600 flex-shrink-0" size={16} />
+                <span className="text-xs font-bold text-amber-900">
+                  {!striker?.id ? 'Select active striker' : !nonStriker?.id ? 'Select non-striker' : 'Select next bowler'}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  if (!striker?.id) {
+                    setReplacingBatterType('striker');
+                    setNewBatterOpen(true);
+                  } else if (!nonStriker?.id) {
+                    setReplacingBatterType('nonStriker');
+                    setNewBatterOpen(true);
+                  } else if (!currentBowler?.id) {
+                    setOverOpen(true);
+                  }
+                }}
+                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              >
+                {!striker?.id ? 'Pick Striker' : !nonStriker?.id ? 'Pick Non-Striker' : 'Pick Bowler'}
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-[16px] font-black text-slate-900">Record Ball</h3>

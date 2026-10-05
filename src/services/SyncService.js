@@ -524,17 +524,101 @@ class SyncService {
     const runsExtras = payload.runsExtras;
     const finalTotalRuns = payload.runsTotal;
 
-    // Resolve player UUIDs
-    const strikerId = isUUID(payload.strikerId) ? payload.strikerId : null;
-    const nonStrikerId = isUUID(payload.nonStrikerId) ? payload.nonStrikerId : null;
-    const bowlerId = isUUID(payload.bowlerId) ? payload.bowlerId : null;
+    // Resolve player UUIDs with intelligent fallback resolution
+    let strikerId = isUUID(payload.strikerId) ? payload.strikerId : null;
+    let nonStrikerId = isUUID(payload.nonStrikerId) ? payload.nonStrikerId : null;
+    let bowlerId = isUUID(payload.bowlerId) ? payload.bowlerId : null;
+
+    // Auto-resolve missing or invalid player UUIDs from match rosters or previous deliveries
+    if (!strikerId || !bowlerId || !nonStrikerId) {
+      try {
+        const { data: matchRosters } = await supabase
+          .from('match_rosters')
+          .select('player_id, team_id, is_playing_xi, players:player_id(id, full_name, name)')
+          .eq('match_id', payload.matchId);
+
+        if (matchRosters && matchRosters.length > 0) {
+          const battingPlayers = matchRosters.filter(p => p.team_id === innData.batting_team_id);
+          const bowlingPlayers = matchRosters.filter(p => p.team_id === innData.bowling_team_id);
+
+          // 1. Auto-resolve Striker
+          if (!strikerId) {
+            if (payload.striker) {
+              const matched = battingPlayers.find(p => {
+                const name = p.players?.full_name || p.players?.name || '';
+                return name.toLowerCase() === String(payload.striker).toLowerCase();
+              });
+              if (matched) strikerId = matched.player_id;
+            }
+            if (!strikerId) {
+              const { data: lastD } = await supabase
+                .from('deliveries')
+                .select('striker_id')
+                .eq('innings_id', inningsId)
+                .order('delivery_sequence', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (lastD?.striker_id && isUUID(lastD.striker_id)) {
+                strikerId = lastD.striker_id;
+              }
+            }
+            if (!strikerId && battingPlayers.length > 0) {
+              strikerId = battingPlayers[0].player_id;
+            }
+          }
+
+          // 2. Auto-resolve Bowler
+          if (!bowlerId) {
+            if (payload.bowler) {
+              const matched = bowlingPlayers.find(p => {
+                const name = p.players?.full_name || p.players?.name || '';
+                return name.toLowerCase() === String(payload.bowler).toLowerCase();
+              });
+              if (matched) bowlerId = matched.player_id;
+            }
+            if (!bowlerId) {
+              const { data: lastD } = await supabase
+                .from('deliveries')
+                .select('bowler_id')
+                .eq('innings_id', inningsId)
+                .order('delivery_sequence', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (lastD?.bowler_id && isUUID(lastD.bowler_id)) {
+                bowlerId = lastD.bowler_id;
+              }
+            }
+            if (!bowlerId && bowlingPlayers.length > 0) {
+              bowlerId = bowlingPlayers[0].player_id;
+            }
+          }
+
+          // 3. Auto-resolve Non-Striker
+          if (!nonStrikerId) {
+            if (payload.nonStriker) {
+              const matched = battingPlayers.find(p => {
+                const name = p.players?.full_name || p.players?.name || '';
+                return name.toLowerCase() === String(payload.nonStriker).toLowerCase();
+              });
+              if (matched && matched.player_id !== strikerId) nonStrikerId = matched.player_id;
+            }
+            if (!nonStrikerId) {
+              const altBat = battingPlayers.find(p => p.player_id !== strikerId);
+              if (altBat) nonStrikerId = altBat.player_id;
+            }
+          }
+        }
+      } catch (playerResolveErr) {
+        console.warn('[SyncService] Non-fatal error auto-resolving player IDs:', playerResolveErr);
+      }
+    }
 
     // Resolve dismissed player UUID (constraint wicket_player_required: wicket_type = 'NONE' or dismissed_player_id is not null)
     let dismissedPlayerId = null;
     if (wicketType !== 'NONE') {
       dismissedPlayerId = isUUID(payload.dismissedPlayerId) 
         ? payload.dismissedPlayerId 
-        : strikerId;
+        : (isUUID(payload.outPlayerId) ? payload.outPlayerId : strikerId);
 
       if (!dismissedPlayerId) {
         // Fallback: query any valid player from the match roster so check constraint is satisfied
