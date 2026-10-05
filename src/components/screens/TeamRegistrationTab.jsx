@@ -91,9 +91,9 @@ export default function TeamRegistrationTab({ userRole }) {
 
   useEffect(() => {
     const fetchDropdowns = async () => {
-      const [ac, dist] = await Promise.all([
-        api.getAgeCategories(),
-        api.getDistricts()
+      const [{ data: ac }, { data: dist }] = await Promise.all([
+        supabase.from('age_categories').select('*').eq('is_active', true),
+        supabase.from('districts').select('*').eq('is_active', true)
       ]);
       if (ac && ac.length > 0) {
         setAgeCategories(ac);
@@ -132,11 +132,6 @@ export default function TeamRegistrationTab({ userRole }) {
 
   const loadTeamPlayers = async (teamId) => {
     try {
-      const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
-      if (isPracticeMode()) {
-        setTeamPlayers([]);
-        return;
-      }
       const { data, error } = await supabase
         .from('team_players')
         .select('player_id')
@@ -155,13 +150,9 @@ export default function TeamRegistrationTab({ userRole }) {
     try {
       const defaults = await api.getDefaults();
       
-      const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
-      
-      let teamData;
-      
-      if (isPracticeMode()) {
-        teamData = {
-          id: 'mock-team-' + Date.now(),
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .insert([{
           name: newTeamName,
           short_name: newTeamName.substring(0, 3).toUpperCase(),
           season: new Date().getFullYear().toString(),
@@ -170,55 +161,37 @@ export default function TeamRegistrationTab({ userRole }) {
           gender: newTeamGender,
           is_active: true,
           team_type: 'DISTRICT_TEAM'
-        };
-        const { getActiveDb } = await import('../../lib/db');
-        const db = getActiveDb();
-        await db.teams.add(teamData);
-      } else {
-        const { data: td, error: teamError } = await supabase
-          .from('teams')
-          .insert([{
-            name: newTeamName,
-            short_name: newTeamName.substring(0, 3).toUpperCase(),
-            season: new Date().getFullYear().toString(),
-            district_id: newTeamDistrict.startsWith('mock-') ? defaults.district_id : newTeamDistrict,
-            age_category_id: newTeamCategory,
-            gender: newTeamGender,
-            is_active: true,
-            team_type: 'DISTRICT_TEAM'
-          }])
-          .select('*, district:district_id(*), age_category:age_category_id(*)')
-          .single();
-          
-        if (teamError) throw teamError;
-        teamData = td;
+        }])
+        .select('*, district:district_id(*), age_category:age_category_id(*)')
+        .single();
         
-        // Also create a selection process so it shows up in Team Selection!
-        const { data: processData, error: processError } = await supabase
-          .from('selection_processes')
-          .insert([{
-            name: newTeamName + ' Selection',
-            season_id: 1, // Default to first season or similar
-            age_category_id: newTeamCategory,
-            gender: newTeamGender,
-            target_squad_size: 20,
-            status: 'UPCOMING',
-            process_type: 'DISTRICT_TEAM',
-            target_district_id: newTeamDistrict.startsWith('mock-') ? defaults.district_id : newTeamDistrict
-          }])
-          .select()
-          .single();
-          
-        if (!processError && processData) {
-          // Assign the current admin to this process so they can see it
-          const { data: userData } = await supabase.auth.getUser();
-          if (userData?.user?.id) {
-            await supabase.from('selector_assignments').insert([{
-              selection_process_id: processData.id,
-              selector_id: userData.user.id,
-              is_lead_selector: true
-            }]);
-          }
+      if (teamError) throw teamError;
+      
+      // Also create a selection process so it shows up in Team Selection!
+      const { data: processData, error: processError } = await supabase
+        .from('selection_processes')
+        .insert([{
+          name: newTeamName + ' Selection',
+          season_id: 1, // Default to first season or similar
+          age_category_id: newTeamCategory,
+          gender: newTeamGender,
+          target_squad_size: 20,
+          status: 'UPCOMING',
+          process_type: 'DISTRICT_TEAM',
+          target_district_id: newTeamDistrict.startsWith('mock-') ? defaults.district_id : newTeamDistrict
+        }])
+        .select()
+        .single();
+        
+      if (!processError && processData) {
+        // Assign the current admin to this process so they can see it
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user?.id) {
+          await supabase.from('selector_assignments').insert([{
+            selection_process_id: processData.id,
+            selector_id: userData.user.id,
+            is_lead_selector: true
+          }]);
         }
       }
       
@@ -250,13 +223,6 @@ export default function TeamRegistrationTab({ userRole }) {
     
     const isAssigned = teamPlayers.includes(playerId);
     try {
-      const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
-      if (isPracticeMode()) {
-        if (isAssigned) setTeamPlayers(prev => prev.filter(id => id !== playerId));
-        else setTeamPlayers(prev => [...prev, playerId]);
-        return;
-      }
-      
       if (isAssigned) {
         await supabase
           .from('team_players')

@@ -55,12 +55,9 @@ export function useAuth({ setActiveMatchId }) {
       
       navigate('/');
       
-      const isPracticeMode = () => { try { return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true'; } catch(e) { return false; } };
-      const wasPracticeMode = isPracticeMode();
-      
       // Clear offline scoring state
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('jdca_') || key === 'JDCA_PRACTICE_MODE') {
+        if (key.startsWith('jdca_')) {
           localStorage.removeItem(key);
         }
       });
@@ -69,15 +66,10 @@ export function useAuth({ setActiveMatchId }) {
       if (db.sync_queue) await db.sync_queue.clear();
       if (db.delivery_log) await db.delivery_log.clear();
       
-      if (wasPracticeMode) {
-        window.location.reload();
-      }
-      
     } catch (err) {
       console.error("Error during logout:", err);
       // Force UI state regardless
       setIsAuthenticated(false);
-      try { localStorage.removeItem('JDCA_PRACTICE_MODE'); } catch(e){}
       navigate('/');
     }
   };

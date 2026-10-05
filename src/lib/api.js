@@ -11,19 +11,7 @@ export const calculatePlayerAge = (dob, referenceDate = new Date()) => {
   return age;
 };
 
-import { practiceApi } from './practiceApi';
-import { initializePracticeDb } from './practiceDb';
-
-export const isPracticeMode = () => {
-  try {
-    return localStorage.getItem('JDCA_PRACTICE_MODE') === 'true';
-  } catch(e) { return false; }
-};
-if (typeof window !== 'undefined' && isPracticeMode()) {
-  initializePracticeDb().catch(console.error);
-}
-
-const supabaseApi = {
+export const api = {
   // ANNOUNCEMENTS
   // ==========================================
   async getAnnouncements() {
@@ -1664,19 +1652,6 @@ const supabaseApi = {
     return true;
   }
 };
-
-export const api = new Proxy({}, {
-  get(target, prop) {
-    if (isPracticeMode() && practiceApi[prop]) {
-      return practiceApi[prop];
-    }
-    if (isPracticeMode() && supabaseApi[prop]) {
-      // Stub out unimplemented methods in practice mode to avoid calling Supabase
-      return async () => { console.log(`[Practice Mode] Stubbed api.${prop}`); return null; };
-    }
-    return supabaseApi[prop];
-  }
-});
 
 
 
