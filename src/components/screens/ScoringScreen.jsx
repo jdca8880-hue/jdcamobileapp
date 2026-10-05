@@ -168,7 +168,20 @@ export default function ScoringScreen() {
     const pName = p?.full_name || p?.name;
     return pName && pName !== striker?.name && pName !== nonStriker?.name;
   }), [battingXI, striker?.name, nonStriker?.name]);
-  const lastBalls = deliveryLog.length ? deliveryLog.slice(-6) : currentOverBalls.map((b, i) => ({ ...b, id: `temp-${i}`, runs: Number(b.value) || 0, wicket: b.type === 'wicket', extra: b.type === 'extra' }));
+  const lastBalls = deliveryLog.length ? deliveryLog.filter(d => d.type !== 'innings_start' && d.type !== 'match_start').slice(-6).map(b => {
+    const isWicket = b.wicket_type && b.wicket_type !== 'NONE' || b.wicket === true;
+    const isExtra = b.extra_type && b.extra_type !== 'NONE' || b.extra === true;
+    const runs = b.runs_total ?? b.runs ?? 0;
+    let label = b.label;
+    if (!label) {
+      if (isWicket) label = 'W';
+      else if (isExtra) {
+        const typeStr = b.extra_type === 'WIDE' ? 'Wd' : b.extra_type === 'NO_BALL' ? 'Nb' : b.extra_type === 'BYE' ? 'B' : 'Lb';
+        label = `${runs}${typeStr}`;
+      } else label = String(runs);
+    }
+    return { id: b.id, runs, wicket: isWicket, extra: isExtra, label };
+  }) : currentOverBalls.map((b, i) => ({ ...b, id: `temp-${i}`, runs: Number(b.value) || 0, wicket: b.type === 'wicket', extra: b.type === 'extra' }));
   const isOverComplete = matchStatus === 'OVER_COMPLETE';
 
   useEffect(() => {

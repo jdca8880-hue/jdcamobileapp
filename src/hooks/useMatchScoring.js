@@ -595,7 +595,26 @@ export function useMatchScoring({
 
   // Helper to snapshot current state for deterministic Undo
   const captureSnapshot = () => {
-    const isTeamABatting = scorecard?.teamBattingId === matchSetup?.teamAId;
+    let battingTId = matchSetup?.teamAId;
+    let bowlingTId = matchSetup?.teamBId;
+    
+    if (matchSetup?.tossWinnerTeamId) {
+      if (matchSetup.tossWinnerTeamId === matchSetup?.teamAId) {
+        battingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+        bowlingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+      } else {
+        battingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+        bowlingTId = matchSetup.electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+      }
+    }
+
+    if (innings === 2 || innings === 3) {
+      const temp = battingTId;
+      battingTId = bowlingTId;
+      bowlingTId = temp;
+    }
+
+    const isTeamABatting = battingTId === matchSetup?.teamAId;
     const battingTeamXI = isTeamABatting ? matchSetup?.teamAXI : matchSetup?.teamBXI;
     const bowlingTeamXI = isTeamABatting ? matchSetup?.teamBXI : matchSetup?.teamAXI;
 
@@ -616,7 +635,7 @@ export function useMatchScoring({
       lastOverBowlerId,
       battingTeamXI,
       bowlingTeamXI,
-      battingTeamId: scorecard?.teamBattingId || null,
+      battingTeamId: battingTId,
       pendingPenalties: scorecard?.pendingPenalties || {},
       target
     };
