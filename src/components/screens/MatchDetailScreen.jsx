@@ -25,6 +25,54 @@ export default function MatchDetailScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedScorer, setSelectedScorer] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [scorecardData, setScorecardData] = useState(null);
+
+  const match = matches.find(m => m.id === activeMatchId) || matches[0];
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadScorecard = async () => {
+      const targetId = activeMatchId || match?.id;
+      if (!targetId) return;
+      try {
+        const { api } = await import('../../lib/api');
+        const data = await api.getMatchScorecard(targetId);
+        if (isMounted && data) {
+          setScorecardData(data);
+        }
+      } catch (err) {
+        console.error('[MatchDetailScreen] Failed to load scorecard:', err);
+      }
+    };
+    loadScorecard();
+
+    const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(match?.status || '').toUpperCase());
+    let interval = null;
+    if (isLive) {
+      interval = setInterval(loadScorecard, 8000);
+    }
+
+    return () => {
+      isMounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [activeMatchId, match?.id, match?.status]);
+
+  if (!match) return null;
+
+  const displayMatch = {
+    ...match,
+    ...(scorecardData || {}),
+    home_team: {
+      ...(match?.home_team || {}),
+      ...(scorecardData?.home_team || {})
+    },
+    away_team: {
+      ...(match?.away_team || {}),
+      ...(scorecardData?.away_team || {})
+    },
+    scorecard: scorecardData?.scorecard || match?.scorecard
+  };
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this match? It will be moved to the Recycle Bin.")) return;
@@ -57,12 +105,10 @@ export default function MatchDetailScreen() {
       setIsAssigning(false);
     }
   };
-
-  const match = matches.find(m => m.id === activeMatchId) || matches[0];
-  if (!match) return null;
   
-  const h = calculateMatchHighlights(match);
-  const live = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
+  const h = calculateMatchHighlights(displayMatch);
+  const live = displayMatch.status === 'LIVE' || displayMatch.status === 'IN_PROGRESS' || displayMatch.status === 'INNINGS_BREAK';
+  const isCompleted = displayMatch.status === 'COMPLETED' || displayMatch.status === 'FINISHED';
 
   const tabs = [
     { id: 'info', label: 'Info' },
@@ -95,23 +141,29 @@ export default function MatchDetailScreen() {
 
         <div className="text-center mt-6">
           <div className="text-xs font-bold tracking-widest uppercase text-white/60 mb-3">
-            {match.tournament || 'JDCA Official Fixture'}
+            {displayMatch.tournament || 'JDCA Official Fixture'}
           </div>
 
           {live && (
             <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-4 ${
-              isPaused && activeMatchId === match.id ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' : 'bg-white/20 text-white'
+              isPaused && activeMatchId === displayMatch.id ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' : 'bg-white/20 text-white'
             }`}>
-              <span className={`w-2 h-2 rounded-full ${isPaused && activeMatchId === match.id ? 'bg-amber-400' : 'bg-[#0FA968] animate-pulse'}`} />
-              {isPaused && activeMatchId === match.id ? 'PAUSED' : 'LIVE MATCH'}
+              <span className={`w-2 h-2 rounded-full ${isPaused && activeMatchId === displayMatch.id ? 'bg-amber-400' : 'bg-[#0FA968] animate-pulse'}`} />
+              {isPaused && activeMatchId === displayMatch.id ? 'PAUSED' : 'LIVE MATCH'}
+            </div>
+          )}
+
+          {isCompleted && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-4 bg-white/10 border border-white/20 text-white">
+              <span>🏆 COMPLETED</span>
             </div>
           )}
 
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="flex-1 text-right">
-              <div className="text-[20px] font-black leading-tight mb-1">{match.home_team?.name || 'Home Team'}</div>
-              <div className="text-[32px] font-black text-[#ff6100] tracking-tighter leading-none">{match.home_team?.score || (live ? 'Batting' : '')}</div>
-              {live && <div className="text-[12px] font-bold text-white/80 mt-1">{match.home_team?.overs || ''}</div>}
+              <div className="text-[20px] font-black leading-tight mb-1">{displayMatch.home_team?.name || 'Home Team'}</div>
+              <div className="text-[32px] font-black text-[#ff6100] tracking-tighter leading-none">{displayMatch.home_team?.score || (live ? 'Batting' : '')}</div>
+              {displayMatch.home_team?.overs && <div className="text-[12px] font-bold text-white/80 mt-1">{displayMatch.home_team.overs}</div>}
             </div>
             
             <div className="w-8 flex-shrink-0 flex flex-col items-center justify-center text-white/40">
@@ -121,14 +173,20 @@ export default function MatchDetailScreen() {
             </div>
 
             <div className="flex-1 text-left">
-              <div className="text-[20px] font-black leading-tight mb-1">{match.away_team?.name || 'Away Team'}</div>
-              <div className="text-[32px] font-black text-white tracking-tighter leading-none">{match.away_team?.score || (live ? 'Yet to bat' : '')}</div>
-              {!live && <div className="text-[12px] font-bold text-white/80 mt-1">{match.away_team?.overs || ''}</div>}
+              <div className="text-[20px] font-black leading-tight mb-1">{displayMatch.away_team?.name || 'Away Team'}</div>
+              <div className="text-[32px] font-black text-white tracking-tighter leading-none">{displayMatch.away_team?.score || (live ? 'Yet to bat' : '')}</div>
+              {displayMatch.away_team?.overs && <div className="text-[12px] font-bold text-white/80 mt-1">{displayMatch.away_team.overs}</div>}
             </div>
           </div>
 
           <div className="text-[13px] font-bold text-white/90 bg-white/10 py-2 px-4 rounded-xl inline-block max-w-[90%] mx-auto">
-            {live ? (match.toss_winner_id === match.home_team_id ? match.home_team?.name : match.away_team?.name) + ' elected to ' + (match.toss_decision === 'BAT' ? 'bat' : 'bowl') : (match.result_text || match.result_text || 'Match completed')}
+            {isCompleted
+              ? (displayMatch.result_text || displayMatch.resultText || 'Match Completed')
+              : (live
+                ? (displayMatch.toss_winner_id === displayMatch.home_team_id ? displayMatch.home_team?.name : displayMatch.away_team?.name) + ' elected to ' + (String(displayMatch.toss_decision || '').toUpperCase() === 'BAT' ? 'bat' : 'bowl')
+                : (displayMatch.result_text || 'Fixture Scheduled')
+              )
+            }
           </div>
         </div>
       </div>
@@ -243,8 +301,18 @@ export default function MatchDetailScreen() {
 
         {/* â”€â”€ TAB 2: SCORECARD â”€â”€ */}
         {activeTab === 'scorecard' && (
-          <div className="bg-white rounded-[16px] shadow-sm border border-gray-100 p-4">
-            <MatchScorecard match={match} />
+          <div className="space-y-4">
+            <div className="bg-white rounded-[16px] shadow-sm border border-gray-100 p-4">
+              <MatchScorecard match={displayMatch} />
+            </div>
+            <div className="text-center pt-2">
+              <button
+                onClick={() => navigateTo('scorecard')}
+                className="px-4 py-2 bg-[#2457D6] hover:bg-[#1b41a8] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <span>Open Full Official Scorecard (Print / Share)</span>
+              </button>
+            </div>
           </div>
         )}
 

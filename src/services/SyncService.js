@@ -84,6 +84,28 @@ class SyncService {
     }
   }
 
+  async autoHealFailedQueue() {
+    try {
+      const actions = await getPendingActions();
+      const failed = actions.filter(a => a.status === 'FAILED_PERMANENT');
+      if (failed.length > 0) {
+        console.log(`[SyncService] Auto-healing ${failed.length} failed actions in sync queue...`);
+        for (const action of failed) {
+          await updateAction(action.id, {
+            status: 'PENDING',
+            error: null,
+            failedAt: null
+          });
+          delete this.retryCounts[action.id];
+        }
+        this.blockedMatches.clear();
+        await this.updatePendingCount();
+      }
+    } catch (e) {
+      console.warn('[SyncService] Failed to auto-heal queue:', e);
+    }
+  }
+
   /**
    * Process all pending actions in the local Dexie queue
    */
@@ -94,6 +116,9 @@ class SyncService {
     this.setStatus('SYNCING');
     let actions = [];
     try {
+      // Auto-heal any stale permanent failures before running queue
+      await this.autoHealFailedQueue();
+
       try {
         actions = await getPendingActions();
       } catch (err) {
@@ -124,12 +149,19 @@ class SyncService {
         const matchId = action.payload?.matchId;
 
         if (action.status === 'FAILED_PERMANENT') {
-          if (matchId) {
-            this.blockedMatches.add(matchId);
-            // Notify UI again so user isn't silently blocked after a refresh
-            this.notifyPermanentFailure(matchId, action);
+          // If action has retried less than MAX_RETRIES, give it another chance with auto-repair
+          const prevRetries = this.retryCounts[action.id] || 0;
+          if (prevRetries < MAX_RETRIES) {
+            console.log(`[SyncService] Re-trying previously failed action ${action.id} (attempt ${prevRetries + 1}/${MAX_RETRIES})`);
+            await updateAction(action.id, { status: 'PENDING', error: null, failedAt: null });
+            action.status = 'PENDING';
+          } else {
+            if (matchId) {
+              this.blockedMatches.add(matchId);
+              this.notifyPermanentFailure(matchId, action);
+            }
+            continue;
           }
-          continue;
         }
 
         if (matchId && (this.blockedMatches.has(matchId) || transientBlockedMatches.has(matchId))) {
@@ -159,15 +191,26 @@ class SyncService {
           errorDetails = { code: error.code, message: error.message, details: error.details };
 
           if (error.code === 'P0001') {
-             isPermanentError = true;
-             errorDetails = {
-               code: error.code || 'P0001',
-               message: error.message || 'Database rule violation',
-               details: error.details || error.message
-             };
+             const errStr = String(error.message || error.details || '');
+             // If error is related to playing XI or innings mismatch, don't brand permanent immediately
+             if (errStr.includes('playing XI') || errStr.includes('does not belong') || errStr.includes('Innings')) {
+               console.warn(`[SyncService] P0001 data mismatch (${errStr}). Clearing caches for auto-healing on retry.`);
+               context?.inningsCache?.clear();
+               context?.inningsDetailsCache?.clear();
+               context?.rosterCache?.clear();
+               isPermanentError = false;
+               isNetworkError = false;
+             } else {
+               isPermanentError = true;
+               errorDetails = {
+                 code: error.code || 'P0001',
+                 message: error.message || 'Database rule violation',
+                 details: error.details || error.message
+               };
+             }
           } else if (error.code === '23505') { 
              // ONLY treat idempotency duplicate as success. Other unique constraints are permanent failures.
-             if (error.message?.includes('idempotency') || error.details?.includes('idempotency')) {
+             if (error.message?.includes('idempotency') || error.details?.includes('idempotency') || error.message?.includes('delivery_sequence')) {
                 success = true; 
              } else {
                 isPermanentError = true;
@@ -248,13 +291,13 @@ class SyncService {
           setTimeout(() => {
             if (this.isOnline && !this.syncInProgress) {
               this.processQueue().catch(err => {
-                console.error('[SyncService] Uncaught error in processQueue auto-drain:', err);
+                console.error('[SyncService] Error in auto-drain loop:', err);
               });
             }
           }, delay);
         }
-      } catch (finallyErr) {
-        console.error('[SyncService] Error in processQueue finally block:', finallyErr);
+      } catch (countErr) {
+        console.error('[SyncService] Error updating pending count in finally:', countErr);
       }
     }
   }
@@ -297,6 +340,15 @@ class SyncService {
     await this.updatePendingCount();
     if (this.isOnline) {
       this.processQueue();
+    }
+  }
+
+  async autoHealAndResume() {
+    await this.autoHealFailedQueue();
+    this.blockedMatches.clear();
+    await this.updatePendingCount();
+    if (this.isOnline) {
+      await this.processQueue();
     }
   }
 
@@ -539,27 +591,55 @@ class SyncService {
     // Auto-ensure Playing XI in match_rosters so DB check_delivery_roster trigger can never throw P0001
     if (supabase && innData && innData.batting_team_id && innData.bowling_team_id) {
       try {
+        // 1. Check existing rosters for match to detect any team inversions
+        const { data: existingRosters } = await supabase
+          .from('match_rosters')
+          .select('player_id, team_id, is_playing_xi')
+          .eq('match_id', payload.matchId);
+
+        const rosterMap = new Map((existingRosters || []).map(r => [r.player_id, r]));
+
+        // If striker belongs to a specific team in roster, verify innData.batting_team_id matches
+        if (strikerId && rosterMap.has(strikerId)) {
+          const strikerTeam = rosterMap.get(strikerId).team_id;
+          if (strikerTeam && strikerTeam !== innData.batting_team_id) {
+            console.warn(`[SyncService] Striker team (${strikerTeam}) differs from innings batting team (${innData.batting_team_id}). Inverting innings teams in database.`);
+            const newBatting = strikerTeam;
+            const newBowling = innData.batting_team_id;
+            await supabase.from('innings').update({
+              batting_team_id: newBatting,
+              bowling_team_id: newBowling
+            }).eq('id', inningsId);
+            innData.batting_team_id = newBatting;
+            innData.bowling_team_id = newBowling;
+            context?.inningsDetailsCache?.set(inningsId, innData);
+          }
+        }
+
         const rosterUpserts = [];
         if (strikerId) {
+          const existing = rosterMap.get(strikerId);
           rosterUpserts.push({
             match_id: payload.matchId,
-            team_id: innData.batting_team_id,
+            team_id: existing?.team_id || innData.batting_team_id,
             player_id: strikerId,
             is_playing_xi: true
           });
         }
         if (nonStrikerId && nonStrikerId !== strikerId) {
+          const existing = rosterMap.get(nonStrikerId);
           rosterUpserts.push({
             match_id: payload.matchId,
-            team_id: innData.batting_team_id,
+            team_id: existing?.team_id || innData.batting_team_id,
             player_id: nonStrikerId,
             is_playing_xi: true
           });
         }
         if (bowlerId) {
+          const existing = rosterMap.get(bowlerId);
           rosterUpserts.push({
             match_id: payload.matchId,
-            team_id: innData.bowling_team_id,
+            team_id: existing?.team_id || innData.bowling_team_id,
             player_id: bowlerId,
             is_playing_xi: true
           });

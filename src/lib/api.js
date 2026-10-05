@@ -1054,9 +1054,11 @@ export const api = {
         extras: awayStats.extras
       },
       scorecard: {
-        home_team: { batting: homeStats.batting, bowling: awayStats.bowling },
-        away_team: { batting: awayStats.batting, bowling: homeStats.bowling }
+        home_team: { batting: homeStats.batting, bowling: awayStats.bowling, extras: homeStats.extras, overs: homeStats.overs, score: homeStats.runs + '/' + homeStats.wickets },
+        away_team: { batting: awayStats.batting, bowling: homeStats.bowling, extras: awayStats.extras, overs: awayStats.overs, score: awayStats.runs + '/' + awayStats.wickets }
       },
+      innings_1: stats1,
+      innings_2: stats2,
       innings: [stats1, stats2],
       topBatter,
       topBowler

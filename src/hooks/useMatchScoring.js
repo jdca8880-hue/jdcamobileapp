@@ -756,9 +756,18 @@ export function useMatchScoring({
         }
         
         api.updateMatchDetails(activeMatchId, { 
+          status: 'COMPLETED',
           winner_team_id: winnerId, 
           result_margin: margin, 
           result_text: text 
+        }).then(() => {
+          setMatches(prev => prev.map(m => m.id === activeMatchId ? {
+            ...m,
+            status: 'COMPLETED',
+            winner_team_id: winnerId,
+            result_margin: margin,
+            result_text: text
+          } : m));
         }).catch(console.error);
       } catch (e) {
         console.error('[useMatchScoring] Match finalization error:', e);
@@ -859,6 +868,13 @@ export function useMatchScoring({
       label: 'Start'
     });
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
+
+    // Eagerly resolve & cache innings in Supabase and Dexie
+    if (activeMatchId) {
+      resolveInningsId(activeMatchId, innings).catch(err => {
+        console.warn('[useMatchScoring] Eager innings resolution non-fatal warning:', err);
+      });
+    }
 
     // Update match status in database so all other viewers see the match LIVE
     if (activeMatchId && supabase) {

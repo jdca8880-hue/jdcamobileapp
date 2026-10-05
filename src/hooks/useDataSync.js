@@ -141,7 +141,7 @@ export function useDataSync({ auth, ui }) {
           
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes, batStatsRes, bowlStatsRes, fieldStatsRes] = await Promise.allSettled([
-              supabase.from('matches').select('*, tournaments!inner(id), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 10); setLoadingMessage("Updating matches..."); return r; }),
+              supabase.from('matches').select('*, tournaments(id, name), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 10); setLoadingMessage("Updating matches..."); return r; }),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)').then(r => { setLoadingProgress(p => p + 5); setLoadingMessage("Updating teams..."); return r; }),
               supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 5); return r; }),
               supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 15); setLoadingMessage("Syncing player registry..."); return r; }),
@@ -157,12 +157,21 @@ export function useDataSync({ auth, ui }) {
               const freshMatches = matchesRes.value.data.map(m => ({
                 id: m.match_id || m.id,
                 tournament_id: m.tournament_id,
+                tournament: m.tournaments?.name || m.tournament,
                 home_team_id: m.home_team_id,
                 away_team_id: m.away_team_id,
                 home_team: { id: m.home_team_id, name: m.home_team_name || m.home_team?.name, short_name: m.home_team?.short_name || '' },
                 away_team: { id: m.away_team_id, name: m.away_team_name || m.away_team?.name, short_name: m.away_team?.short_name || '' },
                 toss_winner_id: m.toss_winner_id,
                 toss_decision: m.toss_decision,
+                winner_team_id: m.winner_team_id,
+                result_margin: m.result_margin,
+                result_text: m.result_text,
+                man_of_the_match_id: m.man_of_the_match_id,
+                scorer_id: m.scorer_id,
+                scorer_name: m.scorer_name,
+                umpire_name: m.umpire_name,
+                ball_type: m.ball_type,
                 scheduled_at: m.scheduled_at,
                 status: m.status,
                 match_format: m.match_format,

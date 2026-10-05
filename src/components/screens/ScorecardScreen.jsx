@@ -84,7 +84,7 @@ export default function ScorecardScreen() {
       <div className="jdca-card p-5 mb-5">
         <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
           <span>{tournamentName}</span>
-          <MatchStatusBadge status="LIVE" />
+          <MatchStatusBadge status={fullScorecard?.status || activeMatch?.status || 'LIVE'} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
@@ -116,18 +116,28 @@ export default function ScorecardScreen() {
           </div>
         </div>
 
-        {/* Player of Match Highlight */}
-        <div className="mt-3 pt-1 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className="p-1 rounded bg-amber-50 text-[#ff6100] border border-amber-200">
-              <Award size={15} />
-            </span>
-            <span className="text-slate-600 font-medium">
-              Impact Player: <strong className="text-slate-900">Virat Sharma (74* off 42)</strong>
-            </span>
+        {/* Result Banner if Completed */}
+        {(fullScorecard?.resultText || activeMatch?.result_text) && (
+          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+            <span className="text-base leading-none">🏆</span>
+            <span>{fullScorecard?.resultText || activeMatch?.result_text}</span>
           </div>
-          <span className="text-xs font-bold text-[#0FA968]">JDCA Verified</span>
-        </div>
+        )}
+
+        {/* Player of Match Highlight */}
+        {fullScorecard?.manOfTheMatch && (
+          <div className="mt-3 pt-1 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded bg-amber-50 text-[#ff6100] border border-amber-200">
+                <Award size={15} />
+              </span>
+              <span className="text-slate-600 font-medium">
+                Player of the Match: <strong className="text-slate-900">{fullScorecard.manOfTheMatch.name}</strong>
+              </span>
+            </div>
+            <span className="text-xs font-bold text-[#0FA968]">JDCA Verified</span>
+          </div>
+        )}
       </div>
 
       {/* Innings Selector Tabs */}

@@ -441,26 +441,35 @@ export default function ScoringScreen() {
               </button>
             </div>
             <span className="block mb-3">{syncError.message}</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button 
+                onClick={async () => {
+                  await syncService.autoHealAndResume();
+                  setSyncError(null);
+                }}
+                className="bg-emerald-600 text-white py-1.5 px-4 rounded hover:bg-emerald-700 font-bold text-xs transition-colors flex items-center gap-1 shadow-sm cursor-pointer"
+              >
+                <span>⚡ Auto-Heal & Resume All</span>
+              </button>
               <button 
                 onClick={() => {
                   syncService.retryFailedAction(syncError.actionId);
                   setSyncError(null);
                 }}
-                className="bg-red-600 text-white py-1.5 px-4 rounded hover:bg-red-700 font-medium transition-colors"
+                className="bg-red-600 text-white py-1.5 px-3 rounded hover:bg-red-700 font-medium text-xs transition-colors cursor-pointer"
               >
-                Retry Sync
+                Retry
               </button>
               <button 
                 onClick={() => {
-                  if(window.confirm("Are you sure you want to delete this delivery from the offline queue? This cannot be undone.")) {
+                  if(window.confirm("Are you sure you want to delete this corrupt delivery from the offline queue? Next deliveries will resume syncing.")) {
                     syncService.deleteFailedAction(syncError.actionId);
                     setSyncError(null);
                   }
                 }}
-                className="bg-white border border-red-200 text-red-600 py-1.5 px-4 rounded hover:bg-red-50 font-medium transition-colors"
+                className="bg-white border border-red-200 text-red-600 py-1.5 px-3 rounded hover:bg-red-50 font-medium text-xs transition-colors cursor-pointer"
               >
-                Delete & Resume Queue
+                Delete Corrupt Ball & Resume
               </button>
               <button 
                 onClick={async () => {

@@ -99,9 +99,68 @@ export function useLiveMatchesSync() {
       deliveriesSub.subscribe();
     }
 
+    // Periodic refresh fallback for live scores & matches (every 8 seconds when online)
+    const pollLiveMatches = async () => {
+      if (!supabase || !navigator.onLine) return;
+      try {
+        const { data: freshMatches, error } = await supabase
+          .from('matches')
+          .select('*, tournaments(id, name), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
+          .is('deleted_at', null)
+          .order('scheduled_at', { ascending: false });
+
+        if (!error && freshMatches) {
+          const { api } = await import('../lib/api');
+          const enriched = await Promise.all(freshMatches.map(async (m) => {
+            const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(m.status || '').toUpperCase());
+            const base = {
+              ...m,
+              tournament: m.tournaments?.name || m.tournament,
+              home_team: {
+                id: m.home_team_id,
+                name: m.home_team?.name || 'Home Team',
+                short_name: m.home_team?.short_name || ''
+              },
+              away_team: {
+                id: m.away_team_id,
+                name: m.away_team?.name || 'Away Team',
+                short_name: m.away_team?.short_name || ''
+              }
+            };
+
+            if (isLive || m.status === 'COMPLETED' || m.status === 'FINISHED') {
+              try {
+                const card = await api.getMatchScorecard(m.id);
+                if (card) {
+                  base.home_team.score = card.home_team?.score;
+                  base.home_team.overs = card.home_team?.overs;
+                  base.away_team.score = card.away_team?.score;
+                  base.away_team.overs = card.away_team?.overs;
+                  base.result_text = card.resultText || base.result_text;
+                  base.scorecard = card;
+                }
+              } catch (e) {}
+            }
+            return base;
+          }));
+
+          setMatches(enriched);
+          try {
+            await db.matches.bulkPut(enriched);
+          } catch (e) {}
+        }
+      } catch (err) {
+        console.warn('[useLiveMatchesSync] Polling error:', err);
+      }
+    };
+
+    pollLiveMatches();
+    const pollInterval = setInterval(pollLiveMatches, 8000);
+
     return () => {
       if (matchesSub) supabase.removeChannel(matchesSub);
       if (deliveriesSub) supabase.removeChannel(deliveriesSub);
+      clearInterval(pollInterval);
     };
   }, [setMatches, setTournaments, activeMatchId]);
 }

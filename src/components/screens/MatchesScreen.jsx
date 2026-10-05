@@ -69,7 +69,7 @@ export default function MatchesScreen() {
 
   const openMatch = (match) => {
     setActiveMatchId(match.id);
-    navigateTo('match-overview');
+    navigateTo('match-detail');
   };
 
   const myScoringMatches = filtered;
