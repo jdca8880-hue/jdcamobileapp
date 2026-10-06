@@ -91,19 +91,11 @@ export default function TeamsScreen() {
 
   // Map Supabase teams to UI expected format
   const mappedTeams = useMemo(() => {
-    // Distribute context players among teams for demonstration
-    const availablePlayers = [...contextPlayers];
-    
-    return contextTeams.map((team, index) => {
+    return contextTeams.map((team) => {
       const teamCatName = team.age_category?.name || 'Senior';
       let teamPlayers = [];
       if (team.team_players && team.team_players.length > 0) {
         teamPlayers = team.team_players.map(tp => tp.player).filter(Boolean);
-      } else {
-        teamPlayers = availablePlayers.filter(p => 
-          (p.gender === team.gender || !p.gender) && 
-          (p.category === teamCatName || !p.category)
-        ).slice(0, 15);
       }
       
       const squad = teamPlayers.map(p => ({

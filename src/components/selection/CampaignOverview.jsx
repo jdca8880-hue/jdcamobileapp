@@ -4,7 +4,7 @@ import { useCricket } from '../../context/CricketContext';
 export default function CampaignOverview({ campaign, onNavigate }) {
   const { players, shortlistedIds } = useCricket();
 
-  // Filter players for this campaign's category (mocking for now)
+  // Filter players for this campaign's category
   const pool = players.filter(p => p.category === campaign.ageGroup);
   const selectedCount = shortlistedIds.length;
   const observedCount = 0;

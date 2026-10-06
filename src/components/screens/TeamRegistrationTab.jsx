@@ -109,10 +109,9 @@ export default function TeamRegistrationTab({ userRole }) {
         setDbDistricts(dist);
         setNewTeamDistrict(dist[0].id);
       } else {
-        // Fallback to manual if DB fails
-        const mockDistricts = JDCA_DISTRICTS.map((d, i) => ({ id: `mock-${i}`, name: d }));
-        setDbDistricts(mockDistricts);
-        setNewTeamDistrict(mockDistricts[0].id);
+        console.warn('No districts found in DB');
+        setDbDistricts([]);
+        setNewTeamDistrict('');
       }
     };
     fetchDropdowns();
@@ -156,7 +155,7 @@ export default function TeamRegistrationTab({ userRole }) {
           name: newTeamName,
           short_name: newTeamName.substring(0, 3).toUpperCase(),
           season: new Date().getFullYear().toString(),
-          district_id: newTeamDistrict.startsWith('mock-') ? defaults.district_id : newTeamDistrict,
+          district_id: newTeamDistrict,
           age_category_id: newTeamCategory,
           gender: newTeamGender,
           is_active: true,
@@ -178,7 +177,7 @@ export default function TeamRegistrationTab({ userRole }) {
           target_squad_size: 20,
           status: 'UPCOMING',
           process_type: 'DISTRICT_TEAM',
-          target_district_id: newTeamDistrict.startsWith('mock-') ? defaults.district_id : newTeamDistrict
+          target_district_id: newTeamDistrict
         }])
         .select()
         .single();
@@ -474,8 +473,6 @@ export default function TeamRegistrationTab({ userRole }) {
           </div>
         </div>
       )}
-
-
       {showQuickRegister && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl">

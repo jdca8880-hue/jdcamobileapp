@@ -6,7 +6,7 @@ const MAX_RETRIES = 3;
 
 class SyncService {
   constructor() {
-    this.isOnline = navigator.onLine;
+    this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     this.syncInProgress = false;
     this.listeners = new Set();
     this.status = this.isOnline ? 'ONLINE' : 'OFFLINE';
@@ -15,8 +15,10 @@ class SyncService {
     this.blockedMatches = new Set();
 
     // Listen for network changes
-    window.addEventListener('online', () => this.handleOnline());
-    window.addEventListener('offline', () => this.handleOffline());
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => this.handleOnline());
+      window.addEventListener('offline', () => this.handleOffline());
+    }
     
     // Initial fetch of pending count
     this.updatePendingCount();
@@ -84,28 +86,6 @@ class SyncService {
     }
   }
 
-  async autoHealFailedQueue() {
-    try {
-      const actions = await getPendingActions();
-      const failed = actions.filter(a => a.status === 'FAILED_PERMANENT');
-      if (failed.length > 0) {
-        console.log(`[SyncService] Auto-healing ${failed.length} failed actions in sync queue...`);
-        for (const action of failed) {
-          await updateAction(action.id, {
-            status: 'PENDING',
-            error: null,
-            failedAt: null
-          });
-          delete this.retryCounts[action.id];
-        }
-        this.blockedMatches.clear();
-        await this.updatePendingCount();
-      }
-    } catch (e) {
-      console.warn('[SyncService] Failed to auto-heal queue:', e);
-    }
-  }
-
   /**
    * Process all pending actions in the local Dexie queue
    */
@@ -116,9 +96,6 @@ class SyncService {
     this.setStatus('SYNCING');
     let actions = [];
     try {
-      // Auto-heal any stale permanent failures before running queue
-      await this.autoHealFailedQueue();
-
       try {
         actions = await getPendingActions();
       } catch (err) {
@@ -149,19 +126,11 @@ class SyncService {
         const matchId = action.payload?.matchId;
 
         if (action.status === 'FAILED_PERMANENT') {
-          // If action has retried less than MAX_RETRIES, give it another chance with auto-repair
-          const prevRetries = this.retryCounts[action.id] || 0;
-          if (prevRetries < MAX_RETRIES) {
-            console.log(`[SyncService] Re-trying previously failed action ${action.id} (attempt ${prevRetries + 1}/${MAX_RETRIES})`);
-            await updateAction(action.id, { status: 'PENDING', error: null, failedAt: null });
-            action.status = 'PENDING';
-          } else {
-            if (matchId) {
-              this.blockedMatches.add(matchId);
-              this.notifyPermanentFailure(matchId, action);
-            }
-            continue;
+          if (matchId) {
+            this.blockedMatches.add(matchId);
+            this.notifyPermanentFailure(matchId, action);
           }
+          continue;
         }
 
         if (matchId && (this.blockedMatches.has(matchId) || transientBlockedMatches.has(matchId))) {
@@ -344,7 +313,6 @@ class SyncService {
   }
 
   async autoHealAndResume() {
-    await this.autoHealFailedQueue();
     this.blockedMatches.clear();
     await this.updatePendingCount();
     if (this.isOnline) {
@@ -365,32 +333,17 @@ class SyncService {
     
     let inningsId = isUUID(payload.inningsId) ? payload.inningsId : null;
     
-    // If inningsId is missing or invalid, resolve or create using api.getOrCreateInnings
+    // Ensure inningsId exists and is a valid UUID
     if (!inningsId) {
       const cacheKey = `${payload.matchId}_${payload.innings}`;
       if (context?.inningsCache?.has(cacheKey)) {
         inningsId = context.inningsCache.get(cacheKey);
         payload.inningsId = inningsId;
-      } else if (supabase && payload.matchId) {
-        try {
-          const { api } = await import('../lib/api');
-          const inn = await api.getOrCreateInnings(payload.matchId, Number(payload.innings) || 1);
-          if (inn?.id) {
-            inningsId = inn.id;
-            payload.inningsId = inn.id;
-            context?.inningsCache?.set(cacheKey, inn.id);
-          }
-        } catch (e) {
-          console.warn('[SyncService] Failed to auto-resolve or create innings via API:', e);
-          if (!navigator.onLine || e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError') || e.code === 'NETWORK_ERROR') {
-            throw e; // Rethrow network errors so the queue safely backs off instead of permanently failing
-          }
-        }
       }
     }
 
     if (!inningsId) {
-      const missingErr = new Error(`[SyncService] Missing valid Supabase inningsId for match ${payload.matchId} (innings ${payload.innings}). Cannot insert delivery.`);
+      const missingErr = new Error(`[SyncService] Missing valid inningsId for match ${payload.matchId}.`);
       missingErr.code = 'P0001';
       throw missingErr;
     }
@@ -416,77 +369,11 @@ class SyncService {
         }
       }
 
-      // Auto-heal Innings 2 team assignments if identical to Innings 1
-      if (innData && Number(innData.innings_number) === 2 && innData.batting_team_id) {
-        try {
-          const { data: inn1 } = await supabase
-            .from('innings')
-            .select('batting_team_id, bowling_team_id')
-            .eq('match_id', payload.matchId)
-            .eq('innings_number', 1)
-            .maybeSingle();
-
-          if (inn1 && inn1.batting_team_id && innData.batting_team_id === inn1.batting_team_id) {
-            console.warn(`[SyncService] Innings 2 had identical batting_team_id as Innings 1. Auto-reversing Innings 2 teams.`);
-            const newBatting = inn1.bowling_team_id;
-            const newBowling = inn1.batting_team_id;
-            await supabase
-              .from('innings')
-              .update({ batting_team_id: newBatting, bowling_team_id: newBowling })
-              .eq('id', inningsId);
-            innData.batting_team_id = newBatting;
-            innData.bowling_team_id = newBowling;
-            context?.inningsDetailsCache?.set(inningsId, innData);
-          }
-        } catch (repairInnErr) {
-          console.warn('[SyncService] Failed to check/repair Innings 2 team assignments:', repairInnErr);
-        }
-      }
-
       if (innData && innData.match_id !== payload.matchId) {
-        console.warn(`[SyncService] Mismatch detected: payload.matchId (${payload.matchId}) != innings.match_id (${innData.match_id}) for inningsId ${inningsId}`);
-        
-        let repaired = false;
-        const targetInningsNum = Number(payload.innings) || innData.innings_number || 1;
-        
-        try {
-          const { data: matchInnings } = await supabase
-            .from('innings')
-            .select('id, match_id, innings_number, batting_team_id, bowling_team_id')
-            .eq('match_id', payload.matchId)
-            .eq('innings_number', targetInningsNum);
-            
-          if (matchInnings && matchInnings.length === 1) {
-            const provableInnings = matchInnings[0];
-            const { data: targetMatch } = await supabase
-              .from('matches')
-              .select('id')
-              .eq('id', payload.matchId)
-              .maybeSingle();
-
-            if (targetMatch) {
-              console.log(`[SyncService] Provable innings match found: repairing metadata for delivery ${payload.id} from innings ${inningsId} -> ${provableInnings.id}`);
-              inningsId = provableInnings.id;
-              payload.inningsId = provableInnings.id;
-              innData = provableInnings;
-              context?.inningsDetailsCache?.set(inningsId, innData);
-              repaired = true;
-              
-              if (action?.id) {
-                await updateAction(action.id, { payload });
-              }
-            }
-          }
-        } catch (repairErr) {
-          console.warn('[SyncService] Error during provable innings repair:', repairErr);
-        }
-
-        if (!repaired) {
-          const err = new Error('Delivery innings does not belong to delivery match');
-          err.code = 'P0001';
-          err.details = `Unrecoverable mismatch between delivery match ${payload.matchId} and innings ${inningsId} (belongs to match ${innData.match_id})`;
-          throw err;
-        }
+        const err = new Error('Delivery innings does not belong to delivery match');
+        err.code = 'P0001';
+        err.details = `Mismatch between delivery match ${payload.matchId} and innings ${inningsId} (belongs to match ${innData.match_id})`;
+        throw err;
       }
     }
 
@@ -530,88 +417,11 @@ class SyncService {
     let nonStrikerId = isUUID(payload.nonStrikerId) ? payload.nonStrikerId : null;
     let bowlerId = isUUID(payload.bowlerId) ? payload.bowlerId : null;
 
-    // Auto-resolve missing or invalid player UUIDs from match rosters or previous deliveries
+    // Require player UUIDs
     if (!strikerId || !bowlerId || !nonStrikerId) {
-      try {
-        const { data: matchRosters } = await supabase
-          .from('match_rosters')
-          .select('player_id, team_id, is_playing_xi, players:player_id(id, full_name, name)')
-          .eq('match_id', payload.matchId);
-
-        if (matchRosters && matchRosters.length > 0) {
-          const battingPlayers = matchRosters.filter(p => p.team_id === innData.batting_team_id);
-          const bowlingPlayers = matchRosters.filter(p => p.team_id === innData.bowling_team_id);
-
-          // 1. Auto-resolve Striker
-          if (!strikerId) {
-            if (payload.striker) {
-              const matched = battingPlayers.find(p => {
-                const name = p.players?.full_name || p.players?.name || '';
-                return name.toLowerCase() === String(payload.striker).toLowerCase();
-              });
-              if (matched) strikerId = matched.player_id;
-            }
-            if (!strikerId) {
-              const { data: lastD } = await supabase
-                .from('deliveries')
-                .select('striker_id')
-                .eq('innings_id', inningsId)
-                .order('delivery_sequence', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              if (lastD?.striker_id && isUUID(lastD.striker_id)) {
-                strikerId = lastD.striker_id;
-              }
-            }
-            if (!strikerId && battingPlayers.length > 0) {
-              strikerId = battingPlayers[0].player_id;
-            }
-          }
-
-          // 2. Auto-resolve Bowler
-          if (!bowlerId) {
-            if (payload.bowler) {
-              const matched = bowlingPlayers.find(p => {
-                const name = p.players?.full_name || p.players?.name || '';
-                return name.toLowerCase() === String(payload.bowler).toLowerCase();
-              });
-              if (matched) bowlerId = matched.player_id;
-            }
-            if (!bowlerId) {
-              const { data: lastD } = await supabase
-                .from('deliveries')
-                .select('bowler_id')
-                .eq('innings_id', inningsId)
-                .order('delivery_sequence', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              if (lastD?.bowler_id && isUUID(lastD.bowler_id)) {
-                bowlerId = lastD.bowler_id;
-              }
-            }
-            if (!bowlerId && bowlingPlayers.length > 0) {
-              bowlerId = bowlingPlayers[0].player_id;
-            }
-          }
-
-          // 3. Auto-resolve Non-Striker
-          if (!nonStrikerId) {
-            if (payload.nonStriker) {
-              const matched = battingPlayers.find(p => {
-                const name = p.players?.full_name || p.players?.name || '';
-                return name.toLowerCase() === String(payload.nonStriker).toLowerCase();
-              });
-              if (matched && matched.player_id !== strikerId) nonStrikerId = matched.player_id;
-            }
-            if (!nonStrikerId) {
-              const altBat = battingPlayers.find(p => p.player_id !== strikerId);
-              if (altBat) nonStrikerId = altBat.player_id;
-            }
-          }
-        }
-      } catch (playerResolveErr) {
-        console.warn('[SyncService] Non-fatal error auto-resolving player IDs:', playerResolveErr);
-      }
+      const err = new Error(`Missing required valid UUIDs for striker (${strikerId}), non-striker (${nonStrikerId}), or bowler (${bowlerId}).`);
+      err.code = 'P0001';
+      throw err;
     }
 
     // Resolve dismissed player UUID (constraint wicket_player_required: wicket_type = 'NONE' or dismissed_player_id is not null)
@@ -620,26 +430,6 @@ class SyncService {
       dismissedPlayerId = isUUID(payload.dismissedPlayerId) 
         ? payload.dismissedPlayerId 
         : (isUUID(payload.outPlayerId) ? payload.outPlayerId : strikerId);
-
-      if (!dismissedPlayerId) {
-        // Fallback: query any valid player from the match roster so check constraint is satisfied
-        try {
-          if (context?.rosterCache?.has(payload.matchId)) {
-            dismissedPlayerId = context.rosterCache.get(payload.matchId);
-          } else {
-            const { data: rPlayer } = await supabase
-              .from('match_rosters')
-              .select('player_id')
-              .eq('match_id', payload.matchId)
-              .limit(1)
-              .maybeSingle();
-            if (rPlayer?.player_id) {
-              dismissedPlayerId = rPlayer.player_id;
-              context?.rosterCache?.set(payload.matchId, dismissedPlayerId);
-            }
-          }
-        } catch (e) {}
-      }
     }
 
     // Consistency constraints for fielder and wicketkeeper
@@ -673,69 +463,7 @@ class SyncService {
     // Explicit log before attempting INSERT as required
     console.log(`[SyncService] Preparing delivery insert: actionId=${action?.id}, idempotencyKey=${payload.id}, matchId=${payload.matchId}, inningsId=${inningsId}, sequence=${deliverySequence}`);
 
-    // Auto-ensure Playing XI in match_rosters so DB check_delivery_roster trigger can never throw P0001
-    if (supabase && innData && innData.batting_team_id && innData.bowling_team_id) {
-      try {
-        // 1. Check existing rosters for match to detect any team inversions
-        const { data: existingRosters } = await supabase
-          .from('match_rosters')
-          .select('player_id, team_id, is_playing_xi')
-          .eq('match_id', payload.matchId);
-
-        const rosterMap = new Map((existingRosters || []).map(r => [r.player_id, r]));
-
-        // If striker belongs to a specific team in roster, verify innData.batting_team_id matches
-        if (strikerId && rosterMap.has(strikerId)) {
-          const strikerTeam = rosterMap.get(strikerId).team_id;
-          if (strikerTeam && strikerTeam !== innData.batting_team_id) {
-            console.warn(`[SyncService] Striker team (${strikerTeam}) differs from innings batting team (${innData.batting_team_id}). Inverting innings teams in database.`);
-            const newBatting = strikerTeam;
-            const newBowling = innData.batting_team_id;
-            await supabase.from('innings').update({
-              batting_team_id: newBatting,
-              bowling_team_id: newBowling
-            }).eq('id', inningsId);
-            innData.batting_team_id = newBatting;
-            innData.bowling_team_id = newBowling;
-            context?.inningsDetailsCache?.set(inningsId, innData);
-          }
-        }
-
-        const rosterUpserts = [];
-        if (strikerId) {
-          const existing = rosterMap.get(strikerId);
-          rosterUpserts.push({
-            match_id: payload.matchId,
-            team_id: existing?.team_id || innData.batting_team_id,
-            player_id: strikerId,
-            is_playing_xi: true
-          });
-        }
-        if (nonStrikerId && nonStrikerId !== strikerId) {
-          const existing = rosterMap.get(nonStrikerId);
-          rosterUpserts.push({
-            match_id: payload.matchId,
-            team_id: existing?.team_id || innData.batting_team_id,
-            player_id: nonStrikerId,
-            is_playing_xi: true
-          });
-        }
-        if (bowlerId) {
-          const existing = rosterMap.get(bowlerId);
-          rosterUpserts.push({
-            match_id: payload.matchId,
-            team_id: existing?.team_id || innData.bowling_team_id,
-            player_id: bowlerId,
-            is_playing_xi: true
-          });
-        }
-        if (rosterUpserts.length > 0) {
-          await supabase.from('match_rosters').upsert(rosterUpserts, { onConflict: 'match_id, player_id' });
-        }
-      } catch (rosterErr) {
-        console.warn('[SyncService] Non-fatal error ensuring playing XI roster:', rosterErr);
-      }
-    }
+    // Player assignments must be established prior to sync. No roster auto-repair.
 
     const { error } = await supabase.from('deliveries').insert({
       match_id: payload.matchId,

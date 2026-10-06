@@ -59,7 +59,7 @@ export const CanonicalDeliverySchema = z.object({
   wicketkeeperName: z.string().nullable().optional(),
 });
 
-export function normalizeDelivery(event) {
+export function legacyAdapter(event) {
   if (!event) return event;
 
   // 1. Extra Type Normalization
@@ -104,7 +104,6 @@ export function normalizeDelivery(event) {
 
   let runsCompleted = event.runsCompleted !== undefined ? Number(event.runsCompleted) : 0;
   if (event.runsCompleted === undefined && !event.isBoundary && wicketType === 'NONE' && extraType === 'NONE') {
-    // Only infer for pure bat runs backwards compatibility if needed
     runsCompleted = runsBatter;
   }
 
@@ -147,39 +146,59 @@ export function normalizeDelivery(event) {
 
   const isLegalDelivery = event.isLegalDelivery !== undefined ? event.isLegalDelivery : !['WIDE', 'NO_BALL'].includes(extraType);
 
-  const normalized = {
-    id: event.idempotency_key ?? event.id ?? `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    timestamp: event.timestamp || new Date().toISOString(),
-    matchId: event.matchId ?? event.match_id ?? null,
-    inningsId: event.inningsId ?? event.innings_id ?? null,
-    deliverySequence: event.deliverySequence ?? event.delivery_sequence ?? undefined,
-    overNumber,
-    ballNumber,
-    
-    strikerId: event.strikerId ?? event.striker_id ?? null,
-    nonStrikerId: event.nonStrikerId ?? event.non_striker_id ?? null,
-    bowlerId: event.bowlerId ?? event.bowler_id ?? null,
+  return {
+    ...event,
+    id: event.idempotency_key ?? event.id,
+    matchId: event.matchId ?? event.match_id,
+    inningsId: event.inningsId ?? event.innings_id,
+    deliverySequence: event.deliverySequence ?? event.delivery_sequence,
+    strikerId: event.strikerId ?? event.striker_id,
+    nonStrikerId: event.nonStrikerId ?? event.non_striker_id,
+    bowlerId: event.bowlerId ?? event.bowler_id,
+    wagonZone: event.wagonZone ?? event.wagon_zone,
+    extraType, wicketType, runsBatter, runsExtras, runsTotal, runsCompleted,
+    overNumber, ballNumber, dismissedPlayerId, dismissedPlayerName,
+    fielderId, fielderName, wicketkeeperId, wicketkeeperName,
+    isLegalDelivery
+  };
+}
 
-    runsBatter,
-    runsExtras,
-    runsTotal,
-    runsCompleted,
+export function normalizeDelivery(rawEvent) {
+  if (!rawEvent) return rawEvent;
+  const event = legacyAdapter(rawEvent);
+
+  const normalized = {
+    id: event.id ?? `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    timestamp: event.timestamp || new Date().toISOString(),
+    matchId: event.matchId ?? null,
+    inningsId: event.inningsId ?? null,
+    deliverySequence: event.deliverySequence ?? undefined,
+    overNumber: event.overNumber ?? 0,
+    ballNumber: event.ballNumber ?? 1,
+    
+    strikerId: event.strikerId ?? null,
+    nonStrikerId: event.nonStrikerId ?? null,
+    bowlerId: event.bowlerId ?? null,
+
+    runsBatter: event.runsBatter ?? 0,
+    runsExtras: event.runsExtras ?? 0,
+    runsTotal: event.runsTotal ?? 0,
+    runsCompleted: event.runsCompleted ?? 0,
     isBoundary: !!event.isBoundary,
     
-    extraType,
-    wicketType,
+    extraType: event.extraType ?? 'NONE',
+    wicketType: event.wicketType ?? 'NONE',
 
-    dismissedPlayerId,
-    fielderId,
-    wicketkeeperId,
-    wagonZone: event.wagonZone ?? event.wagon_zone ?? null,
+    dismissedPlayerId: event.dismissedPlayerId ?? null,
+    fielderId: event.fielderId ?? null,
+    wicketkeeperId: event.wicketkeeperId ?? null,
+    wagonZone: event.wagonZone ?? null,
 
-    isLegalDelivery,
+    isLegalDelivery: event.isLegalDelivery ?? !['WIDE', 'NO_BALL'].includes(event.extraType ?? 'NONE'),
 
-    // UI-only compat fields
-    dismissedPlayerName,
-    fielderName,
-    wicketkeeperName,
+    dismissedPlayerName: event.dismissedPlayerName ?? null,
+    fielderName: event.fielderName ?? null,
+    wicketkeeperName: event.wicketkeeperName ?? null,
   };
 
   try {

@@ -434,6 +434,7 @@ export default function ScoringScreen() {
 
   const currentWk = bowlingXI.find(p => /wicket/i.test(p.role || ''));
 
+
   return (
     <div className="bg-cloud min-h-screen">
       <div className="max-w-md mx-auto relative bg-white border-x border-slate-200 min-h-screen pb-[100px] shadow-2xl">
