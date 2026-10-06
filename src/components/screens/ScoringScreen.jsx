@@ -1321,15 +1321,19 @@ export default function ScoringScreen() {
           </div>
         )}
 
-        {matchStatus === 'MATCH_FINISHED' && (
+        {(matchStatus === 'MATCH_FINISHED' || matchStatus === 'ABANDONED' || matchStatus === 'CANCELLED') && (
           <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <h3 className="font-black text-slate-900">Match Completed</h3>
+                <h3 className="font-black text-slate-900">
+                  {matchStatus === 'ABANDONED' ? 'Match Abandoned' : matchStatus === 'CANCELLED' ? 'Match Cancelled' : 'Match Completed'}
+                </h3>
               </div>
               <div className="p-6 text-center">
                 <div className="text-[32px] font-black text-slate-900 leading-none mb-2">
-                  {runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won!` : 
+                  {matchStatus === 'ABANDONED' ? 'Match Ended Early' : 
+                   matchStatus === 'CANCELLED' ? 'Match Cancelled' :
+                   runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won!` : 
                    runs === target - 1 ? 'Match Tied!' : 
                    `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won!`}
                 </div>
