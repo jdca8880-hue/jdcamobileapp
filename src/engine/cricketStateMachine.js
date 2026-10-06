@@ -72,11 +72,13 @@ function resolveWicketTransition(originalStriker, originalNonStriker, dismissedI
   };
 }
 export function processDelivery(currentState, ballInput) {
+  console.log(`[ScoringFlow:Engine] Processing delivery intent...`, { input: ballInput });
   // Normalize to canonical contract
   const ball = normalizeDelivery({
     ...ballInput,
     isFreeHit: currentState.isFreeHit || false,
   });
+  console.log(`[ScoringFlow:Engine] Normalized canonical delivery:`, ball);
 
   // Verify MCC Laws for Free Hit
   if (ball.isFreeHit && ball.wicketType !== 'NONE' && !['RUN_OUT', 'OBSTRUCTING_FIELD', 'RETIRED_OUT'].includes(ball.wicketType)) {

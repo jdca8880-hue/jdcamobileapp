@@ -855,7 +855,10 @@ export function useMatchScoring({
       ...event,
     };
 
+    console.log(`[ScoringFlow:UI] Formed raw payload for delivery:`, payloadRaw);
+
     const payload = normalizeDelivery(payloadRaw);
+    console.log(`[ScoringFlow:UI] Normalized payload for queueing:`, payload);
 
     // Update local React state array
     setDeliveryLog((prev) => [...prev, payload]);
@@ -874,9 +877,10 @@ export function useMatchScoring({
 
       // 2. Queue for Sync to Supabase
       if (!payload.inningsId) {
-        console.warn(`[useMatchScoring] Innings ID missing for match ${activeMatchId}. Queuing delivery for retry.`);
+        console.warn(`[ScoringFlow:Sync] Innings ID missing for match ${activeMatchId}. Queuing delivery for retry.`);
         await queueOfflineAction('RECORD_DELIVERY', payload);
       } else {
+        console.log(`[ScoringFlow:Sync] Handing over normalized payload to SyncService...`, { id: payload.id, inningsId: payload.inningsId });
         await syncService.executeOrQueue('RECORD_DELIVERY', payload, queueOfflineAction);
       }
     } catch(err) {

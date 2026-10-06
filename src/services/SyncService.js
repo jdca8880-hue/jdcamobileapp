@@ -470,7 +470,14 @@ class SyncService {
     const userId = session?.user?.id;
 
     // Explicit log before attempting INSERT as required
-    console.log(`[SyncService] Preparing delivery insert: actionId=${action?.id}, idempotencyKey=${payload.id}, matchId=${payload.matchId}, inningsId=${inningsId}, sequence=${deliverySequence}`);
+    console.log(`[ScoringFlow:Sync] Preparing delivery insert to Supabase:`, {
+      actionId: action?.id,
+      idempotencyKey: payload.id,
+      matchId: payload.matchId,
+      inningsId: inningsId,
+      sequence: deliverySequence,
+      rawPayload: rawPayload
+    });
 
     // Player assignments must be established prior to sync. No roster auto-repair.
 
@@ -514,6 +521,7 @@ class SyncService {
       throw error;
     }
     
+    console.log(`[ScoringFlow:Sync] ✅ Successfully inserted delivery into Supabase!`, { id: payload.id });
     context?.lastSequenceCache?.set(inningsId, deliverySequence);
     return true;
   }
