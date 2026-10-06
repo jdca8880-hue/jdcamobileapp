@@ -34,6 +34,8 @@ export const CanonicalDeliverySchema = z.object({
   runsTotal: z.number().int().min(0).default(0),  // runs_total
   runsCompleted: z.number().int().min(0).default(0), // physical crossings
   isBoundary: z.boolean().default(false), // explicit boundary allowance flag
+  isOverthrow: z.boolean().default(false),
+  runsOverthrow: z.number().int().min(0).default(0),
 
   // Events
   extraType: z.enum(['NONE', 'WIDE', 'NO_BALL', 'BYE', 'LEG_BYE']).default('NONE'),

@@ -318,7 +318,6 @@ export function processDelivery(currentState, ballInput) {
   // 9. Check Over Completion
   const isOverEnd = isLegalDelivery && state.balls > 0 && state.balls % 6 === 0;
   if (isOverEnd) {
-    state.currentOverBalls = [];
     // Change ends at over completion
     const temp = state.striker;
     state.striker = state.nonStriker;

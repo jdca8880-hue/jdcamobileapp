@@ -1066,25 +1066,30 @@ export function useMatchScoring({
     return true;
   };
 
-  const recordRuns = (runAmount, direction = selectedDirection) => {
+  const recordRuns = (runAmount, direction = selectedDirection, overthrowRuns = 0, isBoundaryOverthrow = false) => {
     if (!validateScoringState()) return;
 
     const currentState = captureSnapshot();
+    const actualRunsCompleted = runAmount + (isBoundaryOverthrow ? 0 : overthrowRuns);
+    const totalRuns = runAmount + overthrowRuns + (isBoundaryOverthrow ? 4 : 0);
+    const isOverthrow = overthrowRuns > 0 || isBoundaryOverthrow;
 
     const result = processDelivery(currentState, {
-      type: 'run',
-      runs: runAmount,
+      runsTotal: totalRuns,
+      runsBatter: totalRuns,
+      runsCompleted: actualRunsCompleted,
       wagonZone: direction,
+      isOverthrow,
+      runsOverthrow: overthrowRuns + (isBoundaryOverthrow ? 4 : 0),
     });
 
     const ok = applyStateResult(result);
     if (ok) {
       recordDeliveryEvent({
         type: 'run',
-        runs: runAmount,
-        runsOffBat: runAmount,
-        totalRuns: runAmount,
-        label: String(runAmount),
+        runsOffBat: totalRuns,
+        totalRuns: totalRuns,
+        label: isOverthrow ? `${totalRuns} (OT)` : String(totalRuns),
         wagonZone: direction,
         strikerId: currentState.striker.id,
         striker: currentState.striker.name,
@@ -1092,6 +1097,8 @@ export function useMatchScoring({
         nonStriker: currentState.nonStriker.name,
         bowlerId: currentState.currentBowler.id,
         bowler: currentState.currentBowler.name,
+        isOverthrow,
+        runsOverthrow: overthrowRuns + (isBoundaryOverthrow ? 4 : 0)
       }, currentState);
     }
     if (ok && runAmount === 6) {

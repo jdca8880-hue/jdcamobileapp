@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   RotateCcw, FileText, ShieldAlert, AlertTriangle, X,
   ChevronRight, RefreshCw, Radio, CircleHelp, WifiOff,
-  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock, Pause, Play
+  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock, Pause, Play, CornerUpRight
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -48,6 +48,10 @@ export default function ScoringScreen() {
   const [changeWkOpen, setChangeWkOpen] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [extraCategory, setExtraCategory] = useState('wide');
+  const [overthrowOpen, setOverthrowOpen] = useState(false);
+  const [runsCompletedBeforeThrow, setRunsCompletedBeforeThrow] = useState(1);
+  const [overthrowRuns, setOverthrowRuns] = useState(1);
+  const [overthrowIsBoundary, setOverthrowIsBoundary] = useState(false);
   const [extraRuns, setExtraRuns] = useState(0);
   const [isExtraBoundary, setIsExtraBoundary] = useState(false);
   const [recipientTeamId, setRecipientTeamId] = useState(null);
@@ -192,20 +196,13 @@ export default function ScoringScreen() {
     const isDismissed = dismissedBatterIds.has(pId) || (pName && dismissedBatterIds.has(pName));
     return pName && !isCurrentStriker && !isCurrentNonStriker && !isDismissed;
   }), [battingXI, striker, nonStriker, dismissedBatterIds]);
-  const lastBalls = deliveryLog.length ? deliveryLog.filter(d => d.type !== 'innings_start' && d.type !== 'match_start').slice(-6).map(b => {
-    const isWicket = b.wicket_type && b.wicket_type !== 'NONE' || b.wicket === true;
-    const isExtra = b.extra_type && b.extra_type !== 'NONE' || b.extra === true;
-    const runs = b.runs_total ?? b.runs ?? 0;
-    let label = b.label;
-    if (!label) {
-      if (isWicket) label = 'W';
-      else if (isExtra) {
-        const typeStr = b.extra_type === 'WIDE' ? 'Wd' : b.extra_type === 'NO_BALL' ? 'Nb' : b.extra_type === 'BYE' ? 'B' : 'Lb';
-        label = `${runs}${typeStr}`;
-      } else label = String(runs);
-    }
-    return { id: b.id, runs, wicket: isWicket, extra: isExtra, label };
-  }) : currentOverBalls.map((b, i) => ({ ...b, id: `temp-${i}`, runs: Number(b.value) || 0, wicket: b.type === 'wicket', extra: b.type === 'extra' }));
+  const lastBalls = (currentOverBalls || []).map((b, i) => ({ 
+    id: `temp-${i}`, 
+    runs: Number(b.runs || b.value || 0), 
+    wicket: b.type === 'wicket', 
+    extra: b.type === 'extra',
+    label: b.label || b.runs || 0
+  }));
   const isOverComplete = matchStatus === 'OVER_COMPLETE';
 
   useEffect(() => {
@@ -809,15 +806,20 @@ export default function ScoringScreen() {
              <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('leg_bye', 1); }} className="h-12 rounded-[10px] bg-white border border-slate-200 text-slate-700 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 shadow-sm transition-colors">LB</motion.button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5 mb-2.5">
              <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.heavy(); setDismissalOpen(true); }} className="h-14 rounded-[12px] bg-red-600 text-white flex items-center justify-center gap-1.5 text-[13px] font-black shadow-md border border-red-700 active:bg-red-700 transition-colors">
                <ShieldAlert size={16} /> WICKET
              </motion.button>
              <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.medium(); setRetireModalOpen(true); }} className="h-14 rounded-[12px] bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 text-[13px] font-black shadow-sm active:bg-slate-50 transition-colors">
                RETIRE
              </motion.button>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
              <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); setExtrasOpen(true); }} className="h-14 rounded-[12px] bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 text-[12px] font-bold shadow-sm active:bg-slate-50 transition-colors">
                <MoreHorizontal size={16} /> EXTRAS
+             </motion.button>
+             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); setOverthrowOpen(true); }} className="h-14 rounded-[12px] bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 text-[12px] font-bold shadow-sm active:bg-slate-50 transition-colors">
+               <CornerUpRight size={16} /> OVERTHROW
              </motion.button>
           </div>
         </div>
@@ -1195,6 +1197,95 @@ export default function ScoringScreen() {
                 }}
               >
                 Record Extra
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {overthrowOpen && (
+          <Modal title="Record Overthrow" onClose={() => setOverthrowOpen(false)}>
+            <div className="bg-slate-50 border border-slate-200 rounded-[12px] p-3 mb-5 text-center">
+              <div className="text-[12px] font-bold text-slate-900 mb-1">
+                Completed before throw: {runsCompletedBeforeThrow} | Overthrow runs: {overthrowIsBoundary ? '4 (Boundary)' : overthrowRuns}
+              </div>
+              <div className="text-[14px] font-black text-jade">
+                Total Runs: {runsCompletedBeforeThrow + (overthrowIsBoundary ? 4 : overthrowRuns)}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Runs completed BEFORE the throw</label>
+              <div className="flex gap-2">
+                {[0, 1, 2, 3, 4].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => { haptics.light(); setRunsCompletedBeforeThrow(num); }}
+                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${
+                      runsCompletedBeforeThrow === num
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Extra runs from the overthrow</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => { 
+                      haptics.light(); 
+                      setOverthrowRuns(num); 
+                      if (num !== 4) setOverthrowIsBoundary(false); 
+                    }}
+                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${
+                      overthrowRuns === num
+                        ? 'bg-jade text-white border-jade shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    +{num}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {overthrowRuns === 4 && (
+              <div className="flex items-center gap-3 mb-5 px-1">
+                <input 
+                  type="checkbox" 
+                  id="overthrowBoundary"
+                  checked={overthrowIsBoundary}
+                  onChange={(e) => setOverthrowIsBoundary(e.target.checked)}
+                  className="w-5 h-5 rounded text-jade focus:ring-jade border-slate-300"
+                />
+                <label htmlFor="overthrowBoundary" className="text-sm font-bold text-slate-700">
+                  Ball reached boundary (No physical crossings)
+                </label>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button 
+                className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" 
+                onClick={() => setOverthrowOpen(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="flex-1 py-3 rounded-[10px] font-bold bg-jade text-white shadow-sm hover:bg-emerald-600 transition-colors" 
+                onClick={() => {
+                  haptics.medium();
+                  recordRuns(runsCompletedBeforeThrow, undefined, overthrowRuns, overthrowIsBoundary);
+                  setOverthrowOpen(false);
+                }}
+              >
+                Record Overthrow
               </button>
             </div>
           </Modal>
