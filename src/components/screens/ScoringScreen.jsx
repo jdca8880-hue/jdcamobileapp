@@ -687,14 +687,21 @@ export default function ScoringScreen() {
 
         {/* PLAYERS ON FIELD */}
         <div className="px-4 mb-8 pb-80">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Batters</span>
+            <button 
+              onClick={() => toggleStriker?.()} 
+              className="bg-slate-200 text-slate-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 active:bg-slate-300"
+            >
+              <RefreshCw size={10} /> Swap Ends
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <button 
               onClick={() => {
-                if (!striker?.id) {
+                if (window.confirm("Do you want to manually change the Striker? (This will not record a wicket/retirement)")) {
                   setReplacingBatterType('striker');
                   setNewBatterOpen(true);
-                } else {
-                  toggleStriker?.();
                 }
               }} 
               className={`bg-white rounded-[12px] p-4 text-left border shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors ${!striker?.id ? 'border-amber-400 ring-2 ring-amber-100 bg-amber-50/20' : 'border-slate-200'}`}
@@ -707,11 +714,9 @@ export default function ScoringScreen() {
             
             <button 
               onClick={() => {
-                if (!nonStriker?.id) {
+                if (window.confirm("Do you want to manually change the Non-Striker? (This will not record a wicket/retirement)")) {
                   setReplacingBatterType('nonStriker');
                   setNewBatterOpen(true);
-                } else {
-                  toggleStriker?.();
                 }
               }} 
               className={`rounded-[12px] p-4 text-left border active:bg-slate-100 transition-colors ${!nonStriker?.id ? 'border-amber-400 ring-2 ring-amber-100 bg-amber-50/20' : 'bg-slate-50 border-slate-200'}`}
@@ -724,13 +729,15 @@ export default function ScoringScreen() {
 
           <div 
             onClick={() => {
-              if (!currentBowler?.id) setOverOpen(true);
+              if (!currentBowler?.id || window.confirm("Do you want to manually change the Bowler mid-over?")) {
+                setOverOpen(true);
+              }
             }}
-            className={`bg-white rounded-[12px] p-4 border flex items-center justify-between mb-3 shadow-sm ${!currentBowler?.id ? 'border-amber-400 ring-2 ring-amber-100 cursor-pointer hover:bg-slate-50' : 'border-slate-200'}`}
+            className={`bg-white rounded-[12px] p-4 border flex items-center justify-between mb-3 shadow-sm cursor-pointer hover:bg-slate-50 ${!currentBowler?.id ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200'}`}
           >
              <div>
-               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10}/> Bowler</div>
-               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler (Tap here) ➕'}</div>
+               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10}/> Bowler (Tap to Change)</div>
+               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler ➕'}</div>
              </div>
              <div className="text-right">
                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
@@ -1321,7 +1328,7 @@ export default function ScoringScreen() {
           </div>
         )}
 
-        {(matchStatus === 'MATCH_FINISHED' || matchStatus === 'ABANDONED' || matchStatus === 'CANCELLED') && (
+        {(matchStatus === 'MATCH_FINISHED' || matchStatus === 'COMPLETED' || matchStatus === 'ABANDONED' || matchStatus === 'CANCELLED') && (
           <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -1338,9 +1345,10 @@ export default function ScoringScreen() {
                    `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won!`}
                 </div>
                 <div className="text-[14px] font-bold text-slate-500 mb-6">
-                  {runs >= target ? `Chased down ${target} runs` : 
-                   runs === target - 1 ? 'Scores are level' : 
-                   `Defended the total of ${target - 1}`}
+                  {matchStatus === 'ABANDONED' || matchStatus === 'CANCELLED' ? '' :
+                   runs >= target ? `Chased down ${target} runs in ${Math.floor(balls / 6)}.${balls % 6} overs` : 
+                   runs === target - 1 ? `Scores are level at ${Math.floor(balls / 6)}.${balls % 6} overs` : 
+                   `Defended the total in ${Math.floor(balls / 6)}.${balls % 6} overs`}
                 </div>
                 <button 
                   onClick={() => {

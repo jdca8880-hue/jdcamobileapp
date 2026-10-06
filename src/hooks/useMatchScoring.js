@@ -471,8 +471,10 @@ export function useMatchScoring({
 
   useEffect(() => {
     const activeMatch = matches?.find(m => m.id === activeMatchId);
-    if (activeMatch && activeMatch.status === 'COMPLETED') {
-      setMatchStatus('COMPLETED');
+    if (activeMatch) {
+      if (['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(activeMatch.status)) {
+        setMatchStatus(activeMatch.status);
+      }
     }
   }, [activeMatchId, matches]);
 
@@ -1304,6 +1306,18 @@ export function useMatchScoring({
     
     try {
       await api.updateMatchDetails(activeMatchId, { max_overs: revisedOvers });
+      
+      if (currentInningsId && supabase) {
+        await supabase.from('innings').update({ overs_limit: revisedOvers }).eq('id', currentInningsId);
+        
+        // Update local cache
+        try {
+          const { db } = await import('../lib/db.js');
+          if (db.innings) {
+            await db.innings.update(currentInningsId, { overs_limit: revisedOvers });
+          }
+        } catch (e) {}
+      }
     } catch (err) {
       console.error('Failed to update revised overs remotely', err);
     }

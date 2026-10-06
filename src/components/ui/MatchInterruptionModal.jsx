@@ -85,22 +85,28 @@ export default function MatchInterruptionModal({
         </div>
         
         <div className="p-6 overflow-y-auto">
-          <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-xl">
+          <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setInterruptionType('DELAY_FIRST_INNINGS')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${interruptionType === 'DELAY_FIRST_INNINGS' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+              className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${interruptionType === 'DELAY_FIRST_INNINGS' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
             >
-              1st Innings
+              1st Innings Calc
             </button>
             <button 
               onClick={() => setInterruptionType('INTERRUPT_SECOND_INNINGS')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${interruptionType === 'INTERRUPT_SECOND_INNINGS' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+              className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${interruptionType === 'INTERRUPT_SECOND_INNINGS' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
             >
-              2nd Innings
+              2nd Innings Calc
+            </button>
+            <button 
+              onClick={() => setInterruptionType('MANUAL_ADJUST')}
+              className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${interruptionType === 'MANUAL_ADJUST' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+            >
+              Manual Adjust
             </button>
             <button 
               onClick={() => setInterruptionType('END_NOW')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${interruptionType === 'END_NOW' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500'}`}
+              className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${interruptionType === 'END_NOW' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500'}`}
             >
               End Now
             </button>
@@ -116,6 +122,37 @@ export default function MatchInterruptionModal({
                 className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-colors"
               >
                 Confirm End Match
+              </button>
+            </div>
+          ) : interruptionType === 'MANUAL_ADJUST' ? (
+            <div className="space-y-4">
+              <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-xs mb-4 border border-amber-100">
+                Use this to manually set the maximum overs for the entire match, bypassing the automatic MPCA calculations.
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">New Match Max Overs</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  value={totalTimeLost || ''} 
+                  onChange={(e) => setTotalTimeLost(parseInt(e.target.value) || 0)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                  placeholder="e.g. 15"
+                />
+              </div>
+
+              <button 
+                onClick={() => {
+                  if (totalTimeLost > 0) {
+                    onApplyRevisedOvers(totalTimeLost);
+                    onClose();
+                  }
+                }}
+                disabled={!totalTimeLost || totalTimeLost <= 0}
+                className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Apply Manual Overs
               </button>
             </div>
           ) : (
