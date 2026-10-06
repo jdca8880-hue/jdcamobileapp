@@ -447,6 +447,16 @@ export default function ScoringScreen() {
             <span className="block mb-3">{syncError.message}</span>
             <div className="flex flex-wrap gap-2">
               <button 
+                onClick={() => {
+                  const errorDump = `Sync Error: ${syncError.message}\nAction ID: ${syncError.actionId}\nPayload: ${JSON.stringify(syncError.action?.payload, null, 2)}\nError Details: ${JSON.stringify(syncError.action?.error, null, 2)}`;
+                  navigator.clipboard.writeText(errorDump);
+                  alert("Error details copied to clipboard!");
+                }}
+                className="bg-slate-800 text-white py-1.5 px-3 rounded hover:bg-slate-900 font-medium text-xs transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <FileText size={12} /> Copy Error
+              </button>
+              <button 
                 onClick={async () => {
                   await syncService.autoHealAndResume();
                   setSyncError(null);
