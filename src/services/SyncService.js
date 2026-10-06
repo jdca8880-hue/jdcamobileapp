@@ -161,6 +161,14 @@ class SyncService {
 
           if (error.code === 'P0001') {
              const errStr = String(error.message || error.details || '');
+             
+             console.error(`[SyncService] 🚨 DATABASE EXCEPTION (P0001) in Action ${action.id} (${action.action}):`, errStr);
+             console.error(`[SyncService] 📦 FAILED PAYLOAD DUMP:`, JSON.stringify(action.payload, null, 2));
+             
+             if (errStr.includes('already finalized') || errStr.includes('ABANDONED')) {
+                console.error(`[SyncService] 🛑 FATAL: Attempted to sync data for a match that is locked/finalized. Match ID: ${matchId}`);
+             }
+
              // If error is related to playing XI or innings mismatch, don't brand permanent immediately
              if (errStr.includes('playing XI') || errStr.includes('does not belong') || errStr.includes('Innings')) {
                console.warn(`[SyncService] P0001 data mismatch (${errStr}). Clearing caches for auto-healing on retry.`);
@@ -170,6 +178,7 @@ class SyncService {
                isPermanentError = false;
                isNetworkError = false;
              } else {
+               console.error(`[SyncService] ❌ Marking P0001 error as PERMANENT FAILURE.`);
                isPermanentError = true;
                errorDetails = {
                  code: error.code || 'P0001',
