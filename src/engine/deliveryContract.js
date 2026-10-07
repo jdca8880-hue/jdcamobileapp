@@ -55,6 +55,15 @@ export const CanonicalDeliverySchema = z.object({
   
   isLegalDelivery: z.boolean().default(true),
 
+  // Auxiliary engine/sync context (not DB columns, but required downstream).
+  // These MUST survive normalization: `innings` drives per-innings sequencing,
+  // `balls` drives over_number/ball_number on the server, and `type`/`eventType`
+  // let the sync + hydration layers route markers and non-ball events.
+  innings: z.number().int().min(1).optional(),
+  balls: z.number().int().min(0).optional(),
+  type: z.string().optional(),
+  eventType: z.string().optional(),
+
   // UI Compatibility fields (Do not sync to DB)
   dismissedPlayerName: z.string().nullable().optional(),
   fielderName: z.string().nullable().optional(),
@@ -197,6 +206,11 @@ export function normalizeDelivery(rawEvent) {
     wagonZone: event.wagonZone ?? null,
 
     isLegalDelivery: event.isLegalDelivery ?? !['WIDE', 'NO_BALL'].includes(event.extraType ?? 'NONE'),
+
+    innings: event.innings ?? undefined,
+    balls: event.balls ?? undefined,
+    type: event.type ?? undefined,
+    eventType: event.eventType ?? undefined,
 
     dismissedPlayerName: event.dismissedPlayerName ?? null,
     fielderName: event.fielderName ?? null,

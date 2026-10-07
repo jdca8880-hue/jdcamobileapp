@@ -186,10 +186,15 @@ class SyncService {
                  details: error.details || error.message
                };
              }
-          } else if (error.code === '23505') { 
-             // ONLY treat idempotency duplicate as success. Other unique constraints are permanent failures.
-             if (error.message?.includes('idempotency') || error.details?.includes('idempotency') || error.message?.includes('delivery_sequence')) {
-                success = true; 
+          } else if (error.code === 'SEQUENCE_CONFLICT' || error.code === 'MISSING_SEQUENCE' || error.code === 'UNDO_REJECTED') {
+             // Our own guarded integrity errors: the ball/undo cannot be applied
+             // as-is. Block the match so a human resolves it, rather than looping.
+             isPermanentError = true;
+          } else if (error.code === '23505') {
+             // ONLY an idempotency duplicate means "already recorded" (success).
+             // A sequence duplicate must NEVER be silently treated as success.
+             if (error.message?.includes('idempotency') || error.details?.includes('idempotency')) {
+                success = true;
              } else {
                 isPermanentError = true;
              }
@@ -445,25 +450,15 @@ class SyncService {
     const fielderId = (['CAUGHT', 'RUN_OUT'].includes(wicketType) && isUUID(payload.fielderId)) ? payload.fielderId : null;
     const wicketkeeperId = (['STUMPED', 'CAUGHT_BEHIND'].includes(wicketType) && isUUID(payload.wicketkeeperId)) ? payload.wicketkeeperId : null;
 
-    // Calculate unique delivery sequence for this innings
-    let deliverySequence = payload.deliverySequence;
+    // The client assigns a monotonic per-innings sequence. We must NOT guess a
+    // replacement here: guessing "server max + 1" is exactly what silently
+    // overwrote and dropped balls. A missing sequence is a real defect we
+    // surface instead of papering over.
+    const deliverySequence = payload.deliverySequence;
     if (!deliverySequence || deliverySequence < 1) {
-      try {
-        if (context?.lastSequenceCache?.has(inningsId)) {
-          deliverySequence = context.lastSequenceCache.get(inningsId) + 1;
-        } else {
-          const { data: lastDel } = await supabase
-            .from('deliveries')
-            .select('delivery_sequence')
-            .eq('innings_id', inningsId)
-            .order('delivery_sequence', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          deliverySequence = (lastDel?.delivery_sequence || 0) + 1;
-        }
-      } catch (e) {
-        deliverySequence = Math.max(1, (payload.balls || 0) + 1);
-      }
+      const err = new Error(`Missing delivery_sequence for ball ${payload.id} in innings ${inningsId}.`);
+      err.code = 'MISSING_SEQUENCE';
+      throw err;
     }
 
     const { data: { session } } = await supabase.auth.getSession();
@@ -505,19 +500,39 @@ class SyncService {
 
     if (error) {
       if (error.code === '23505') {
-        if (
-          error.message?.includes('idempotency') || error.details?.includes('idempotency') ||
-          error.message?.includes('delivery_sequence') || error.details?.includes('delivery_sequence')
-        ) {
-           context?.lastSequenceCache?.set(inningsId, deliverySequence); // Cache it even if duplicate
-           return true; 
+        const dupMsg = `${error.message || ''} ${error.details || ''}`;
+        const isIdempotencyDup = dupMsg.includes('idempotency');
+        const isSequenceDup = dupMsg.includes('delivery_sequence') || dupMsg.includes('innings_id');
+
+        // Same idempotency key already present => THIS exact ball was already
+        // recorded (a genuine retry). Safe to treat as success.
+        if (isIdempotencyDup) {
+          context?.lastSequenceCache?.set(inningsId, deliverySequence);
+          return true;
         }
+
+        // Sequence collision: a success ONLY if our own idempotency key is the
+        // one occupying that sequence. Otherwise a DIFFERENT ball took the slot
+        // and this ball must not be dropped — surface it as a hard conflict.
+        if (isSequenceDup) {
+          const { data: mine } = await supabase
+            .from('deliveries')
+            .select('idempotency_key')
+            .eq('idempotency_key', payload.id)
+            .maybeSingle();
+          if (mine) {
+            context?.lastSequenceCache?.set(inningsId, deliverySequence);
+            return true;
+          }
+          const seqErr = new Error(`Delivery sequence ${deliverySequence} is already used in innings ${inningsId} by a different ball (${payload.id}).`);
+          seqErr.code = 'SEQUENCE_CONFLICT';
+          seqErr.details = dupMsg;
+          throw seqErr;
+        }
+
         throw error;
       }
       // Ensure finalized rejections are bubbled up instead of silently dropped
-      if (error.message?.includes('already finalized') || error.message?.includes('check_match_immutable')) {
-        throw error;
-      }
       throw error;
     }
     
@@ -538,15 +553,32 @@ class SyncService {
       }
     }
     
-    const { error } = await supabase.from('deliveries')
+    // idempotency_key is globally unique; scope to the match as a safety net.
+    // .select() returns the rows actually deleted so we can detect a silent no-op.
+    const { data: deleted, error } = await supabase.from('deliveries')
       .delete()
       .eq('idempotency_key', payload.id)
       .eq('match_id', payload.matchId)
-      .eq('innings_id', payload.inningsId);
-      
+      .select();
+
     if (error) {
       console.error('[SyncService] Failed to delete delivery:', error);
       throw error;
+    }
+
+    const deletedCount = Array.isArray(deleted) ? deleted.length : 0;
+    if (deletedCount === 0) {
+      // Nothing deleted. Either it was already gone (fine, idempotent), or an
+      // RLS DELETE policy silently blocked us (NOT fine) — tell them apart.
+      const { data: still } = await supabase.from('deliveries')
+        .select('idempotency_key')
+        .eq('idempotency_key', payload.id)
+        .maybeSingle();
+      if (still) {
+        const err = new Error(`Undo rejected: delivery ${payload.id} still exists after delete (likely no DELETE RLS policy on 'deliveries').`);
+        err.code = 'UNDO_REJECTED';
+        throw err;
+      }
     }
     return true;
   }
@@ -556,31 +588,16 @@ class SyncService {
    * otherwise queue it for later.
    */
   async executeOrQueue(actionType, payload, offlineQueueFn) {
+    // Every action goes through the single FIFO queue, drained by one worker.
+    // The previous "execute immediately when online" fast-path allowed a live
+    // UNDO delete to overtake a still-queued INSERT (and two live writes to land
+    // out of order). Enqueueing everything guarantees ordered, serialized sync.
+    await offlineQueueFn(actionType, payload);
+    await this.updatePendingCount();
     if (this.isOnline && !this.syncInProgress) {
-      try {
-        if (actionType === 'RECORD_DELIVERY') {
-           await this.pushDelivery(payload);
-        } else if (actionType === 'UNDO_DELIVERY') {
-           await this.deleteDelivery(payload);
-        }
-        return true;
-      } catch (err) {
-        console.warn(`[SyncService] Live execution failed, falling back to queue. Error:`, err);
-        await offlineQueueFn(actionType, payload);
-        await this.updatePendingCount();
-        if (this.isOnline && !this.syncInProgress) {
-           this.processQueue();
-        }
-        return false;
-      }
-    } else {
-      await offlineQueueFn(actionType, payload);
-      await this.updatePendingCount();
-      if (this.isOnline && !this.syncInProgress) {
-         this.processQueue();
-      }
-      return false;
+      this.processQueue();
     }
+    return false;
   }
 }
 

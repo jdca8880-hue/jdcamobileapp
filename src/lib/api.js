@@ -914,7 +914,7 @@ export const api = {
       balls.forEach(d => {
         runs += d.runs_total;
         if (d.wicket_type !== 'NONE') wickets += 1;
-        if (d.extra_type !== 'NONE' && d.extra_type !== 'BYES' && d.extra_type !== 'LEG_BYES') {
+        if (d.extra_type !== 'NONE' && d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE') {
           // Wides/No-balls don't count as legal
         } else {
           legalBalls += 1;
@@ -927,7 +927,7 @@ export const api = {
           if (!batters[d.striker_id]) {
             batters[d.striker_id] = { id: d.striker_id, name: d.striker?.full_name || d.striker?.name || 'Unknown', runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: 'not out' };
           }
-          if (d.extra_type === 'NONE' || d.extra_type === 'NO_BALL' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
+          if (d.extra_type === 'NONE' || d.extra_type === 'NO_BALL' || d.extra_type === 'BYE' || d.extra_type === 'LEG_BYE') {
             batters[d.striker_id].balls += 1;
           }
           if (d.extra_type === 'NONE' || d.extra_type === 'NO_BALL') {
@@ -945,10 +945,10 @@ export const api = {
           if (!bowlers[d.bowler_id]) {
             bowlers[d.bowler_id] = { id: d.bowler_id, name: d.bowler?.full_name || d.bowler?.name || 'Unknown', balls: 0, runs: 0, wickets: 0, maidens: 0, wides: 0, noBalls: 0 };
           }
-          if (d.extra_type === 'NONE' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
+          if (d.extra_type === 'NONE' || d.extra_type === 'BYE' || d.extra_type === 'LEG_BYE') {
             bowlers[d.bowler_id].balls += 1;
           }
-          if (d.extra_type !== 'BYES' && d.extra_type !== 'LEG_BYES') {
+          if (d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE') {
             bowlers[d.bowler_id].runs += d.runs_total;
           }
           if (d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT' && d.wicket_type !== 'RETIRED_HURT' && d.wicket_type !== 'OBSTRUCTING_THE_FIELD' && d.wicket_type !== 'TIMED_OUT') {

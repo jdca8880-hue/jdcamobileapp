@@ -151,29 +151,24 @@ export function useMatchScoring({
               .filter(a => !supabaseKeys.has(a.payload.id))
               .map(a => {
                 const p = a.payload;
-                let extraType = 'NONE';
-                if (p.extraType) extraType = p.extraType.toUpperCase();
-                
-                let wicketType = 'NONE';
-                if (p.wicket) {
-                  const wMap = {
-                    'Bowled': 'BOWLED', 'Caught': 'CAUGHT', 'LBW': 'LBW', 'Run Out': 'RUN_OUT',
-                    'Stumped': 'STUMPED', 'Hit Wicket': 'HIT_WICKET', 'Retired Hurt': 'RETIRED_HURT',
-                    'Retired Out': 'RETIRED_OUT'
-                  };
-                  wicketType = wMap[p.dismissalType] || 'NONE';
-                }
-                
+                // Queued payloads are already in the canonical contract shape,
+                // so read the canonical fields directly (the old code read the
+                // pre-normalization `p.wicket`/`p.dismissalType`, which no longer
+                // exist, silently dropping every offline wicket on hydration).
+                const extraType = p.extraType || 'NONE';
+                const wicketType = p.wicketType || 'NONE';
+
                 return {
                   id: p.id,
                   idempotency_key: p.id,
+                  delivery_sequence: p.deliverySequence,
                   runs_total: p.runsTotal ?? p.totalRuns ?? 0,
                   runs_off_bat: p.runsBatter ?? p.runsOffBat ?? 0,
                   runs_extras: p.runsExtras ?? p.extraRuns ?? 0,
                   extra_type: extraType,
                   wicket_type: wicketType,
                   striker: { name: p.striker },
-                  dismissed_player_id: p.dismissedPlayerId || (p.wicket ? p.strikerId : null),
+                  dismissed_player_id: p.dismissedPlayerId || (wicketType !== 'NONE' ? p.strikerId : null),
                   striker_id: p.strikerId,
                   non_striker_id: p.nonStrikerId,
                   bowler_id: p.bowlerId,
@@ -186,15 +181,24 @@ export function useMatchScoring({
           console.error('[useMatchScoring] Failed to merge offline deliveries during hydration:', err);
         }
 
+        // Seed the monotonic sequence counter so freshly recorded balls continue
+        // AFTER the highest sequence already persisted (server) or queued (offline).
+        let seqMax = 0;
+        mergedDeliveries.forEach((d) => {
+          const s = Number(d.delivery_sequence ?? d.deliverySequence ?? 0);
+          if (Number.isFinite(s) && s > seqMax) seqMax = s;
+        });
+        inningsSeqRef.current[currentInning.innings_number] = seqMax;
+
         let r = 0;
         let w = 0;
         let b = 0;
-        
+
         const mappedLog = [];
         mergedDeliveries.forEach((d) => {
           r += d.runs_total;
           if (d.wicket_type !== 'NONE') w++;
-          if (d.extra_type === 'NONE' || d.extra_type === 'BYES' || d.extra_type === 'LEG_BYES') {
+          if (d.extra_type === 'NONE' || d.extra_type === 'BYE' || d.extra_type === 'LEG_BYE') {
             b++;
           }
           
@@ -448,6 +452,10 @@ export function useMatchScoring({
   // Permanent-in-session delivery events: the raw source for scorecards and future analytics.
   const [deliveryLog, setDeliveryLog] = useState([]);
   const [lastOverBowlerId, setLastOverBowlerId] = useState(null);
+  // Monotonic per-innings delivery sequence. Keyed by innings number.
+  // Assigned synchronously so rapid taps cannot collide, and never reused after
+  // an undo (so a new ball can never clash with the sequence of an undone one).
+  const inningsSeqRef = useRef({});
   const [scoringFirstRunDone, setScoringFirstRunDone] = useState(() => {
     try { return localStorage.getItem('jdca-scoring-first-run') === '1'; } catch { return false; }
   });
@@ -574,6 +582,7 @@ export function useMatchScoring({
     setMatchStatus('IN_PROGRESS');
     setMatchSetup(INITIAL_MATCH_SETUP);
     setCurrentInningsId(null);
+    inningsSeqRef.current = {};
     setInnings(1);
     try {
       await refreshAdminData?.();
@@ -818,7 +827,35 @@ export function useMatchScoring({
     }
 
     const eventId = `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    
+
+    // Non-ball events (penalties, retirements) are NOT physical deliveries and
+    // must never become rows in `deliveries`, where they would be counted as
+    // phantom legal balls by the SQL views and the scorecard. Until the server
+    // `event_type` migration lands, keep them in local React state only.
+    const isNonBallEvent =
+      event.eventType === 'PENALTY' ||
+      event.type === 'retire' ||
+      event.dismissalType === 'Retired Hurt' ||
+      event.dismissalType === 'Retired Out';
+
+    if (isNonBallEvent) {
+      const localEntry = {
+        id: eventId,
+        timestamp: new Date().toISOString(),
+        matchId: activeMatchId,
+        innings,
+        localOnly: true,
+        ...event,
+      };
+      setDeliveryLog((prev) => [...prev, localEntry]);
+      return;
+    }
+
+    // Assign the per-innings sequence SYNCHRONOUSLY, before any await, so two
+    // rapid taps can never read the same stale value and collide.
+    const deliverySequence = (inningsSeqRef.current[innings] || 0) + 1;
+    inningsSeqRef.current[innings] = deliverySequence;
+
     // Ensure inningsId is always populated with the actual innings UUID for activeMatchId
     let resolvedInningsId = currentInningsId;
     if (activeMatchId) {
@@ -827,10 +864,6 @@ export function useMatchScoring({
         resolvedInningsId = matchInningsId;
       }
     }
-
-    // Determine unique delivery sequence for this innings
-    const currentInningsDeliveries = deliveryLog.filter(d => (d.innings || 1) === innings && d.type !== 'innings_start' && d.type !== 'match_start');
-    const deliverySequence = currentInningsDeliveries.length + 1;
 
     // Use immutable snapshot players from the exact moment of delivery
     const activeStriker = snapshot?.striker || striker;
@@ -928,6 +961,8 @@ export function useMatchScoring({
     }
     setInnings(nextInningsNum);
     setCurrentInningsId(null);
+    // Fresh innings => sequence starts over at 1 for this innings number.
+    inningsSeqRef.current[nextInningsNum] = 0;
     setRuns(0);
     setWickets(0);
     setBalls(0);
@@ -1260,6 +1295,31 @@ export function useMatchScoring({
       return;
     }
 
+    // Local-only events (penalties, retirements) never reached the server, so
+    // just revert local state — no queue action and no database call.
+    if (undoneDelivery.localOnly) {
+      const prev = ballHistory[ballHistory.length - 1];
+      if (prev) {
+        setRuns(prev.runs);
+        setWickets(prev.wickets);
+        setBalls(prev.balls);
+        setCurrentOverBalls(prev.currentOverBalls);
+        setStriker(prev.striker);
+        setNonStriker(prev.nonStriker);
+        setCurrentBowler(prev.currentBowler);
+        setExtras(prev.extras);
+        setIsFreeHit(prev.isFreeHit);
+        setInnings(prev.innings);
+        setMatchStatus(prev.matchStatus || 'IN_PROGRESS');
+        setLastOverBowlerId(prev.lastOverBowlerId || null);
+        if (prev.scorecard) setScorecard(prev.scorecard);
+      }
+      setDeliveryLog((p) => p.slice(0, -1));
+      setBallHistory((p) => p.slice(0, -1));
+      setValidationError(null);
+      return;
+    }
+
     const previousState = ballHistory[ballHistory.length - 1];
     setRuns(previousState.runs);
     setWickets(previousState.wickets);
@@ -1282,19 +1342,37 @@ export function useMatchScoring({
     setBallHistory((prev) => prev.slice(0, -1));
     setValidationError(null);
 
-    // Queue UNDO to Supabase
+    // Persist the undo safely with respect to sync-queue ordering.
     try {
       const { db } = await import('../lib/db.js');
       if (db.deliveries) {
         await db.deliveries.where('id').equals(undoneDelivery.id).delete();
       }
-      
-      const undoPayload = {
-        id: undoneDelivery.id,
-        matchId: undoneDelivery.matchId,
-        inningsId: undoneDelivery.inningsId
-      };
-      await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
+
+      // If this ball's INSERT is still pending in the queue and nothing is
+      // currently draining it, cancel the insert instead of racing a DELETE
+      // against it (which would otherwise resurrect the ball as a ghost row).
+      let cancelledPendingInsert = false;
+      if (db.sync_queue && !syncService.syncInProgress) {
+        const pendingInserts = await db.sync_queue.where('action').equals('RECORD_DELIVERY').toArray();
+        const row = pendingInserts.find(a => a.payload?.id === undoneDelivery.id && a.status !== 'FAILED_PERMANENT');
+        if (row) {
+          await db.sync_queue.delete(row.id);
+          cancelledPendingInsert = true;
+          await syncService.updatePendingCount();
+        }
+      }
+
+      if (!cancelledPendingInsert) {
+        // Already synced (or mid-flight): enqueue a DELETE. The single FIFO
+        // queue drainer runs it only after the matching INSERT has completed.
+        const undoPayload = {
+          id: undoneDelivery.id,
+          matchId: undoneDelivery.matchId,
+          inningsId: undoneDelivery.inningsId
+        };
+        await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
+      }
     } catch (err) {
       console.error('[useMatchScoring] Failed to persist undo:', err);
     }
