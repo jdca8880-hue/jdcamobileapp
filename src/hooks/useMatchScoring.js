@@ -482,6 +482,25 @@ export function useMatchScoring({
     }
   });
 
+  // When the ACTIVE MATCH actually changes, reset innings-scoped state so a
+  // previous match's innings number can't leak into a new one. Without this, a
+  // session that reached innings 2 in an earlier match left innings=2, so the
+  // next match's 1st innings was treated as the 2nd and immediately declared a
+  // winner. Does NOT fire on initial mount (so a directly-resumed match is left
+  // for hydrateMatchState to populate from the DB).
+  const prevActiveMatchRef = useRef(activeMatchId);
+  useEffect(() => {
+    if (prevActiveMatchRef.current !== activeMatchId) {
+      prevActiveMatchRef.current = activeMatchId;
+      setInnings(1);
+      setTarget(null);
+      setCurrentInningsId(null);
+      setCurrentBattingTeamId(null);
+      setCurrentBowlingTeamId(null);
+      inningsSeqRef.current = {};
+    }
+  }, [activeMatchId]);
+
   useEffect(() => {
     setCurrentInningsId(null);
     // Clear stale team resolution; resolveInningsId sets it from the innings record.
