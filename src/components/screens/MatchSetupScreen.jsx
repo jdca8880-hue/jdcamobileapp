@@ -793,18 +793,18 @@ export default function MatchSetupScreen() {
         const activeTeamId = activeTeamTab === 'A' ? matchSetup.teamAId : matchSetup.teamBId;
         const otherXI = activeTeamTab === 'A' ? matchSetup.teamBXI : matchSetup.teamAXI;
 
-        const availablePlayers = players.filter(p => {
+        // Only players who actually belong to THIS team's squad are eligible,
+        // so the Add-Player list never mixes the two teams' rosters.
+        const squadForActive = players.filter(p => p.team_players?.some(tp => tp.team_id === activeTeamId));
+        const hasSquad = squadForActive.length > 0;
+        const poolForActive = hasSquad ? squadForActive : players; // fallback: ad-hoc teams with no linked squad
+
+        const availablePlayers = poolForActive.filter(p => {
           const inActive = activeXI.some(xi => xi.id === p.id);
           const inOther = otherXI.some(xi => xi.id === p.id);
           const matchesSearch = (p.full_name || p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase());
           return !inActive && !inOther && matchesSearch;
-        }).sort((a, b) => {
-          const aBelongs = a.team_players?.some(tp => tp.team_id === activeTeamId);
-          const bBelongs = b.team_players?.some(tp => tp.team_id === activeTeamId);
-          if (aBelongs && !bBelongs) return -1;
-          if (!aBelongs && bBelongs) return 1;
-          return (a.full_name || a.name || '').localeCompare(b.full_name || b.name || '');
-        });
+        }).sort((a, b) => (a.full_name || a.name || '').localeCompare(b.full_name || b.name || ''));
 
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#101827]/65 p-3 sm:p-5">

@@ -25,6 +25,7 @@ export default function ScoringScreen() {
     currentOverBalls, striker, nonStriker, currentBowler, isFreeHit, toggleStriker,
     validationError, setValidationError, matchStatus, recordRuns, recordExtra, recordPenaltyEvent,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
+    currentBattingTeamId, currentBowlingTeamId,
     matchSetup, setMatchSetup, applyRevisedOvers, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
@@ -143,24 +144,34 @@ export default function ScoringScreen() {
   
   let battingTeamId = matchSetup?.teamAId;
   let bowlingTeamId = matchSetup?.teamBId;
-  
-  if (tossWinnerTeamId) {
-    const isBat = String(electedTo || '').toUpperCase() === 'BAT';
-    if (tossWinnerTeamId === matchSetup?.teamAId) {
-      battingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
-      bowlingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
-    } else {
-      battingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
-      bowlingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
-    }
-  }
 
-  // In innings 2, teams swap. In innings 3 (Super Over 1st innings), the team that batted second bats first, so they stay swapped.
-  // In innings 4 (Super Over 2nd innings), they swap back to their original state.
-  if (innings === 2 || innings === 3) {
-    const temp = battingTeamId;
-    battingTeamId = bowlingTeamId;
-    bowlingTeamId = temp;
+  const authBattingTeamId = currentBattingTeamId;
+  const authBowlingTeamId = currentBowlingTeamId;
+
+  if (authBattingTeamId && authBowlingTeamId &&
+      (authBattingTeamId === matchSetup?.teamAId || authBattingTeamId === matchSetup?.teamBId)) {
+    // Authoritative: use the innings record so the correct team bats (esp. 2nd innings).
+    battingTeamId = authBattingTeamId;
+    bowlingTeamId = authBowlingTeamId;
+  } else {
+    if (tossWinnerTeamId) {
+      const isBat = String(electedTo || '').toUpperCase() === 'BAT';
+      if (tossWinnerTeamId === matchSetup?.teamAId) {
+        battingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
+        bowlingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
+      } else {
+        battingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
+        bowlingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
+      }
+    }
+
+    // In innings 2, teams swap. In innings 3 (Super Over 1st innings), the team that batted second bats first, so they stay swapped.
+    // In innings 4 (Super Over 2nd innings), they swap back to their original state.
+    if (innings === 2 || innings === 3) {
+      const temp = battingTeamId;
+      battingTeamId = bowlingTeamId;
+      bowlingTeamId = temp;
+    }
   }
 
   const battingXI = battingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;

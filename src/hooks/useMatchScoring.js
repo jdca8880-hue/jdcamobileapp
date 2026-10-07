@@ -66,6 +66,12 @@ export function useMatchScoring({
   // Live Scoring Engine State
   const [innings, setInnings] = useState(1); // 1 or 2
   const [currentInningsId, setCurrentInningsId] = useState(null);
+  // Authoritative batting/bowling team for the CURRENT innings, taken from the
+  // innings record in the DB (api.getOrCreateInnings decides innings-2 by
+  // inverting innings-1). The client trusts this instead of re-deriving from the
+  // toss, so the right team always bats in the 2nd innings.
+  const [currentBattingTeamId, setCurrentBattingTeamId] = useState(null);
+  const [currentBowlingTeamId, setCurrentBowlingTeamId] = useState(null);
   const [target, setTarget] = useState(null);
 
   // Hydrate Match State on refresh
@@ -134,7 +140,9 @@ export function useMatchScoring({
       if (currentInning) {
         setInnings(currentInning.innings_number);
         setCurrentInningsId(currentInning.id);
-        
+        if (currentInning.batting_team_id) setCurrentBattingTeamId(currentInning.batting_team_id);
+        if (currentInning.bowling_team_id) setCurrentBowlingTeamId(currentInning.bowling_team_id);
+
         let mergedDeliveries = [...deliveries];
         
         try {
@@ -390,6 +398,8 @@ export function useMatchScoring({
         const cached = await db.innings.where({ match_id: matchId, innings_number: num }).first();
         if (cached?.id) {
           setCurrentInningsId(cached.id);
+          if (cached.batting_team_id) setCurrentBattingTeamId(cached.batting_team_id);
+          if (cached.bowling_team_id) setCurrentBowlingTeamId(cached.bowling_team_id);
           return cached.id;
         }
       }
@@ -402,6 +412,8 @@ export function useMatchScoring({
       const inn = await api.getOrCreateInnings(matchId, num);
       if (inn?.id) {
         setCurrentInningsId(inn.id);
+        if (inn.batting_team_id) setCurrentBattingTeamId(inn.batting_team_id);
+        if (inn.bowling_team_id) setCurrentBowlingTeamId(inn.bowling_team_id);
         // Cache to local Dexie
         try {
           const { db } = await import('../lib/db.js');
@@ -472,6 +484,9 @@ export function useMatchScoring({
 
   useEffect(() => {
     setCurrentInningsId(null);
+    // Clear stale team resolution; resolveInningsId sets it from the innings record.
+    setCurrentBattingTeamId(null);
+    setCurrentBowlingTeamId(null);
     if (activeMatchId) {
       resolveInningsId(activeMatchId, innings);
     }
@@ -582,6 +597,8 @@ export function useMatchScoring({
     setMatchStatus('IN_PROGRESS');
     setMatchSetup(INITIAL_MATCH_SETUP);
     setCurrentInningsId(null);
+    setCurrentBattingTeamId(null);
+    setCurrentBowlingTeamId(null);
     inningsSeqRef.current = {};
     setInnings(1);
     try {
@@ -643,22 +660,31 @@ export function useMatchScoring({
   const captureSnapshot = () => {
     let battingTId = matchSetup?.teamAId;
     let bowlingTId = matchSetup?.teamBId;
-    
-    if (matchSetup?.tossWinnerTeamId) {
-      const isBat = String(matchSetup.electedTo || '').toUpperCase() === 'BAT';
-      if (matchSetup.tossWinnerTeamId === matchSetup?.teamAId) {
-        battingTId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
-        bowlingTId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
-      } else {
-        battingTId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
-        bowlingTId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
-      }
-    }
 
-    if (innings === 2 || innings === 3) {
-      const temp = battingTId;
-      battingTId = bowlingTId;
-      bowlingTId = temp;
+    // Prefer the authoritative innings record (set by resolveInningsId) when we
+    // have it — this is what makes the 2nd innings reliable. Fall back to the
+    // toss-based derivation only when the innings hasn't resolved yet.
+    if (currentBattingTeamId && currentBowlingTeamId &&
+        (currentBattingTeamId === matchSetup?.teamAId || currentBattingTeamId === matchSetup?.teamBId)) {
+      battingTId = currentBattingTeamId;
+      bowlingTId = currentBowlingTeamId;
+    } else {
+      if (matchSetup?.tossWinnerTeamId) {
+        const isBat = String(matchSetup.electedTo || '').toUpperCase() === 'BAT';
+        if (matchSetup.tossWinnerTeamId === matchSetup?.teamAId) {
+          battingTId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
+          bowlingTId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
+        } else {
+          battingTId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
+          bowlingTId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
+        }
+      }
+
+      if (innings === 2 || innings === 3) {
+        const temp = battingTId;
+        battingTId = bowlingTId;
+        bowlingTId = temp;
+      }
     }
 
     const isTeamABatting = battingTId === matchSetup?.teamAId;
@@ -962,6 +988,10 @@ export function useMatchScoring({
     }
     setInnings(nextInningsNum);
     setCurrentInningsId(null);
+    // Clear the resolved batting/bowling team so the next innings re-resolves
+    // authoritatively from its own innings record (effect on [innings] change).
+    setCurrentBattingTeamId(null);
+    setCurrentBowlingTeamId(null);
     // Fresh innings => sequence starts over at 1 for this innings number.
     inningsSeqRef.current[nextInningsNum] = 0;
     setRuns(0);
@@ -1449,6 +1479,7 @@ export function useMatchScoring({
     matchSetup, setMatchSetup,
     innings, setInnings,
     currentInningsId, setCurrentInningsId,
+    currentBattingTeamId, currentBowlingTeamId,
     target, setTarget,
     hydrateMatchState,
     resolveInningsId,
