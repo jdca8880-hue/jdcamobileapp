@@ -142,7 +142,7 @@ const PointsTableUI = ({ pointsTable }) => {
   );
 };
 
-const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, onEditMatch, isAdmin }) => {
+const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, onEditMatch, onDeleteMatch, isAdmin }) => {
   const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
   const isCompleted = match.status === 'COMPLETED' || match.status === 'FINISHED';
 
@@ -209,12 +209,19 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
             >
               <Edit2 size={14} />
             </button>
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); onEditMatch(match, 'setup'); }}
               className="p-1.5 rounded-full text-amber-500 hover:bg-amber-100 hover:text-amber-700 transition-colors"
               title="Setup / Score Match"
             >
               <Trophy size={14} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDeleteMatch?.(match); }}
+              className="p-1.5 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+              title="Delete this match only"
+            >
+              <Trash2 size={14} />
             </button>
           </>
         )}
@@ -302,6 +309,20 @@ export default function TournamentsScreen() {
       window.location.reload();
     } catch (err) {
       alert('Failed to delete: ' + err.message);
+    }
+  };
+
+  // Delete a single match (soft-delete to Recycle Bin), leaving the tournament
+  // and its other fixtures intact.
+  const handleDeleteMatch = async (match) => {
+    const a = match.home_team?.name || 'Home';
+    const b = match.away_team?.name || 'Away';
+    if (!window.confirm(`Delete this match only (${a} vs ${b})? It will be moved to the Recycle Bin. The tournament and other matches are unaffected.`)) return;
+    try {
+      await api.deleteMatch(match.id);
+      if (refreshAdminData) await refreshAdminData();
+    } catch (err) {
+      alert('Failed to delete match: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -459,15 +480,16 @@ export default function TournamentsScreen() {
                             isExpanded={expandedMatchId === m.id}
                             onToggle={() => toggleMatch(m.id)}
                             onOpenDetail={() => openMatch(m)}
-                            onEditMatch={(matchToEdit, action) => { 
+                            onEditMatch={(matchToEdit, action) => {
                               if (action === 'edit') {
                                 setEditingMatchData(matchToEdit);
                                 setActiveTournamentForMatch(tournament);
                               } else {
-                                setActiveMatchId(matchToEdit.id); 
-                                navigateTo('/match-setup'); 
+                                setActiveMatchId(matchToEdit.id);
+                                navigateTo('/match-setup');
                               }
                             }}
+                            onDeleteMatch={handleDeleteMatch}
                             isAdmin={isAdmin}
                           />
                         ))}
