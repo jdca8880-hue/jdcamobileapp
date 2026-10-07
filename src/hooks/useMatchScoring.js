@@ -828,17 +828,18 @@ export function useMatchScoring({
 
     const eventId = `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-    // Non-ball events (penalties, retirements) are NOT physical deliveries and
-    // must never become rows in `deliveries`, where they would be counted as
-    // phantom legal balls by the SQL views and the scorecard. Until the server
-    // `event_type` migration lands, keep them in local React state only.
+    // Non-ball events (penalties, retirements) ARE persisted, but as their own
+    // event_type so the DB views/scorecard never count them as physical balls.
+    // Exception: a penalty awarded to the team that is NOT currently batting
+    // cannot be attributed to this innings, so it is marked syncToServer:false
+    // and kept in local state only until that team bats.
     const isNonBallEvent =
       event.eventType === 'PENALTY' ||
       event.type === 'retire' ||
       event.dismissalType === 'Retired Hurt' ||
       event.dismissalType === 'Retired Out';
 
-    if (isNonBallEvent) {
+    if (isNonBallEvent && event.syncToServer === false) {
       const localEntry = {
         id: eventId,
         timestamp: new Date().toISOString(),
@@ -1044,16 +1045,32 @@ export function useMatchScoring({
   const handleRetireBatter = (isStriker, isRetiredOut) => {
     if (isStriker && !striker) return;
     if (!isStriker && !nonStriker) return;
-    const outName = isStriker ? striker?.name || striker?.full_name : nonStriker?.name || nonStriker?.full_name;
+    const retiree = isStriker ? striker : nonStriker;
+    const outId = retiree?.id || null;
+    const outName = retiree?.name || retiree?.full_name;
     const dismissalType = isRetiredOut ? 'Retired Out' : 'Retired Hurt';
-    
+
     setBallHistory((prev) => [...prev, captureSnapshot()]);
-    
+
+    // Shared identity fields so the RETIREMENT row records WHO retired.
+    const ids = {
+      dismissedPlayerId: outId,
+      outPlayerId: outId,
+      outPlayerName: outName,
+      strikerId: striker?.id || null,
+      nonStrikerId: nonStriker?.id || null,
+      bowlerId: currentBowler?.id || null,
+      runsBatter: 0,
+      runsExtras: 0,
+      runsTotal: 0,
+      totalRuns: 0,
+    };
+
     if (isRetiredOut) {
       setWickets((prev) => prev + 1);
-      recordDeliveryEvent({ type: 'wicket', wicket: true, dismissalType, outPlayerName: outName, totalRuns: 0, label: 'W' });
+      recordDeliveryEvent({ type: 'wicket', wicket: true, dismissalType, ...ids, label: 'W' });
     } else {
-      recordDeliveryEvent({ type: 'retire', dismissalType, outPlayerName: outName, totalRuns: 0, label: 'RH' });
+      recordDeliveryEvent({ type: 'retire', dismissalType, ...ids, label: 'RH' });
     }
   };
 
@@ -1225,12 +1242,22 @@ export function useMatchScoring({
 
     const ok = applyStateResult(result);
     if (ok) {
-      recordDeliveryEvent({ 
-        eventType: 'PENALTY', 
+      // Only persist to this innings when the batting side receives the runs.
+      // A penalty against the batting side (awarded to the fielding team) is
+      // held locally until that team bats (can't attribute to this innings).
+      const isBattingRecipient = !!currentState.battingTeamId && currentState.battingTeamId === recipientTeamId;
+      recordDeliveryEvent({
+        eventType: 'PENALTY',
+        extraType: 'PENALTY',
         recipientTeamId,
         penaltyRuns,
         reasonCode,
-        label: `+${penaltyRuns} Pen` 
+        runsBatter: 0,
+        runsExtras: penaltyRuns,
+        runsTotal: penaltyRuns,
+        isLegalDelivery: false,
+        syncToServer: isBattingRecipient,
+        label: `+${penaltyRuns} Pen`
       }, currentState);
     }
   };

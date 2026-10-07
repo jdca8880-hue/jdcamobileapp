@@ -421,29 +421,48 @@ class SyncService {
 
     const wicketType = payload.wicketType;
     const extraType = payload.extraType;
-    
+
     const runsOffBat = payload.runsBatter;
     const runsExtras = payload.runsExtras;
     const finalTotalRuns = payload.runsTotal;
+
+    // Classify the event. PENALTY / RETIREMENT are stored but never counted as
+    // physical balls (via deliveries.event_type + the guarded stat views).
+    const eventType =
+      payload.eventType === 'PENALTY' ? 'PENALTY'
+      : (['RETIRED_HURT', 'RETIRED_OUT'].includes(wicketType) ? 'RETIREMENT' : 'DELIVERY');
+    const isSpecialEvent = eventType !== 'DELIVERY';
 
     // Resolve player UUIDs with intelligent fallback resolution
     let strikerId = isUUID(payload.strikerId) ? payload.strikerId : null;
     let nonStrikerId = isUUID(payload.nonStrikerId) ? payload.nonStrikerId : null;
     let bowlerId = isUUID(payload.bowlerId) ? payload.bowlerId : null;
 
-    // Require player UUIDs
-    if (!strikerId || !bowlerId || !nonStrikerId) {
+    // Require player UUIDs ONLY for real deliveries. Penalties have no bowler
+    // and retirements aren't bowled; their player columns are left null so the
+    // validate_delivery XI checks (which skip null players) don't reject them.
+    if (!isSpecialEvent && (!strikerId || !bowlerId || !nonStrikerId)) {
       const err = new Error(`Missing required valid UUIDs for striker (${strikerId}), non-striker (${nonStrikerId}), or bowler (${bowlerId}).`);
       err.code = 'P0001';
       throw err;
+    }
+    if (isSpecialEvent) {
+      strikerId = null;
+      nonStrikerId = null;
+      bowlerId = null;
     }
 
     // Resolve dismissed player UUID (constraint wicket_player_required: wicket_type = 'NONE' or dismissed_player_id is not null)
     let dismissedPlayerId = null;
     if (wicketType !== 'NONE') {
-      dismissedPlayerId = isUUID(payload.dismissedPlayerId) 
-        ? payload.dismissedPlayerId 
-        : (isUUID(payload.outPlayerId) ? payload.outPlayerId : strikerId);
+      dismissedPlayerId = isUUID(payload.dismissedPlayerId)
+        ? payload.dismissedPlayerId
+        : (isUUID(payload.outPlayerId) ? payload.outPlayerId : null);
+      if (!dismissedPlayerId) {
+        const err = new Error(`Dismissal event for ball ${payload.id} is missing a valid dismissed player id.`);
+        err.code = 'P0001';
+        throw err;
+      }
     }
 
     // Consistency constraints for fielder and wicketkeeper
@@ -495,7 +514,8 @@ class SyncService {
       wicketkeeper_id: wicketkeeperId,
       wagon_zone: payload.wagonZone || null,
       idempotency_key: payload.id, // Unique ID from frontend event
-      created_by: userId
+      created_by: userId,
+      event_type: eventType
     });
 
     if (error) {

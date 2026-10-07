@@ -38,7 +38,7 @@ export const CanonicalDeliverySchema = z.object({
   runsOverthrow: z.number().int().min(0).default(0),
 
   // Events
-  extraType: z.enum(['NONE', 'WIDE', 'NO_BALL', 'BYE', 'LEG_BYE']).default('NONE'),
+  extraType: z.enum(['NONE', 'WIDE', 'NO_BALL', 'BYE', 'LEG_BYE', 'PENALTY']).default('NONE'),
   wicketType: z.enum([
     'NONE', 'BOWLED', 'CAUGHT', 'LBW', 'RUN_OUT', 'STUMPED', 
     'HIT_WICKET', 'OBSTRUCTING_FIELD', 'RETIRED_HURT', 'RETIRED_OUT', 
@@ -63,6 +63,9 @@ export const CanonicalDeliverySchema = z.object({
   balls: z.number().int().min(0).optional(),
   type: z.string().optional(),
   eventType: z.string().optional(),
+  recipientTeamId: z.string().nullable().optional(),
+  penaltyRuns: z.number().int().optional(),
+  reasonCode: z.string().optional(),
 
   // UI Compatibility fields (Do not sync to DB)
   dismissedPlayerName: z.string().nullable().optional(),
@@ -211,6 +214,9 @@ export function normalizeDelivery(rawEvent) {
     balls: event.balls ?? undefined,
     type: event.type ?? undefined,
     eventType: event.eventType ?? undefined,
+    recipientTeamId: event.recipientTeamId ?? undefined,
+    penaltyRuns: event.penaltyRuns ?? undefined,
+    reasonCode: event.reasonCode ?? undefined,
 
     dismissedPlayerName: event.dismissedPlayerName ?? null,
     fielderName: event.fielderName ?? null,

@@ -863,6 +863,7 @@ export const api = {
             is_legal_delivery: d.isLegalDelivery ?? d.is_legal_delivery ?? true,
             extra_type: d.extraType || d.extra_type || 'NONE',
             wicket_type: d.wicketType || d.wicket_type || 'NONE',
+            event_type: d.eventType || d.event_type || (['RETIRED_HURT','RETIRED_OUT'].includes(d.wicketType || d.wicket_type) ? 'RETIREMENT' : 'DELIVERY'),
             dismissed_player_id: d.dismissedPlayerId || d.dismissed_player_id,
             is_pending: true // Marker for UI
           });
@@ -912,15 +913,25 @@ export const api = {
       const bowlers = {};
 
       balls.forEach(d => {
+        const isDelivery = (d.event_type || 'DELIVERY') === 'DELIVERY';
+
+        // Team total includes penalty runs; penalty runs are extras.
         runs += d.runs_total;
-        if (d.wicket_type !== 'NONE') wickets += 1;
+        if (d.extra_type !== 'NONE') extras += d.runs_extras;
+
+        // Wickets: real dismissals from deliveries, plus retired-out.
+        if (isDelivery && d.wicket_type !== 'NONE') wickets += 1;
+        else if (d.wicket_type === 'RETIRED_OUT') wickets += 1;
+
+        // Penalties / retirements are NOT physical balls: no legal ball, no
+        // per-player ball/run/bowler stats.
+        if (!isDelivery) return;
+
         if (d.extra_type !== 'NONE' && d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE') {
           // Wides/No-balls don't count as legal
         } else {
           legalBalls += 1;
         }
-        
-        if (d.extra_type !== 'NONE') extras += d.runs_extras;
 
         // Batter Stats
         if (d.striker_id) {
