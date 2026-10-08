@@ -208,7 +208,7 @@ export default function MatchDetailScreen() {
               <div className="divide-y divide-gray-50 text-[13px]">
                 <div className="flex justify-between p-4">
                   <span className="text-[#8a99b0] font-medium">Format</span>
-                  <span className="font-bold text-[#101827]">{match.format || '40 Overs'} Â· {match.ballType || 'White Ball'}</span>
+                  <span className="font-bold text-[#101827]">{match.match_format || match.format || 'Not Specified'} Â· {match.ballType || 'White Ball'}</span>
                 </div>
                 <div className="flex justify-between p-4">
                   <span className="text-[#8a99b0] font-medium">Category</span>

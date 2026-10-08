@@ -494,8 +494,8 @@ export default function MatchSetupScreen() {
             <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579]">Playing XIs</h2>
-                <button onClick={() => setIsEditingXI(!isEditingXI)} className="text-xs font-bold uppercase tracking-wider text-[#2457D6] flex items-center gap-1">
-                  <Edit2 size={12}/> {isEditingXI ? 'DONE' : 'EDIT'}
+                <button onClick={() => setIsEditingXI(!isEditingXI)} className="text-xs font-bold uppercase tracking-wider bg-[#2457D6] text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors hover:bg-blue-700">
+                  <Edit2 size={12}/> {isEditingXI ? 'DONE' : 'ADD PLAYERS'}
                 </button>
               </div>
 

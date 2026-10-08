@@ -619,7 +619,7 @@ export default function ScoringScreen() {
             </div>
             <div className="flex items-center justify-center gap-4 text-[14px] font-bold mt-4">
               <div className="bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-full text-slate-500">
-                Overs <span className="text-slate-900 ml-1">{formatOvers(balls)}</span>
+                Overs <span className="text-slate-900 ml-1">{formatOvers(balls)} / {totalMatchOvers || matchSetup?.totalOvers || 20}</span>
               </div>
               <div className="bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-full text-slate-500">
                 CRR <span className="text-slate-900 ml-1">{calculateCRR()}</span>

@@ -419,10 +419,14 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                             onChange={(e) => updateMatchRow(match.id, 'format', e.target.value)}
                             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900"
                           >
-                            <option value="T20">T20</option>
-                            <option value="One Day">One Day (50)</option>
+                            <option value="5 Overs">5 Overs</option>
+                            <option value="T10">T10 / 10 Overs</option>
+                            <option value="15 Overs">15 Overs</option>
+                            <option value="T20">T20 / 20 Overs</option>
+                            <option value="30 Overs">30 Overs</option>
+                            <option value="40 Overs">40 Overs</option>
+                            <option value="ODI">ODI / 50 Overs</option>
                             <option value="Multi-Day">Multi-Day</option>
-                            <option value="T10">T10</option>
                           </select>
                           <select 
                             value={match.ballType} 
