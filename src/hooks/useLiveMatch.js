@@ -34,13 +34,11 @@ export function useLiveMatch(matchId, initialMatch) {
       loadData();
     }
 
-    const topic = `public:deliveries:${matchId}`;
-    
-    // Clean up any existing channel with this topic
-    const existing = supabase.getChannels?.()?.find(ch => ch.topic === `realtime:${topic}`);
-    if (existing) {
-      supabase.removeChannel(existing);
-    }
+    // Unique per-hook channel name so useLiveMatchesSync (which also listens
+    // to deliveries for the active match) doesn't tear this one down and
+    // vice-versa. The old shared topic 'public:deliveries:<id>' had both
+    // hooks fighting over a single channel on every re-render.
+    const topic = `jdca:useLiveMatch:deliveries:${matchId}`;
 
     const channel = supabase.channel(topic);
 

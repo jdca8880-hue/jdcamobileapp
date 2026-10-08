@@ -69,14 +69,11 @@ export function useLiveMatchesSync() {
       })
       .subscribe();
 
-    // Deliveries Realtime Subscription (Once per active match)
+    // Deliveries Realtime Subscription (Once per active match).
+    // Namespaced so useLiveMatch (viewer-side) can keep its own parallel
+    // channel on the same table without one tearing the other down.
     if (activeMatchId) {
-      const topic = `public:deliveries:${activeMatchId}`;
-      const existing = supabase.getChannels?.()?.find(ch => ch.topic === `realtime:${topic}`);
-      if (existing) {
-        supabase.removeChannel(existing);
-      }
-
+      const topic = `jdca:useLiveMatchesSync:deliveries:${activeMatchId}`;
       deliveriesSub = supabase.channel(topic);
 
       deliveriesSub.on('postgres_changes', {
@@ -155,12 +152,26 @@ export function useLiveMatchesSync() {
     };
 
     pollLiveMatches();
-    const pollInterval = setInterval(pollLiveMatches, 8000);
+    // Realtime subscriptions above do the heavy lifting; this poll is a
+    // *safety net* for missed events. 8s was overloading Supabase (one
+    // getMatchScorecard per live match, every 8 seconds); 60s is enough
+    // because every real change already pushes via the channel.
+    const pollInterval = setInterval(pollLiveMatches, 60000);
+
+    // On tab return, resubscribe + do one immediate poll so a backgrounded
+    // tab doesn't sit on stale state while channels silently reconnect.
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        pollLiveMatches();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       if (matchesSub) supabase.removeChannel(matchesSub);
       if (deliveriesSub) supabase.removeChannel(deliveriesSub);
       clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [setMatches, setTournaments, activeMatchId]);
 }
