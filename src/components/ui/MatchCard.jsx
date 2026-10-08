@@ -100,11 +100,35 @@ export const MatchCard = ({ match, onClick }) => {
             </div>
           </div>
           
-          {isLive && (
-            <div className="mt-4 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg inline-block border border-emerald-100">
-              CRR: 5.8 · {match.home_team?.overs || '24.2'} overs
-            </div>
-          )}
+          {isLive && (() => {
+            const parseScore = (s) => {
+              const m = String(s || '').match(/^(\d+)\/(\d+)/);
+              return m ? { runs: Number(m[1]), wickets: Number(m[2]) } : null;
+            };
+            const parseOvers = (s) => {
+              const m = String(s || '').match(/(\d+)(?:\.(\d))?/);
+              if (!m) return null;
+              const o = Number(m[1]);
+              const b = Number(m[2] || 0);
+              return o + b / 6;
+            };
+            const battingSide = match.home_team?.score ? match.home_team : match.away_team?.score ? match.away_team : null;
+            const sc = battingSide ? parseScore(battingSide.score) : null;
+            const ov = battingSide ? parseOvers(battingSide.overs) : null;
+            const crr = sc && ov && ov > 0 ? (sc.runs / ov).toFixed(2) : null;
+            if (!crr && !battingSide?.overs) {
+              return (
+                <div className="mt-4 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg inline-block border border-emerald-100">
+                  Scoring in progress
+                </div>
+              );
+            }
+            return (
+              <div className="mt-4 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg inline-block border border-emerald-100">
+                {crr ? `CRR: ${crr}` : 'Live'}{battingSide?.overs ? ` · ${battingSide.overs} overs` : ''}
+              </div>
+            );
+          })()}
 
           {/* Match Performers Section */}
           {isCompleted && (

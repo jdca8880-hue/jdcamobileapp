@@ -8,8 +8,8 @@ export default function MatchFolder({ match, onOpen }) {
   const completed = match.status === 'COMPLETED' || match.status === 'FINISHED';
   const teamA = match.home_team?.name || 'Home Team';
   const teamB = match.away_team?.name || 'Away Team';
-  const scoreA = match.home_team?.score || '—';
-  const scoreB = match.away_team?.score || '—';
+  const scoreA = match.home_team?.score || 'â€”';
+  const scoreB = match.away_team?.score || 'â€”';
 
   return (
     <section className={`match-folder-tile ${live ? 'match-folder-tile--live' : ''}`}>
