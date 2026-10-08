@@ -182,17 +182,18 @@ export function processDelivery(currentState, ballInput) {
     return { success: false, error: 'The striker and non-striker cannot be the same player.' };
   }
 
-  // Authoritative XI Validation
+  // Authoritative XI Validation (String comparison — IDs may arrive as
+  // different types after hydration/enrichment from Supabase vs Dexie)
   if (currentState.battingTeamXI && Array.isArray(currentState.battingTeamXI)) {
-    const isStrikerInXI = currentState.battingTeamXI.some(p => p.id === sId);
+    const isStrikerInXI = currentState.battingTeamXI.some(p => String(p.id) === String(sId));
     if (!isStrikerInXI) return { success: false, error: 'Striker is not in the batting playing XI.' };
-    
-    const isNonStrikerInXI = currentState.battingTeamXI.some(p => p.id === nsId);
+
+    const isNonStrikerInXI = currentState.battingTeamXI.some(p => String(p.id) === String(nsId));
     if (!isNonStrikerInXI) return { success: false, error: 'Non-striker is not in the batting playing XI.' };
   }
 
   if (currentState.bowlingTeamXI && Array.isArray(currentState.bowlingTeamXI)) {
-    const isBowlerInXI = currentState.bowlingTeamXI.some(p => p.id === bId);
+    const isBowlerInXI = currentState.bowlingTeamXI.some(p => String(p.id) === String(bId));
     if (!isBowlerInXI) return { success: false, error: 'Bowler is not in the bowling playing XI.' };
   }
 

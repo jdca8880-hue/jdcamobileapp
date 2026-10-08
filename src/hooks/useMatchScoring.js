@@ -110,9 +110,9 @@ export function useMatchScoring({
         const enrichRoster = (roster) => {
           if (!roster) return [];
           return roster.map(r => {
-            const fullPlayer = localPlayers.find(p => p.id === r.id);
+            const fullPlayer = localPlayers.find(p => String(p.id) === String(r.id));
             if (fullPlayer) {
-              return { ...fullPlayer, ...r }; // keep roster specific fields like isCaptain/role, but inject full details
+              return { ...fullPlayer, ...r };
             }
             return r;
           });
@@ -316,9 +316,9 @@ export function useMatchScoring({
             cachedBowler = JSON.parse(localStorage.getItem(`jdca-bowler-${matchId}`));
           } catch {}
 
-          const isStrikerValid = cachedStriker && currentBattingXI.some(p => p.id === cachedStriker.id);
-          const isNonStrikerValid = cachedNonStriker && currentBattingXI.some(p => p.id === cachedNonStriker.id);
-          const isBowlerValid = cachedBowler && currentBowlingXI.some(p => p.id === cachedBowler.id);
+          const isStrikerValid = cachedStriker && currentBattingXI.some(p => String(p.id) === String(cachedStriker.id));
+          const isNonStrikerValid = cachedNonStriker && currentBattingXI.some(p => String(p.id) === String(cachedNonStriker.id));
+          const isBowlerValid = cachedBowler && currentBowlingXI.some(p => String(p.id) === String(cachedBowler.id));
 
           const currentStats = scorecard?.innings?.[currentInning.innings_number - 1];
           const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
