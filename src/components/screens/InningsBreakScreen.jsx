@@ -1,14 +1,52 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Trophy, ArrowRight, Play, Award, Zap } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { CricketBatIcon, CricketBallIcon } from '../CricketIcons';
 import PageHeader from '../ui/PageHeader';
 import Badge from '../ui/Badge';
+import { api } from '../../lib/api';
 
 export default function InningsBreakScreen() {
-  const { runs = 0, wickets = 0, navigateTo, startSecondInnings } = useCricket();
+  const { runs = 0, wickets = 0, navigateTo, startSecondInnings, activeMatchId } = useCricket();
+  const [scorecard, setScorecard] = useState(null);
 
-  const targetScore = (runs || 0) + 1;
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeMatchId) return;
+    api.getMatchScorecard(activeMatchId)
+      .then(data => { if (!cancelled) setScorecard(data); })
+      .catch(err => console.error('[InningsBreak] scorecard fetch failed', err));
+    return () => { cancelled = true; };
+  }, [activeMatchId]);
+
+  // First-innings data from the computed scorecard (robust to home/away ordering).
+  const firstInnings = useMemo(() => {
+    if (!scorecard) return null;
+    return scorecard.innings_1 || null;
+  }, [scorecard]);
+
+  const maxOvers = scorecard?.maxOvers || null;
+  const inningsRuns = firstInnings?.runs ?? runs;
+  const inningsWickets = firstInnings?.wickets ?? wickets;
+  const inningsOvers = firstInnings?.overs || '0.0';
+  const legalBalls = firstInnings?.legalBalls ?? 0;
+  const oversForRR = legalBalls > 0 ? legalBalls / 6 : (maxOvers || 1);
+  const runRate = oversForRR > 0 ? (inningsRuns / oversForRR).toFixed(2) : '0.00';
+  const targetScore = inningsRuns + 1;
+  const chaseBalls = maxOvers ? maxOvers * 6 : null;
+  const requiredRR = maxOvers ? (targetScore / maxOvers).toFixed(2) : null;
+
+  const topBatter = useMemo(() => {
+    const list = firstInnings?.batting || [];
+    if (!list.length) return null;
+    return list.slice().sort((a, b) => (b.runs || 0) - (a.runs || 0))[0];
+  }, [firstInnings]);
+
+  const topBowler = useMemo(() => {
+    const list = firstInnings?.bowling || [];
+    if (!list.length) return null;
+    return list.slice().sort((a, b) => (b.wickets || 0) - (a.wickets || 0) || (a.runs || 0) - (b.runs || 0))[0];
+  }, [firstInnings]);
 
   const handleStartSecondInnings = async () => {
     if (startSecondInnings) {
@@ -36,10 +74,10 @@ export default function InningsBreakScreen() {
               1st Innings Total
             </h2>
             <div className="text-4xl sm:text-5xl font-black text-white tracking-tight mt-1 font-tabular">
-              {runs} <span className="text-2xl text-gray-400 font-bold">/{wickets}</span>
+              {inningsRuns} <span className="text-2xl text-gray-400 font-bold">/{inningsWickets}</span>
             </div>
             <p className="text-xs text-gray-300 font-medium mt-1">
-              Overs: <strong>20.0</strong> • Run Rate: <strong>{(runs / 20).toFixed(2)}</strong>
+              Overs: <strong>{inningsOvers}</strong> • Run Rate: <strong>{runRate}</strong>
             </p>
           </div>
         </div>
@@ -55,7 +93,8 @@ export default function InningsBreakScreen() {
           {targetScore} <span className="text-2xl font-bold text-slate-400">Runs</span>
         </div>
         <p className="text-xs font-semibold text-slate-500">
-          Required from 120 legal deliveries • Required Run Rate: {(targetScore / 20).toFixed(2)} RPO
+          {chaseBalls ? `Required from ${chaseBalls} legal deliveries` : 'Target set for 2nd innings'}
+          {requiredRR ? ` • Required Run Rate: ${requiredRR} RPO` : ''}
         </p>
       </div>
 
@@ -72,11 +111,23 @@ export default function InningsBreakScreen() {
               <CricketBatIcon className="w-3.5 h-3.5 text-amber-500" />
               <span>Top Batter</span>
             </div>
-            <h4 className="font-black text-base text-slate-900">R. Sharma</h4>
-            <div className="text-xl font-black text-slate-900 mt-1 font-tabular">
-              68* <span className="text-xs font-medium text-slate-400">(42 balls)</span>
-            </div>
-            <p className="text-xs text-slate-500 font-semibold mt-1">6x4, 2x6 • SR: 161.9</p>
+            {topBatter ? (
+              <>
+                <h4 className="font-black text-base text-slate-900">{topBatter.name}</h4>
+                <div className="text-xl font-black text-slate-900 mt-1 font-tabular">
+                  {topBatter.runs}{topBatter.dismissal === 'not out' ? '*' : ''}{' '}
+                  <span className="text-xs font-medium text-slate-400">({topBatter.balls} balls)</span>
+                </div>
+                <p className="text-xs text-slate-500 font-semibold mt-1">
+                  {topBatter.fours}x4, {topBatter.sixes}x6 • SR: {topBatter.strikeRate}
+                </p>
+              </>
+            ) : (
+              <>
+                <h4 className="font-black text-base text-slate-400">—</h4>
+                <p className="text-xs text-slate-400 font-semibold mt-1">No batting data yet</p>
+              </>
+            )}
           </div>
 
           {/* Top Bowler - Blue */}
@@ -85,11 +136,23 @@ export default function InningsBreakScreen() {
               <CricketBallIcon className="w-3.5 h-3.5 text-blue-500" />
               <span>Top Bowler</span>
             </div>
-            <h4 className="font-black text-base text-slate-900">A. Patel</h4>
-            <div className="text-xl font-black text-slate-900 mt-1 font-tabular">
-              3/24 <span className="text-xs font-medium text-slate-400">(4.0 ov)</span>
-            </div>
-            <p className="text-xs text-slate-500 font-semibold mt-1">Econ: 6.00 • 11 Dots</p>
+            {topBowler ? (
+              <>
+                <h4 className="font-black text-base text-slate-900">{topBowler.name}</h4>
+                <div className="text-xl font-black text-slate-900 mt-1 font-tabular">
+                  {topBowler.wickets}/{topBowler.runs}{' '}
+                  <span className="text-xs font-medium text-slate-400">({topBowler.overs} ov)</span>
+                </div>
+                <p className="text-xs text-slate-500 font-semibold mt-1">
+                  Econ: {topBowler.economy}
+                </p>
+              </>
+            ) : (
+              <>
+                <h4 className="font-black text-base text-slate-400">—</h4>
+                <p className="text-xs text-slate-400 font-semibold mt-1">No bowling data yet</p>
+              </>
+            )}
           </div>
         </div>
       </div>

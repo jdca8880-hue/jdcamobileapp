@@ -903,12 +903,16 @@ export const api = {
 
     // Helper: Compute stats for an innings
     const computeInningsStats = (inningId) => {
-      const balls = deliveries.filter(d => d.innings_id === inningId);
+      const balls = deliveries
+        .filter(d => d.innings_id === inningId)
+        .slice()
+        .sort((a, b) => (a.delivery_sequence || 0) - (b.delivery_sequence || 0));
       let runs = 0;
       let wickets = 0;
       let extras = 0;
       let legalBalls = 0;
-      
+      const fallOfWickets = [];
+
       const batters = {};
       const bowlers = {};
 
@@ -920,8 +924,22 @@ export const api = {
         if (d.extra_type !== 'NONE') extras += d.runs_extras;
 
         // Wickets: real dismissals from deliveries, plus retired-out.
-        if (isDelivery && d.wicket_type !== 'NONE') wickets += 1;
-        else if (d.wicket_type === 'RETIRED_OUT') wickets += 1;
+        const isWicket = (isDelivery && d.wicket_type !== 'NONE') || d.wicket_type === 'RETIRED_OUT';
+        if (isWicket) {
+          wickets += 1;
+          // Record FoW using legal-ball count AFTER this ball (set below for legal deliveries).
+          const outName = (d.dismissed_player_id && d.striker_id === d.dismissed_player_id)
+            ? (d.striker?.full_name || d.striker?.name)
+            : (deliveries.find(x => x.striker_id === d.dismissed_player_id)?.striker?.full_name
+               || deliveries.find(x => x.non_striker_id === d.dismissed_player_id)?.non_striker?.full_name
+               || null);
+          fallOfWickets.push({
+            wicket: wickets,
+            score: runs, // team total at the moment of fall (includes this ball's runs)
+            player: outName || 'Unknown',
+            legalBallsAt: legalBalls + ((d.extra_type === 'NONE' || d.extra_type === 'BYE' || d.extra_type === 'LEG_BYE') && isDelivery ? 1 : 0)
+          });
+        }
 
         // Penalties / retirements are NOT physical balls: no legal ball, no
         // per-player ball/run/bowler stats.
@@ -986,7 +1004,20 @@ export const api = {
       }));
 
       const oversStr = `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`;
-      return { runs, wickets, extras, overs: oversStr, batting: batArr, bowling: bowlArr };
+      const fowFormatted = fallOfWickets.map(f => ({
+        ...f,
+        oversAt: `${Math.floor(f.legalBallsAt / 6)}.${f.legalBallsAt % 6}`
+      }));
+      return {
+        runs,
+        wickets,
+        extras,
+        overs: oversStr,
+        legalBalls,
+        batting: batArr,
+        bowling: bowlArr,
+        fallOfWickets: fowFormatted
+      };
     };
 
     const stats1 = innings.length > 0 ? computeInningsStats(innings[0].id) : { runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] };
@@ -1131,9 +1162,10 @@ export const api = {
         extras: awayStats.extras
       },
       scorecard: {
-        home_team: { batting: homeStats.batting, bowling: awayStats.bowling, extras: homeStats.extras, overs: homeStats.overs, score: homeStats.runs + '/' + homeStats.wickets },
-        away_team: { batting: awayStats.batting, bowling: homeStats.bowling, extras: awayStats.extras, overs: awayStats.overs, score: awayStats.runs + '/' + awayStats.wickets }
+        home_team: { batting: homeStats.batting, bowling: awayStats.bowling, extras: homeStats.extras, overs: homeStats.overs, score: homeStats.runs + '/' + homeStats.wickets, fallOfWickets: homeStats.fallOfWickets || [] },
+        away_team: { batting: awayStats.batting, bowling: homeStats.bowling, extras: awayStats.extras, overs: awayStats.overs, score: awayStats.runs + '/' + awayStats.wickets, fallOfWickets: awayStats.fallOfWickets || [] }
       },
+      maxOvers: matchData.max_overs || null,
       innings_1: stats1,
       innings_2: stats2,
       innings: [stats1, stats2],

@@ -272,7 +272,15 @@ export default function ScorecardScreen() {
       <div className="jdca-card p-4">
         <h3 className="font-extrabold text-slate-900 text-sm mb-2">Fall of Wickets</h3>
         <div className="text-xs text-slate-600 leading-relaxed font-tabular">
-          <strong>1-28</strong> (A. Rawat, 3.2 ov), <strong>2-84</strong> (R. Yadav, 9.1 ov), <strong>3-142</strong> (S. Sen, 14.5 ov), <strong>4-168</strong> (A. Patel, 17.2 ov)
+          {(tabData?.fallOfWickets && tabData.fallOfWickets.length > 0) ? (
+            tabData.fallOfWickets.map((f, i) => (
+              <span key={i}>
+                <strong>{f.wicket}-{f.score}</strong> ({f.player}, {f.oversAt} ov){i < tabData.fallOfWickets.length - 1 ? ', ' : ''}
+              </span>
+            ))
+          ) : (
+            <span className="text-slate-400">No wickets fallen in this innings.</span>
+          )}
         </div>
       </div>
 
