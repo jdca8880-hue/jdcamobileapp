@@ -18,6 +18,14 @@ class SyncService {
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => this.handleOnline());
       window.addEventListener('offline', () => this.handleOffline());
+      // Mobile browsers don't fire 'online' when returning from background.
+      // Re-drain the queue whenever the tab becomes visible again.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.isOnline && !this.syncInProgress && this.pendingCount > 0) {
+          console.log('[SyncService] Tab visible again. Draining pending queue...');
+          this.processQueue();
+        }
+      });
     }
     
     // Initial fetch of pending count
@@ -186,7 +194,7 @@ class SyncService {
                  details: error.details || error.message
                };
              }
-          } else if (error.code === 'SEQUENCE_CONFLICT' || error.code === 'MISSING_SEQUENCE' || error.code === 'UNDO_REJECTED') {
+          } else if (error.code === 'SEQUENCE_CONFLICT' || error.code === 'MISSING_SEQUENCE' || error.code === 'UNDO_REJECTED' || error.code === 'MATCH_FINALIZED') {
              // Our own guarded integrity errors: the ball/undo cannot be applied
              // as-is. Block the match so a human resolves it, rather than looping.
              isPermanentError = true;

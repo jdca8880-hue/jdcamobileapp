@@ -61,6 +61,7 @@ export async function queueOfflineAction(action, payload) {
   await db.sync_queue.add({
     action,
     payload,
+    status: 'PENDING',
     timestamp: Date.now()
   });
   console.log(`[Offline Sync] Action queued: ${action}`);
