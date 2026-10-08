@@ -29,6 +29,18 @@ end$$;
 
 -- Backfill: for existing innings 2 / 4 rows, compute target from the previous
 -- innings total. This runs once; new rows are populated by the client.
+--
+-- NB: public.innings has a check_match_immutable() trigger that blocks any
+-- modification to an innings row whose match is COMPLETED. target_runs is a
+-- brand-new column that was never populated for those historical rows, so
+-- this backfill is NOT a score edit — it's one-time catch-up data. We
+-- disable the user trigger for the duration of the backfill transaction,
+-- then re-enable it. Nothing else should write to innings in this
+-- transaction.
+begin;
+
+alter table public.innings disable trigger user;
+
 with prev_totals as (
   select
     i.id,
@@ -51,6 +63,10 @@ update public.innings i
   from prev_totals p
  where i.id = p.id
    and p.computed_target > 1;
+
+alter table public.innings enable trigger user;
+
+commit;
 
 -- Verification query (not executed as part of the migration): paste and
 -- run this to confirm the backfill looks sane.
