@@ -84,6 +84,25 @@ export function useLiveMatchesSync() {
       }, async (payload) => {
         // Dispatch global event for local state to hydrate
         window.dispatchEvent(new CustomEvent('jdca-realtime-delivery', { detail: payload }));
+
+        // Patch just this match's score in the directory so the live cards
+        // update between the 60s safety poll ticks.
+        try {
+          const { api } = await import('../lib/api');
+          const card = await api.getMatchScorecard(activeMatchId);
+          if (card) {
+            setMatches(prev => prev.map(m => {
+              if (m.id !== activeMatchId) return m;
+              return {
+                ...m,
+                home_team: { ...(m.home_team || {}), score: card.home_team?.score, overs: card.home_team?.overs },
+                away_team: { ...(m.away_team || {}), score: card.away_team?.score, overs: card.away_team?.overs },
+                result_text: card.resultText || m.result_text,
+                scorecard: card
+              };
+            }));
+          }
+        } catch (e) { /* non-fatal: 60s poll will catch up */ }
       });
       
       deliveriesSub.on('system', { event: '*' }, (payload) => {
