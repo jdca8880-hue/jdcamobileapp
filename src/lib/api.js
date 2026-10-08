@@ -1787,10 +1787,50 @@ export const api = {
     }
 
     return true;
+  },
+
+  async endMatchEarly(matchId, winnerId, resultMargin, resultText) {
+    if (!matchId) throw new Error("Match ID required");
+
+    const { data: existingMatch, error: fetchErr } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('id', matchId)
+      .single();
+
+    if (fetchErr) {
+      const err = new Error('NETWORK_ERROR');
+      err.code = 'NETWORK_ERROR';
+      throw err;
+    }
+
+    if (['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(existingMatch.status)) {
+      const err = new Error('INVALID_STATE_TRANSITION');
+      err.code = 'INVALID_STATE_TRANSITION';
+      throw err;
+    }
+
+    const updatePayload = {
+      status: 'COMPLETED',
+      result_text: resultText || 'Match Ended Early',
+    };
+    if (winnerId) updatePayload.winner_team_id = winnerId;
+    if (resultMargin) updatePayload.result_margin = resultMargin;
+
+    const { error } = await supabase
+      .from('matches')
+      .update(updatePayload)
+      .eq('id', matchId);
+
+    if (error) {
+      console.error('[api] Failed to end match early:', error);
+      const err = new Error('UNKNOWN_DATABASE_ERROR');
+      err.code = 'UNKNOWN_DATABASE_ERROR';
+      err.details = error;
+      throw err;
+    }
+
+    return true;
   }
 };
-
-
-
-
 

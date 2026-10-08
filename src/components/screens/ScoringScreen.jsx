@@ -26,10 +26,10 @@ export default function ScoringScreen() {
     validationError, setValidationError, matchStatus, recordRuns, recordExtra, recordPenaltyEvent,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
     currentBattingTeamId, currentBowlingTeamId,
-    matchSetup, setMatchSetup, applyRevisedOvers, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
+    matchSetup, setMatchSetup, applyRevisedOvers, endMatchEarly, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
-    tournaments, setActiveMatchId, isAppLoading,
+    tournaments, setActiveMatchId, isAppLoading, totalMatchOvers,
     isPaused, pauseMatch, resumeMatch, togglePauseMatch, resetScoringSession
   } = useCricket();
 
@@ -1396,19 +1396,25 @@ export default function ScoringScreen() {
             activeMatch={activeMatch}
             tournament={matchTournament}
             innings={innings}
-            onApplyRevisedOvers={async (revisedOvers) => {
+            currentRuns={runs}
+            currentWickets={wickets}
+            currentBalls={balls}
+            target={target}
+            matchSetup={matchSetup}
+            totalMatchOvers={totalMatchOvers}
+            onApplyRevisedOvers={async (revisedOvers, revisedTarget) => {
                try {
-                 await applyRevisedOvers(revisedOvers);
-                 alert(`Match overs revised to ${revisedOvers}`);
+                 await applyRevisedOvers(revisedOvers, revisedTarget);
+                 alert(revisedTarget
+                   ? `Overs revised to ${revisedOvers}, target revised to ${revisedTarget}`
+                   : `Match overs revised to ${revisedOvers}`);
                } catch (err) {
                  alert("Failed to revise overs: " + err.message);
                }
             }}
-            onEndMatchNow={async () => {
+            onEndMatchEarly={async (resultInfo) => {
                try {
-                 await api.abandonMatch(activeMatchId);
-                 alert("Match has been ended early/abandoned.");
-                 navigateTo('matches');
+                 await endMatchEarly(resultInfo);
                } catch (err) {
                  alert("Failed to end match: " + err.message);
                }

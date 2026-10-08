@@ -124,6 +124,14 @@ export default function ScorecardScreen() {
           </div>
         )}
 
+        {/* Early-end / reduced-overs info banner */}
+        {fullScorecard?.maxOvers && (fullScorecard?.resultText || '').includes('ended at') && (
+          <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-medium flex items-center gap-2">
+            <ShieldCheck size={14} className="shrink-0" />
+            <span>Match was scheduled for {fullScorecard.maxOvers} overs per side</span>
+          </div>
+        )}
+
         {/* Player of Match Highlight */}
         {fullScorecard?.manOfTheMatch && (
           <div className="mt-3 pt-1 flex items-center justify-between text-xs">

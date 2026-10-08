@@ -1489,21 +1489,28 @@ export function useMatchScoring({
     }
   };
 
-  const applyRevisedOvers = async (revisedOvers) => {
+  const applyRevisedOvers = async (revisedOvers, revisedTarget = null) => {
     setMatchSetup(prev => ({ ...prev, maxOvers: revisedOvers, totalOvers: revisedOvers }));
     setTotalMatchOvers(revisedOvers);
-    
+
+    if (revisedTarget !== null && revisedTarget > 0) {
+      setTarget(revisedTarget);
+    }
+
     try {
       await api.updateMatchDetails(activeMatchId, { max_overs: revisedOvers });
-      
+
       if (currentInningsId && supabase) {
-        await supabase.from('innings').update({ overs_limit: revisedOvers }).eq('id', currentInningsId);
-        
-        // Update local cache
+        const inningsUpdate = { overs_limit: revisedOvers };
+        if (revisedTarget !== null && revisedTarget > 0) {
+          inningsUpdate.target_runs = revisedTarget;
+        }
+        await supabase.from('innings').update(inningsUpdate).eq('id', currentInningsId);
+
         try {
           const { db } = await import('../lib/db.js');
           if (db.innings) {
-            await db.innings.update(currentInningsId, { overs_limit: revisedOvers });
+            await db.innings.update(currentInningsId, inningsUpdate);
           }
         } catch (e) {}
       }
@@ -1526,6 +1533,17 @@ export function useMatchScoring({
           matchStatus: newStatus
         }
       });
+    }
+  };
+
+  const endMatchEarly = async ({ winnerId, margin, resultText }) => {
+    try {
+      await api.endMatchEarly(activeMatchId, winnerId, margin, resultText);
+      setMatchStatus('COMPLETED');
+      setTimeout(() => navigateTo('match-result'), 400);
+    } catch (err) {
+      console.error('[useMatchScoring] endMatchEarly failed:', err);
+      throw err;
     }
   };
 
@@ -1576,6 +1594,7 @@ export function useMatchScoring({
     replaceStriker, replaceBatter, replaceBowler, handleRetireBatter, continueAfterOver,
     validateScoringState, recordRuns, recordExtra, recordPenaltyEvent: recordPenaltyEventAction, recordWicket, undoLastAction,
     applyRevisedOvers,
+    endMatchEarly,
     MATCH_STATES
   };
 }
