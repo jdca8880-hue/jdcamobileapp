@@ -28,10 +28,10 @@ export default function MatchResultScreen() {
         }
         const data = await api.getMatchScorecard(targetId);
         setMatchData(data);
-        if (data.manOfTheMatch?.id) {
-           setSelectedMotm(data.manOfTheMatch.id);
-        } else if (data.man_of_the_match?.id) {
-           setSelectedMotm(data.man_of_the_match.id);
+        const rawMotm = data.manOfTheMatch || data.man_of_the_match || data.playerOfMatch;
+        const motmObj = Array.isArray(rawMotm) ? rawMotm[0] : rawMotm;
+        if (motmObj?.id) {
+           setSelectedMotm(motmObj.id);
         } else if (data.man_of_the_match_id) {
            setSelectedMotm(data.man_of_the_match_id);
         }
@@ -54,11 +54,13 @@ export default function MatchResultScreen() {
     const aTeam = matchData.scorecard.away_team || {};
     const hBatting = hTeam.batting || [];
     const aBatting = aTeam.batting || [];
+    const hBowling = hTeam.bowling || [];
+    const aBowling = aTeam.bowling || [];
 
-    const tA = hBatting.map(b => ({ id: b.id, name: b.name }));
-    const tB = aBatting.map(b => ({ id: b.id, name: b.name }));
+    const tA = [...hBatting, ...hBowling].map(b => ({ id: b.id, name: b.name || b.full_name }));
+    const tB = [...aBatting, ...aBowling].map(b => ({ id: b.id, name: b.name || b.full_name }));
     
-    return [...tA, ...tB].filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
+    return [...tA, ...tB].filter((v, i, a) => v.id && a.findIndex(t => String(t.id) === String(v.id)) === i);
   }, [matchData]);
 
   if (loading) {
@@ -317,7 +319,7 @@ export default function MatchResultScreen() {
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Player of the Match</span>
-              <span className="font-extrabold text-slate-900">{allMatchPlayers.find(p => p.id === selectedMotm)?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name || 'Not yet selected'}</span>
+              <span className="font-extrabold text-slate-900">{allMatchPlayers.find(p => String(p.id) === String(selectedMotm))?.name || (highlights.playerOfMatch?.name) || (typeof matchData.man_of_the_match === 'string' ? matchData.man_of_the_match : (matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name)) || matchData.manOfTheMatch?.name || 'Not yet selected'}</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Scorer Screen Status</span>

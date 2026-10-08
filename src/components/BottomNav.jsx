@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCricket } from '../context/CricketContext';
-import { Home, Calendar, Radio, Users, Settings, MoreHorizontal, User, ClipboardList, LayoutGrid, Shield } from 'lucide-react';
+import { Home, Calendar, Radio, Shield, MoreHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function BottomNav() {
@@ -39,7 +39,6 @@ export default function BottomNav() {
 
   if (currentScreen === 'welcome' || currentScreen === 'scoring') return null;
 
-  // Active Map ensures active states highlight correctly
   const ACTIVE_MAP = {
     'home': 'home',
     'matches': 'matches', 'match-setup': 'matches', 'match-overview': 'matches',
@@ -47,23 +46,24 @@ export default function BottomNav() {
     'scoring': 'scoring', 'scorecard': 'scoring',
     'teams': 'teams',
     'players': 'players', 'scouting': 'players',
-    'player-profile': 'player-profile',
+    'player-profile': 'players',
     'player-registration': 'players',
     'selection': 'selection', 'selectors': 'selection',
     'administration': 'administration', 'access-control': 'administration',
-    'tournaments': 'more'
+    'officials': 'more', 'match-officials': 'more',
+    'tournaments': 'more',
+    'news': 'more',
   };
 
   const activeId = ACTIVE_MAP[currentScreen] || 'home';
 
-  // Return max 5 tabs for bottom nav
   const getNavItems = () => {
     const allItems = [
-      { id: 'home', label: 'Home', icon: Home, route: 'home' },
-      { id: 'matches', label: 'Matches', icon: Calendar, route: 'matches' },
-      { id: 'scoring', label: 'Score', icon: Radio, route: 'scoring', liveIndicator: true },
-      { id: 'teams', label: 'Teams', icon: Shield, route: 'teams' },
-      { id: 'more', label: 'More', icon: MoreHorizontal, route: '#' }
+      { id: 'home',    label: 'Home',    icon: Home,          route: 'home' },
+      { id: 'matches', label: 'Matches', icon: Calendar,      route: 'matches' },
+      { id: 'scoring', label: 'Score',   icon: Radio,         route: 'scoring', liveIndicator: true },
+      { id: 'teams',   label: 'Teams',   icon: Shield,        route: 'teams' },
+      { id: 'more',    label: 'More',    icon: MoreHorizontal, route: '#' },
     ];
 
     return allItems.filter(item => {
@@ -78,48 +78,102 @@ export default function BottomNav() {
   const tabs = getNavItems();
 
   return (
-    <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-xl border-t border-slate-200 pb-safe shadow-none h-[68px] transition-transform duration-300 ease-in-out ${
-      isVisible ? 'translate-y-0' : 'translate-y-full'
-    }`}>
-      <div className="flex items-stretch justify-start overflow-x-auto no-scrollbar h-full px-2 relative">
+    <nav
+      className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out ${
+        isVisible ? 'translate-y-0' : 'translate-y-full'
+      }`}
+      style={{
+        background: '#0B1628',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        height: 'calc(64px + max(0px, env(safe-area-inset-bottom)))',
+      }}
+    >
+      <div
+        className="flex items-stretch justify-around no-scrollbar"
+        style={{ height: 64 }}
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeId === tab.id;
           const isMore = tab.id === 'more';
+          const isMoreOpen = isMore && drawerOpen;
 
           const handleClick = () => {
-            if (isMore) {
-              setDrawerOpen(true);
-            } else {
-              navigateTo(tab.route);
-            }
+            if (isMore) setDrawerOpen(true);
+            else navigateTo(tab.route);
           };
 
           return (
             <button
               key={tab.id}
               onClick={handleClick}
-              className="flex flex-col items-center justify-center flex-1 min-w-[70px] shrink-0 space-y-1 transition-all duration-200 cursor-pointer outline-none tap-highlight-transparent relative"
+              className="flex flex-col items-center justify-center flex-1 gap-1 cursor-pointer outline-none relative"
+              style={{ border: 'none', background: 'transparent' }}
             >
-              <div className={`relative flex items-center justify-center w-12 h-8 rounded-full z-10 transition-colors ${isActive && !isMore ? 'text-[#2457D6]' : 'text-[#8a99b0]'}`}>
-                {isActive && !isMore && (
-                  <motion.div
-                    layoutId="bottom-nav-indicator"
-                    className="absolute inset-0 bg-[#eef2fd] rounded-full -z-10"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
+              {/* Active glow indicator at top */}
+              {(isActive && !isMore) && (
+                <motion.div
+                  layoutId="bottom-nav-top-bar"
+                  className="absolute top-0 left-1/2"
+                  style={{
+                    height: 2,
+                    width: 28,
+                    background: '#3B82F6',
+                    borderRadius: '0 0 4px 4px',
+                    transform: 'translateX(-50%)',
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+
+              {/* Icon container */}
+              <div
+                className="relative flex items-center justify-center"
+                style={{
+                  width: 40,
+                  height: 30,
+                  borderRadius: 8,
+                  background: (isActive && !isMore) ? 'rgba(29,78,216,0.20)' : 'transparent',
+                  transition: 'background 0.2s ease',
+                }}
+              >
                 <Icon
-                  size={isActive ? 22 : 20}
+                  size={isActive ? 21 : 20}
                   strokeWidth={isActive ? 2.5 : 2}
-                  className={`transition-colors ${isMore && drawerOpen ? 'text-[#101827]' : ''}`}
+                  color={
+                    (isActive && !isMore) ? '#60A5FA' :
+                    isMoreOpen ? '#E2E8F0' :
+                    '#475569'
+                  }
+                  style={{ transition: 'all 0.2s ease' }}
                 />
                 {tab.liveIndicator && (
-                  <span className="absolute top-0 right-2 w-2 h-2 bg-[#0FA968] rounded-full shadow-[0_0_0_2px_white] animate-pulse" />
+                  <span
+                    className="absolute animate-pulse"
+                    style={{
+                      top: 2,
+                      right: 4,
+                      width: 6,
+                      height: 6,
+                      background: '#059669',
+                      borderRadius: '50%',
+                      border: '1.5px solid #0B1628',
+                    }}
+                  />
                 )}
               </div>
+
+              {/* Label */}
               <span
-                className={`text-xs tracking-wide transition-colors z-10 ${isActive && !isMore ? 'font-bold text-[#2457D6]' : 'font-medium text-[#8a99b0]'} ${isMore && drawerOpen ? 'text-[#101827]' : ''}`}
+                style={{
+                  fontSize: 10,
+                  fontWeight: (isActive && !isMore) ? 700 : 500,
+                  color: (isActive && !isMore) ? '#60A5FA' : isMoreOpen ? '#E2E8F0' : '#475569',
+                  letterSpacing: '0.01em',
+                  transition: 'color 0.2s ease',
+                  lineHeight: 1,
+                }}
               >
                 {tab.label}
               </span>

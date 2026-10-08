@@ -32,6 +32,7 @@ export function RoleBadge({ role }) {
     SUPER_ADMIN:     { label: 'Super Admin',      bg: '#fef0ee', color: '#b83428', border: '#fcd9d5' },
     DISTRICT_ADMIN:  { label: 'District Admin',   bg: '#eef2fd', color: '#1b41a8', border: '#d5e0fa' },
     SCORER:          { label: 'Scorer',           bg: '#fef9ea', color: '#b88920', border: '#fdf0c2' },
+    UMPIRE:          { label: 'Match Umpire',     bg: '#f3e8ff', color: '#7e22ce', border: '#e9d5ff' },
     SELECTOR:        { label: 'Selection Staff',  bg: '#e8f8ef', color: '#0a7d4e', border: '#c2edda' },
     VIEWER:          { label: 'Viewer',           bg: '#f1f3f5', color: '#596579', border: '#dde1e8' },
     
@@ -39,6 +40,7 @@ export function RoleBadge({ role }) {
     SuperAdmin:      { label: 'Super Admin',      bg: '#fef0ee', color: '#b83428', border: '#fcd9d5' },
     Admin:           { label: 'Admin',            bg: '#eef2fd', color: '#1b41a8', border: '#d5e0fa' },
     'District Admin':{ label: 'District Admin',   bg: '#eef2fd', color: '#1b41a8', border: '#d5e0fa' },
+    Umpire:          { label: 'Match Umpire',     bg: '#f3e8ff', color: '#7e22ce', border: '#e9d5ff' },
     Player:          { label: 'Player',           bg: '#f1f3f5', color: '#596579', border: '#dde1e8' },
   };
   const c = config[role] || config['VIEWER'];

@@ -2,26 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Bell } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 
-// Screen-level titles
 const SCREEN_TITLES = {
-  'home':               { title: 'JDCA Administration',  showBack: false },
+  'home':               { title: 'JDCA',                showBack: false },
   'matches':            { title: 'Matches',              showBack: false },
   'match-setup':        { title: 'Match Setup',          showBack: true },
-  'scoring':            { title: 'Live Match Scoring',   showBack: true },
+  'scoring':            { title: 'Live Scoring',         showBack: true },
   'scorecard':          { title: 'Official Scorecard',   showBack: true },
   'match-overview':     { title: 'Match Overview',       showBack: true },
   'innings-break':      { title: 'Innings Break',        showBack: true },
   'match-result':       { title: 'Match Result',         showBack: true },
   'tournaments':        { title: 'Tournaments',          showBack: false },
-  'teams':              { title: 'Official Teams',        showBack: false },
-  'players':            { title: 'Player Directory',     showBack: false },
-  'scouting':           { title: 'Player Assessment',    showBack: false },
+  'teams':              { title: 'Teams',                showBack: false },
+  'players':            { title: 'Players',              showBack: false },
+  'scouting':           { title: 'Assessment',           showBack: false },
   'player-profile':     { title: 'Player Profile',       showBack: true },
-  'player-registration':{ title: 'Add New Player',       showBack: true },
+  'player-registration':{ title: 'Add Player',           showBack: true },
   'selection':          { title: 'Team Selection',       showBack: false },
   'selectors':          { title: 'Team Selection',       showBack: false },
   'administration':     { title: 'Administration',       showBack: false },
   'access-control':     { title: 'Administration',       showBack: false },
+  'officials':          { title: 'Scorers & Umpires',    showBack: false },
+  'news':               { title: 'News',                 showBack: false },
 };
 
 export default function Header() {
@@ -61,51 +62,128 @@ export default function Header() {
   if (currentScreen === 'welcome') return null;
 
   const info = SCREEN_TITLES[currentScreen] || { title: 'JDCA', showBack: false };
+  const isHome = currentScreen === 'home';
 
   return (
-    <header className={`lg:hidden sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-200 pt-safe px-4 shadow-none h-[56px] flex items-center justify-between transition-transform duration-300 ease-in-out ${
-      isVisible ? 'translate-y-0' : '-translate-y-full'
-    }`}>
+    <header
+      className={`lg:hidden sticky top-0 z-40 pt-safe transition-transform duration-300 ease-in-out ${
+        isVisible ? 'translate-y-0' : '-translate-y-full'
+      }`}
+      style={{
+        background: '#0B1628',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        height: 56,
+        display: 'flex',
+        alignItems: 'center',
+        paddingLeft: 16,
+        paddingRight: 16,
+      }}
+    >
       {/* Left: back button or Logo */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
         {info.showBack ? (
           <button
             onClick={goBack}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 active:bg-slate-100 transition-colors cursor-pointer"
-            aria-label="Back"
+            className="flex items-center justify-center flex-shrink-0 cursor-pointer"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 9,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.07)',
+              color: '#E2E8F0',
+            }}
+            aria-label="Go back"
           >
-            <ArrowLeft size={17} />
+            <ArrowLeft size={16} />
           </button>
         ) : (
-          <img src="/jdca-logo.png" onError={(e) => e.target.src = 'https://via.placeholder.com/44?text=JDCA'} alt="JDCA Logo" className="w-7 h-7 object-contain flex-shrink-0" />
+          <img
+            src="/jdca-logo.png"
+            onError={(e) => { e.target.style.display='none'; }}
+            alt="JDCA"
+            style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }}
+          />
         )}
-        <h1 className="font-semibold text-slate-900 text-base tracking-tight truncate max-w-[200px] sm:max-w-xs">
-          {info.title}
-        </h1>
+        <div className="min-w-0">
+          {isHome ? (
+            <>
+              <div className="font-bold text-white truncate" style={{ fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+                JDCA
+              </div>
+              <div style={{ fontSize: 10, color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                Jabalpur District Cricket
+              </div>
+            </>
+          ) : (
+            <h1 className="font-semibold text-white truncate" style={{ fontSize: 15, letterSpacing: '-0.01em' }}>
+              {info.title}
+            </h1>
+          )}
+        </div>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
-        <span className="hidden sm:inline-flex text-xs font-medium px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-          {userRole}
-        </span>
-        
-        {currentScreen === 'home' && (
+      <div className="flex items-center gap-1.5">
+        {isHome && (
           <button
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-900 active:bg-slate-100 transition-colors cursor-pointer relative"
+            className="flex items-center justify-center relative cursor-pointer"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 9,
+              color: '#94A3B8',
+              background: 'transparent',
+              border: 'none',
+            }}
           >
-            <Bell size={17} />
-            {userRole === 'Admin' && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />}
+            <Bell size={18} />
+            {userRole === 'Admin' && (
+              <span
+                className="absolute"
+                style={{
+                  top: 7,
+                  right: 7,
+                  width: 7,
+                  height: 7,
+                  background: '#DC2626',
+                  borderRadius: '50%',
+                  border: '2px solid #0B1628',
+                }}
+              />
+            )}
           </button>
         )}
 
         <button
           onClick={() => navigateTo('players')}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-900 active:bg-slate-100 transition-colors cursor-pointer"
-          aria-label="Search players"
+          className="flex items-center justify-center cursor-pointer"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 9,
+            color: '#94A3B8',
+            background: 'transparent',
+            border: 'none',
+          }}
+          aria-label="Search"
         >
-          <Search size={17} />
+          <Search size={18} />
         </button>
+
+        <div
+          className="flex items-center justify-center flex-shrink-0"
+          style={{
+            padding: '3px 8px',
+            background: 'rgba(29,78,216,0.25)',
+            border: '1px solid rgba(29,78,216,0.40)',
+            borderRadius: 6,
+          }}
+        >
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#93C5FD', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            {userRole?.replace('_', ' ')}
+          </span>
+        </div>
       </div>
     </header>
   );

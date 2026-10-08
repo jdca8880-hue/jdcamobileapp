@@ -134,7 +134,27 @@ export default function ScorecardScreen() {
 
         {/* Player of Match Highlight */}
         {(() => {
-          const motm = fullScorecard?.manOfTheMatch || fullScorecard?.man_of_the_match || fullScorecard?.playerOfMatch || activeMatch?.man_of_the_match || activeMatch?.playerOfMatch || activeMatch?.manOfTheMatch;
+          const motmCandidates = [
+            fullScorecard?.manOfTheMatch,
+            fullScorecard?.man_of_the_match,
+            fullScorecard?.playerOfMatch,
+            activeMatch?.man_of_the_match,
+            activeMatch?.playerOfMatch,
+            activeMatch?.manOfTheMatch
+          ];
+          let motm = null;
+          for (const cand of motmCandidates) {
+            if (!cand) continue;
+            const c = Array.isArray(cand) ? cand[0] : cand;
+            if (typeof c === 'string' && c.trim()) {
+              motm = c.trim();
+              break;
+            }
+            if (c?.full_name || c?.name) {
+              motm = c;
+              break;
+            }
+          }
           const motmName = typeof motm === 'string' ? motm : (motm?.full_name || motm?.name);
           if (!motmName) return null;
           return (

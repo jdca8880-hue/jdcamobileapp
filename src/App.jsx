@@ -30,6 +30,7 @@ import PlayerProfileScreen    from './components/screens/PlayerProfileScreen';
 import PlayerRegistrationScreen from './components/screens/PlayerRegistrationScreen';
 import SelectionScreen        from './components/selection/SelectionWorkspace';
 import AdministrationScreen   from './components/screens/AdministrationScreen';
+import MatchOfficialsScreen  from './components/screens/MatchOfficialsScreen';
 import NewsScreen             from './components/screens/NewsScreen';
 import PlayerComparisonModal  from './components/screens/PlayerComparisonModal';
 
@@ -54,10 +55,10 @@ function MainApp() {
 
   if (isAppLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 flex flex-col items-center justify-center px-4 relative overflow-hidden">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #0B1628 0%, #0F2044 50%, #0B1628 100%)' }}>
         {/* Background decoration */}
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[30rem] h-[30rem] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/15 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[30rem] h-[30rem] bg-blue-800/20 rounded-full blur-[120px] pointer-events-none" />
         
         <motion.div
           animate={{ 
@@ -79,37 +80,47 @@ function MainApp() {
           />
         </motion.div>
         
-        <motion.h2 
+        <motion.h2
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-white text-xl sm:text-2xl font-black tracking-widest uppercase mb-4"
+          className="text-white text-xl sm:text-2xl font-black tracking-widest uppercase mb-1"
         >
-          JDCA SCORE CENTER
+          JDCA
         </motion.h2>
+        <motion.p
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.25 }}
+          className="text-blue-300 text-xs font-semibold tracking-widest uppercase mb-6"
+        >
+          Jabalpur District Cricket Association
+        </motion.p>
 
-        <motion.div 
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="w-64 max-w-full bg-slate-800/50 rounded-full h-1.5 mb-4 overflow-hidden border border-slate-700/50"
+          className="w-56 max-w-full rounded-full h-1 mb-4 overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.12)' }}
         >
-          <motion.div 
-            className="h-full bg-gradient-to-r from-blue-500 to-indigo-400"
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: '#1D4ED8' }}
             initial={{ width: 0 }}
             animate={{ width: `${loadingProgress}%` }}
             transition={{ type: "spring", stiffness: 100, damping: 20 }}
           />
         </motion.div>
-        
-        <motion.div 
+
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-blue-300 text-sm font-medium flex items-center gap-2 bg-blue-900/40 px-4 py-2 rounded-full border border-blue-500/30"
+          className="text-slate-400 text-xs font-medium flex items-center gap-2"
         >
-          <div className="w-4 h-4 rounded-full border-2 border-t-transparent border-blue-400 animate-spin" />
-          {loadingMessage || 'Fetching Live Data...'} ({loadingProgress}%)
+          <div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent border-blue-500 animate-spin" />
+          {loadingMessage || 'Loading...'} · {loadingProgress}%
         </motion.div>
       </div>
     );
@@ -118,7 +129,7 @@ function MainApp() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: '#F7F8F4', fontFamily: "'Inter', system-ui, sans-serif", color: '#101827' }}
+      style={{ background: '#F0F4F8', fontFamily: "'Inter', system-ui, sans-serif", color: '#0F172A' }}
     >
       {/* Mobile top bar */}
       <Header />
@@ -152,9 +163,11 @@ function MainApp() {
               <Route path="/player-registration" element={<ProtectedRoute path="/player-registration" element={<AnimatedPage><PlayerRegistrationScreen /></AnimatedPage>} />} />
               <Route path="/selection"           element={<ProtectedRoute path="/selection"           element={<AnimatedPage><SelectionScreen /></AnimatedPage>} />} />
               <Route path="/administration"      element={<ProtectedRoute path="/administration"      element={<AnimatedPage><AdministrationScreen /></AnimatedPage>} />} />
+              <Route path="/officials"           element={<ProtectedRoute path="/officials"           element={<AnimatedPage><MatchOfficialsScreen /></AnimatedPage>} />} />
               <Route path="/news"                element={<ProtectedRoute path="/news"                element={<AnimatedPage><NewsScreen /></AnimatedPage>} />} />
 
               {/* Legacy aliases */}
+              <Route path="/match-officials"     element={<Navigate to="/officials" replace />} />
               <Route path="/scouting"            element={<Navigate to="/players" replace />} />
               <Route path="/selectors"           element={<Navigate to="/selection" replace />} />
               <Route path="/access-control"      element={<Navigate to="/administration" replace />} />

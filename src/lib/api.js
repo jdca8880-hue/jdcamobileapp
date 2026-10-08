@@ -359,18 +359,18 @@ export const api = {
     if (error) throw error;
     if (!data || data.length === 0) throw new Error("Permission denied. You can only permanently delete items that you deleted.");
 
-    // After successful hard delete, remove photo from Cloudinary
+    // After successful hard delete, remove photo from Cloudinary if supported securely
     if (avatarUrlToDelete) {
       try {
         const { deleteCloudinaryImage } = await import('./cloudinary.js');
         await deleteCloudinaryImage(
           avatarUrlToDelete,
           import.meta.env.VITE_CLOUDINARY_API_KEY,
-          import.meta.env.VITE_CLOUDINARY_API_SECRET,
+          undefined, // Secrets must not be baked into the client bundle
           import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
         );
       } catch (err) {
-        console.error('[api] Failed to delete Cloudinary image during hard delete:', err);
+        console.warn('[api] Cloudinary deletion skipped (requires backend service key):', err);
       }
     }
 
@@ -1208,17 +1208,32 @@ export const api = {
       bestPartnership = partnership1 || partnership2 || null;
     }
 
-    let mvp = matchData.man_of_the_match ? {
-      id: matchData.man_of_the_match.id,
-      name: matchData.man_of_the_match.full_name,
-      full_name: matchData.man_of_the_match.full_name,
-      avatar_url: matchData.man_of_the_match.avatar_url
+    const rawMotm = Array.isArray(matchData.man_of_the_match) ? matchData.man_of_the_match[0] : matchData.man_of_the_match;
+    let mvp = (rawMotm && (rawMotm.full_name || rawMotm.name)) ? {
+      id: rawMotm.id,
+      name: rawMotm.full_name || rawMotm.name,
+      full_name: rawMotm.full_name || rawMotm.name,
+      avatar_url: rawMotm.avatar_url || rawMotm.image
     } : null;
+
+    if (!mvp && (matchData.playerOfMatch || matchData.manOfTheMatch)) {
+      const alt = matchData.playerOfMatch || matchData.manOfTheMatch;
+      const rawAlt = Array.isArray(alt) ? alt[0] : alt;
+      if (rawAlt && (rawAlt.full_name || rawAlt.name || (typeof rawAlt === 'string' && rawAlt.trim()))) {
+        mvp = {
+          id: rawAlt.id || null,
+          name: typeof rawAlt === 'string' ? rawAlt.trim() : (rawAlt.full_name || rawAlt.name),
+          full_name: typeof rawAlt === 'string' ? rawAlt.trim() : (rawAlt.full_name || rawAlt.name),
+          avatar_url: rawAlt.avatar_url || rawAlt.image
+        };
+      }
+    }
     
     if (!mvp && matchData.man_of_the_match_id) {
       try {
         const { db } = await import('./db');
-        const localPlayer = await db.players.get(matchData.man_of_the_match_id);
+        const allPlayers = await db.players.toArray();
+        const localPlayer = allPlayers.find(p => String(p.id) === String(matchData.man_of_the_match_id));
         if (localPlayer) {
           mvp = {
             id: localPlayer.id,
@@ -1233,12 +1248,12 @@ export const api = {
 
       if (!mvp) {
         const allStatsPlayers = [...stats1.batting, ...stats2.batting, ...stats1.bowling, ...stats2.bowling];
-        const matchPlayer = allStatsPlayers.find(p => p.id === matchData.man_of_the_match_id);
+        const matchPlayer = allStatsPlayers.find(p => String(p.id) === String(matchData.man_of_the_match_id));
         if (matchPlayer) {
           mvp = {
             id: matchPlayer.id,
-            name: matchPlayer.name,
-            full_name: matchPlayer.name
+            name: matchPlayer.name || matchPlayer.full_name,
+            full_name: matchPlayer.name || matchPlayer.full_name
           };
         }
       }
@@ -1260,11 +1275,15 @@ export const api = {
       });
       
       let bestScore = -1;
+      let topP = null;
       for (const p of Object.values(playerScores)) {
         if (p.score > bestScore) {
           bestScore = p.score;
-          mvp = { id: p.id, name: p.name, full_name: p.name };
+          topP = p;
         }
+      }
+      if (topP && bestScore > 0) {
+        mvp = { id: topP.id, name: topP.name, full_name: topP.name };
       }
     }
 
@@ -1852,12 +1871,30 @@ export const api = {
       }
       try {
         const { db } = await import('./db');
+        let motmObj = null;
+        if (manOfTheMatchId) {
+          const allPlayers = await db.players.toArray();
+          const p = allPlayers.find(pl => String(pl.id) === String(manOfTheMatchId));
+          if (p) {
+            motmObj = {
+              id: p.id,
+              name: p.full_name || p.name,
+              full_name: p.full_name || p.name,
+              avatar_url: p.avatar_url || p.image
+            };
+          }
+        }
         await db.matches.update(matchId, {
           status: 'COMPLETED',
           winner_team_id: winnerId,
           result_margin: resultMargin,
           result_text: resultText,
-          ...(manOfTheMatchId ? { man_of_the_match_id: manOfTheMatchId } : {})
+          ...(manOfTheMatchId ? { 
+            man_of_the_match_id: manOfTheMatchId,
+            man_of_the_match: motmObj,
+            playerOfMatch: motmObj,
+            manOfTheMatch: motmObj
+          } : {})
         });
       } catch (e) {}
       return true;
@@ -1905,7 +1942,25 @@ export const api = {
 
     try {
       const { db } = await import('./db');
-      await db.matches.update(matchId, { man_of_the_match_id: playerId || null });
+      let motmObj = null;
+      if (playerId) {
+        const allPlayers = await db.players.toArray();
+        const p = allPlayers.find(pl => String(pl.id) === String(playerId));
+        if (p) {
+          motmObj = {
+            id: p.id,
+            name: p.full_name || p.name,
+            full_name: p.full_name || p.name,
+            avatar_url: p.avatar_url || p.image
+          };
+        }
+      }
+      await db.matches.update(matchId, { 
+        man_of_the_match_id: playerId || null,
+        man_of_the_match: motmObj,
+        playerOfMatch: motmObj,
+        manOfTheMatch: motmObj
+      });
     } catch (e) {}
 
     return result || { id: matchId, man_of_the_match_id: playerId };

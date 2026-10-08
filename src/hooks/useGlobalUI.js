@@ -97,6 +97,8 @@ export function useGlobalUI() {
       'selectors': '/selection',
       'administration': '/administration',
       'access-control': '/administration',
+      'officials': '/officials',
+      'match-officials': '/officials',
       'news': '/news',
     };
     navigate(routeMap[screenName] || '/home');

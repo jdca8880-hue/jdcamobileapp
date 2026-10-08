@@ -63,6 +63,15 @@ export default function MatchDetailScreen() {
   const displayMatch = {
     ...match,
     ...(scorecardData || {}),
+    man_of_the_match: (scorecardData?.man_of_the_match?.name || scorecardData?.man_of_the_match?.full_name || (typeof scorecardData?.man_of_the_match === 'string' && scorecardData.man_of_the_match.trim()))
+      ? scorecardData.man_of_the_match
+      : (match?.man_of_the_match || match?.playerOfMatch || match?.manOfTheMatch || scorecardData?.man_of_the_match),
+    playerOfMatch: (scorecardData?.playerOfMatch?.name || scorecardData?.playerOfMatch?.full_name || (typeof scorecardData?.playerOfMatch === 'string' && scorecardData.playerOfMatch.trim()))
+      ? scorecardData.playerOfMatch
+      : (match?.playerOfMatch || match?.man_of_the_match || match?.manOfTheMatch || scorecardData?.playerOfMatch),
+    manOfTheMatch: (scorecardData?.manOfTheMatch?.name || scorecardData?.manOfTheMatch?.full_name || (typeof scorecardData?.manOfTheMatch === 'string' && scorecardData.manOfTheMatch.trim()))
+      ? scorecardData.manOfTheMatch
+      : (match?.manOfTheMatch || match?.man_of_the_match || match?.playerOfMatch || scorecardData?.manOfTheMatch),
     home_team: {
       ...(match?.home_team || {}),
       ...(scorecardData?.home_team || {})
@@ -190,7 +199,14 @@ export default function MatchDetailScreen() {
           </div>
 
           {isCompleted && (() => {
-            const potm = h.playerOfMatch || displayMatch.man_of_the_match || displayMatch.playerOfMatch || displayMatch.manOfTheMatch;
+            const potm = (h?.playerOfMatch?.name && h.playerOfMatch) ||
+              (displayMatch.man_of_the_match?.name || displayMatch.man_of_the_match?.full_name ? displayMatch.man_of_the_match : null) ||
+              (displayMatch.playerOfMatch?.name || displayMatch.playerOfMatch?.full_name ? displayMatch.playerOfMatch : null) ||
+              (displayMatch.manOfTheMatch?.name || displayMatch.manOfTheMatch?.full_name ? displayMatch.manOfTheMatch : null) ||
+              (match.man_of_the_match?.name || match.man_of_the_match?.full_name ? match.man_of_the_match : null) ||
+              (match.playerOfMatch?.name || match.playerOfMatch?.full_name ? match.playerOfMatch : null) ||
+              (typeof displayMatch.man_of_the_match === 'string' ? displayMatch.man_of_the_match : null) ||
+              (typeof match.man_of_the_match === 'string' ? match.man_of_the_match : null);
             const potmName = typeof potm === 'string' ? potm : (potm?.full_name || potm?.name);
             if (!potmName) return null;
             return (
@@ -237,7 +253,14 @@ export default function MatchDetailScreen() {
                   <span className="font-bold text-[#101827]">{match.tossDecision || 'Jabalpur won, elected to bat'}</span>
                 </div>
                 {isCompleted && (() => {
-                  const potm = h.playerOfMatch || displayMatch.man_of_the_match || displayMatch.playerOfMatch || displayMatch.manOfTheMatch;
+                  const potm = (h?.playerOfMatch?.name && h.playerOfMatch) ||
+                    (displayMatch.man_of_the_match?.name || displayMatch.man_of_the_match?.full_name ? displayMatch.man_of_the_match : null) ||
+                    (displayMatch.playerOfMatch?.name || displayMatch.playerOfMatch?.full_name ? displayMatch.playerOfMatch : null) ||
+                    (displayMatch.manOfTheMatch?.name || displayMatch.manOfTheMatch?.full_name ? displayMatch.manOfTheMatch : null) ||
+                    (match.man_of_the_match?.name || match.man_of_the_match?.full_name ? match.man_of_the_match : null) ||
+                    (match.playerOfMatch?.name || match.playerOfMatch?.full_name ? match.playerOfMatch : null) ||
+                    (typeof displayMatch.man_of_the_match === 'string' ? displayMatch.man_of_the_match : null) ||
+                    (typeof match.man_of_the_match === 'string' ? match.man_of_the_match : null);
                   const potmName = typeof potm === 'string' ? potm : (potm?.full_name || potm?.name);
                   if (!potmName) return null;
                   return (
@@ -345,7 +368,14 @@ export default function MatchDetailScreen() {
 
         {/* ── TAB 3: HIGHLIGHTS ── */}
         {activeTab === 'highlights' && (() => {
-          const potmPlayer = h.playerOfMatch || displayMatch.man_of_the_match || displayMatch.playerOfMatch || displayMatch.manOfTheMatch;
+          const potmPlayer = (h?.playerOfMatch?.name && h.playerOfMatch) ||
+            (displayMatch.man_of_the_match?.name || displayMatch.man_of_the_match?.full_name ? displayMatch.man_of_the_match : null) ||
+            (displayMatch.playerOfMatch?.name || displayMatch.playerOfMatch?.full_name ? displayMatch.playerOfMatch : null) ||
+            (displayMatch.manOfTheMatch?.name || displayMatch.manOfTheMatch?.full_name ? displayMatch.manOfTheMatch : null) ||
+            (match.man_of_the_match?.name || match.man_of_the_match?.full_name ? match.man_of_the_match : null) ||
+            (match.playerOfMatch?.name || match.playerOfMatch?.full_name ? match.playerOfMatch : null) ||
+            (typeof displayMatch.man_of_the_match === 'string' ? { name: displayMatch.man_of_the_match } : null) ||
+            (typeof match.man_of_the_match === 'string' ? { name: match.man_of_the_match } : null);
           return (
             <div className="space-y-4">
               {[['TOP BATTER', h.topBatter, '#2457D6'], ['TOP BOWLER', h.topBowler, '#F05A47'], ['POTM', potmPlayer, '#ff6100']].map(([label, p, color], i) => (

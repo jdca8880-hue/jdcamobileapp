@@ -154,9 +154,10 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
         {isCompleted && (
           <div className="mt-2 ml-4 mr-2 bg-slate-50 p-3 rounded-xl border border-gray-100 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
             {(() => {
-              const potm = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch;
+              const rawPotm = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch;
+              const potm = Array.isArray(rawPotm) ? rawPotm[0] : rawPotm;
               if (!potm) return null;
-              const potmName = typeof potm === 'string' ? potm : (potm.full_name || potm.name);
+              const potmName = typeof potm === 'string' ? potm.trim() : (potm.full_name || potm.name);
               if (!potmName) return null;
               return (
                 <div>

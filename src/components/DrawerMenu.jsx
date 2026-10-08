@@ -1,21 +1,22 @@
 import React from 'react';
 import {
-  X, Home, Calendar, Trophy, Users, Clipboard, Radio, Settings, LogOut, Shield, Megaphone, Moon, Sun
+  X, Home, Calendar, Trophy, Users, Clipboard, Radio, Settings, LogOut, Shield, Megaphone, Award
 } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 import { RoleBadge } from './ui/Badge';
 import { motion, AnimatePresence } from 'motion/react';
 
 const ALL_NAV = [
-  { id: 'home',           label: 'Home',          icon: Home,      route: 'home' },
-  { id: 'teams',          label: 'Teams',          icon: Shield,    route: 'teams' },
-  { id: 'selection',      label: 'Player Selection',      icon: Clipboard, route: 'selection' },
-  { id: 'matches',        label: 'Matches',        icon: Calendar,  route: 'matches' },
-  { id: 'tournaments',    label: 'Tournaments',    icon: Trophy,    route: 'tournaments' },
-  { id: 'scoring',        label: 'Live Score',   icon: Radio,     route: 'scoring', liveIndicator: true },
-  { id: 'players',        label: 'Players',        icon: Users,     route: 'players' },
-  { id: 'news',           label: 'News',           icon: Megaphone, route: 'news' },
-  { id: 'administration', label: 'Administration', icon: Settings,  route: 'administration', adminOnly: true },
+  { id: 'home',           label: 'Home',              icon: Home,      route: 'home' },
+  { id: 'teams',          label: 'Teams',              icon: Shield,    route: 'teams' },
+  { id: 'selection',      label: 'Player Selection',   icon: Clipboard, route: 'selection' },
+  { id: 'matches',        label: 'Matches',            icon: Calendar,  route: 'matches' },
+  { id: 'tournaments',    label: 'Tournaments',        icon: Trophy,    route: 'tournaments' },
+  { id: 'scoring',        label: 'Live Score',         icon: Radio,     route: 'scoring', liveIndicator: true },
+  { id: 'players',        label: 'Players',            icon: Users,     route: 'players' },
+  { id: 'officials',      label: 'Scorers & Umpires',  icon: Award,     route: 'officials', adminOnly: true },
+  { id: 'news',           label: 'News',               icon: Megaphone, route: 'news' },
+  { id: 'administration', label: 'Administration',      icon: Settings,  route: 'administration', adminOnly: true },
 ];
 
 const ACTIVE_MAP = {
@@ -26,12 +27,13 @@ const ACTIVE_MAP = {
   'teams': 'teams',
   'players': 'players', 'scouting': 'players', 'player-profile': 'players', 'player-registration': 'players',
   'selection': 'selection', 'selectors': 'selection',
+  'officials': 'officials', 'match-officials': 'officials',
   'administration': 'administration', 'access-control': 'administration',
   'news': 'news',
 };
 
 export default function DrawerMenu() {
-  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userEmail, logout, isDarkMode, setIsDarkMode } = useCricket();
+  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userEmail, logout } = useCricket();
 
   const activeId = ACTIVE_MAP[currentScreen] || currentScreen;
 
@@ -43,7 +45,7 @@ export default function DrawerMenu() {
   }).filter(item => {
     if (item.adminOnly && !['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole)) return false;
     if (userRole === 'SUPER_ADMIN' && item.id === 'scoring') return false;
-    if (userRole === 'SCORER')   return ['matches','scoring','teams','tournaments', 'administration'].includes(item.id);
+    if (userRole === 'SCORER')   return ['matches','scoring','teams','tournaments','administration'].includes(item.id);
     if (userRole === 'SELECTOR') return ['home','players','selection','teams','tournaments','news'].includes(item.id);
     if (userRole === 'VIEWER')   return ['home','matches','players','teams','tournaments','news'].includes(item.id);
     return true;
@@ -59,63 +61,84 @@ export default function DrawerMenu() {
     logout();
   };
 
+  const userInitial = userEmail?.[0]?.toUpperCase() || 'U';
+  const displayEmail = userEmail
+    ? (userEmail.length > 26 ? userEmail.slice(0, 24) + '…' : userEmail)
+    : 'JDCA Official';
+
   return (
     <AnimatePresence>
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-50 flex lg:hidden">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)' }}
             onClick={() => setDrawerOpen(false)}
           />
 
-          {/* Drawer panel */}
+          {/* Drawer */}
           <motion.div
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative flex flex-col h-full shadow-2xl z-10"
+            transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+            className="relative flex flex-col h-full z-10 overflow-hidden"
             style={{
-              width: 280,
-              background: 'rgba(16, 24, 39, 0.85)',
-              backdropFilter: 'blur(16px)',
-              borderRight: '1px solid rgba(255,255,255,0.1)',
+              width: 288,
+              background: '#0B1628',
+              borderRight: '1px solid rgba(255,255,255,0.07)',
             }}
           >
             {/* Header */}
             <div
               className="flex items-center justify-between px-5 py-4"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
             >
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center flex-shrink-0">
-                  <img src="/jdca-logo.png" alt="JDCA Logo" style={{ width: 42, height: 42, objectFit: 'contain' }} className="drop-shadow-md" />
-                </div>
+                <img
+                  src="/jdca-logo.png"
+                  alt="JDCA"
+                  style={{ width: 38, height: 38, objectFit: 'contain', flexShrink: 0 }}
+                />
                 <div>
-                  <div className="font-bold text-white" style={{ fontSize: 14 }}>JDCA</div>
-                  <div style={{ fontSize: 10, color: '#8a99b0' }}>Jabalpur District Cricket Association</div>
+                  <div className="font-bold text-white" style={{ fontSize: 14, letterSpacing: '-0.01em' }}>
+                    JDCA
+                  </div>
+                  <div style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                    Jabalpur District Cricket
+                  </div>
                 </div>
               </div>
               <button
                 onClick={() => setDrawerOpen(false)}
-                className="flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-colors hover:bg-white/10"
-                style={{ background: 'rgba(255,255,255,0.08)', border: 'none' }}
                 id="drawer-close-btn"
+                className="flex items-center justify-center cursor-pointer"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  background: 'rgba(255,255,255,0.06)',
+                  color: '#64748B',
+                }}
               >
-                <X size={17} style={{ color: '#8a99b0' }} />
+                <X size={16} />
               </button>
             </div>
 
-            {/* Nav items */}
-            <nav className="flex-1 px-4 py-6 overflow-y-auto no-scrollbar space-y-1.5">
-              <div className="px-3 mb-4 font-bold tracking-wider" style={{ color: '#8a99b0', fontSize: 11 }}>
-                MENU
+            {/* Nav */}
+            <nav className="flex-1 px-3 py-4 overflow-y-auto no-scrollbar space-y-0.5">
+              <div
+                className="px-3 mb-3"
+                style={{ fontSize: 9, color: '#334155', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+              >
+                Menu
               </div>
+
               {visible.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeId === item.id;
@@ -124,48 +147,98 @@ export default function DrawerMenu() {
                     key={item.id}
                     id={`drawer-nav-${item.id}`}
                     onClick={() => handleNav(item.route)}
-                    className={`relative flex items-center gap-3 px-3 py-3 rounded-xl w-full transition-colors ${isActive ? 'text-white' : 'text-[#8a99b0] hover:text-white hover:bg-white/5'}`}
+                    className="relative flex items-center gap-3 w-full cursor-pointer"
+                    style={{
+                      padding: '10px 13px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: isActive ? 'rgba(29,78,216,0.20)' : 'transparent',
+                      color: isActive ? '#BFDBFE' : '#475569',
+                      textAlign: 'left',
+                      minHeight: 44,
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
                   >
                     {isActive && (
-                      <motion.div
-                        layoutId="drawer-active-indicator"
-                        className="absolute inset-0 bg-[#2457D6] rounded-xl -z-10 shadow-[0_0_15px_rgba(36,87,214,0.3)]"
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      <div
+                        className="absolute left-0 top-2 bottom-2"
+                        style={{ width: 3, background: '#3B82F6', borderRadius: '0 3px 3px 0' }}
                       />
                     )}
-                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} className="flex-shrink-0" />
-                    <span className={`flex-1 text-left ${isActive ? 'font-bold' : 'font-medium'}`} style={{ fontSize: 15 }}>{item.label}</span>
-                    {item.liveIndicator && <span className="w-1.5 h-1.5 bg-[#0FA968] rounded-full animate-pulse shadow-[0_0_6px_rgba(15,169,104,0.5)]" />}
+                    <Icon
+                      size={17}
+                      strokeWidth={isActive ? 2.5 : 2}
+                      className="shrink-0"
+                    />
+                    <span
+                      className="flex-1"
+                      style={{ fontSize: 15, fontWeight: isActive ? 600 : 500 }}
+                    >
+                      {item.label}
+                    </span>
+                    {item.liveIndicator && (
+                      <span
+                        className="shrink-0 animate-pulse"
+                        style={{
+                          width: 7,
+                          height: 7,
+                          background: '#059669',
+                          borderRadius: '50%',
+                          boxShadow: '0 0 0 2px rgba(5,150,105,0.25)',
+                        }}
+                      />
+                    )}
                   </button>
                 );
               })}
             </nav>
 
             {/* User footer */}
-            <div className="px-4 pb-6 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-              <div className="px-3 py-3 rounded-xl mb-3 border border-white/5" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                <div className="font-bold text-white mb-1.5" style={{ fontSize: 13 }}>
-                  {userEmail || 'JDCA Official'}
+            <div
+              className="px-3 pb-6 pt-3"
+              style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              {/* User info */}
+              <div
+                className="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <div
+                  className="flex items-center justify-center shrink-0 rounded-full font-bold text-white"
+                  style={{ width: 32, height: 32, background: '#1D4ED8', fontSize: 13 }}
+                >
+                  {userInitial}
                 </div>
-                <RoleBadge role={userRole} />
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="text-white truncate"
+                    style={{ fontSize: 12, fontWeight: 600 }}
+                  >
+                    {displayEmail}
+                  </div>
+                  <div className="mt-1">
+                    <RoleBadge role={userRole} />
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className="flex flex-1 items-center justify-center gap-2 px-3 py-2.5 text-[#8a99b0] hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                >
-                  {isDarkMode ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
-                  <span className="font-medium" style={{ fontSize: 14 }}>{isDarkMode ? 'Light' : 'Dark'}</span>
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="flex flex-1 items-center justify-center gap-2 px-3 py-2.5 text-[#8a99b0] hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                  id="drawer-logout-btn"
-                >
-                  <LogOut size={16} strokeWidth={2} />
-                  <span className="font-medium" style={{ fontSize: 14 }}>Sign Out</span>
-                </button>
-              </div>
+
+              {/* Sign out */}
+              <button
+                onClick={handleLogout}
+                id="drawer-logout-btn"
+                className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg cursor-pointer"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#475569',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                <LogOut size={15} strokeWidth={2} />
+                <span>Sign Out</span>
+              </button>
             </div>
           </motion.div>
         </div>

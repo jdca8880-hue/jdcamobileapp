@@ -59,24 +59,33 @@ function pickTopBowler(match) {
 }
 
 function pickPlayerOfMatch(match) {
-  const src = match.man_of_the_match || match.manOfTheMatch || match.playerOfTheMatch || match.playerOfMatch;
+  let src = match.man_of_the_match || match.manOfTheMatch || match.playerOfTheMatch || match.playerOfMatch;
+  if (!src && match.man_of_the_match_id) {
+    src = { id: match.man_of_the_match_id };
+  }
   if (!src) return null;
-  if (typeof src === 'string') return { id: null, name: src };
+  if (Array.isArray(src)) src = src[0];
+  if (!src) return null;
+  if (typeof src === 'string') {
+    const trimmed = src.trim();
+    return trimmed ? { id: null, name: trimmed } : null;
+  }
   const playerName = src.full_name || src.name;
   if (playerName) return { id: src.id || null, name: playerName };
   
   // If only ID exists, attempt lookup in scorecard
-  if (src.id && match.scorecard) {
+  const targetId = src.id || match.man_of_the_match_id;
+  if (targetId && match.scorecard) {
     const all = [
       ...(match.scorecard.home_team?.batting || []),
       ...(match.scorecard.home_team?.bowling || []),
       ...(match.scorecard.away_team?.batting || []),
       ...(match.scorecard.away_team?.bowling || [])
     ];
-    const found = all.find(p => p.id === src.id);
-    if (found?.name) return { id: src.id, name: found.name };
+    const found = all.find(p => String(p.id) === String(targetId));
+    if (found?.name || found?.full_name) return { id: targetId, name: found.name || found.full_name };
   }
-  return src.id ? { id: src.id, name: null } : null;
+  return null;
 }
 
 function pickBestPartnership(match) {

@@ -20,7 +20,7 @@ const SELECTOR_ROUTES = [
 
 const ADMIN_ROUTES = [
   ...SELECTOR_ROUTES,
-  '/administration', '/access-control'
+  '/administration', '/access-control', '/officials', '/match-officials'
 ];
 
 // ─── Role → Allowed Routes ─────────────────────────────────────────────────

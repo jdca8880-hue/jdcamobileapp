@@ -154,29 +154,50 @@ export function useDataSync({ auth, ui }) {
             setLoadingMessage("Reconciling local data...");
             // Reconcile Matches
             if (matchesRes.status === 'fulfilled' && !matchesRes.value.error && matchesRes.value.data) {
+              const freshPlayers = (playersRes.status === 'fulfilled' && !playersRes.value.error && playersRes.value.data)
+                ? playersRes.value.data
+                : [];
+              const allPlayerPool = [...freshPlayers, ...localPlayers];
+
               const freshMatches = matchesRes.value.data.map(m => {
-                const motmPlayer = m.man_of_the_match || (m.man_of_the_match_id ? localPlayers.find(p => p.id === m.man_of_the_match_id) : null);
-                const motmObj = motmPlayer ? {
+                const matchId = m.match_id || m.id;
+                const existingLocal = localMatches.find(lm => String(lm.id) === String(matchId));
+
+                const rawMotm = Array.isArray(m.man_of_the_match) ? m.man_of_the_match[0] : m.man_of_the_match;
+                const targetPlayerId = m.man_of_the_match_id || rawMotm?.id;
+                const motmPlayer = (rawMotm && (rawMotm.full_name || rawMotm.name))
+                  ? rawMotm
+                  : (targetPlayerId ? allPlayerPool.find(p => String(p.id) === String(targetPlayerId)) : null);
+
+                let motmObj = motmPlayer ? {
                   id: motmPlayer.id,
                   full_name: motmPlayer.full_name || motmPlayer.name,
                   name: motmPlayer.full_name || motmPlayer.name,
                   avatar_url: motmPlayer.avatar_url || motmPlayer.image
                 } : null;
 
+                // Never overwrite an existing MOTM with null if remote query didn't resolve it!
+                if ((!motmObj || !motmObj.name) && existingLocal?.man_of_the_match) {
+                  motmObj = existingLocal.man_of_the_match;
+                }
+                if ((!motmObj || !motmObj.name) && existingLocal?.playerOfMatch) {
+                  motmObj = existingLocal.playerOfMatch;
+                }
+
                 return {
-                  id: m.match_id || m.id,
+                  id: matchId,
                   tournament_id: m.tournament_id,
-                  tournament: m.tournaments?.name || m.tournament,
+                  tournament: m.tournaments?.name || m.tournament || existingLocal?.tournament,
                   home_team_id: m.home_team_id,
                   away_team_id: m.away_team_id,
-                  home_team: { id: m.home_team_id, name: m.home_team_name || m.home_team?.name, short_name: m.home_team?.short_name || '' },
-                  away_team: { id: m.away_team_id, name: m.away_team_name || m.away_team?.name, short_name: m.away_team?.short_name || '' },
+                  home_team: { id: m.home_team_id, name: m.home_team_name || m.home_team?.name || existingLocal?.home_team?.name, short_name: m.home_team?.short_name || existingLocal?.home_team?.short_name || '' },
+                  away_team: { id: m.away_team_id, name: m.away_team_name || m.away_team?.name || existingLocal?.away_team?.name, short_name: m.away_team?.short_name || existingLocal?.away_team?.short_name || '' },
                   toss_winner_id: m.toss_winner_id,
                   toss_decision: m.toss_decision,
                   winner_team_id: m.winner_team_id,
                   result_margin: m.result_margin,
-                  result_text: m.result_text,
-                  man_of_the_match_id: m.man_of_the_match_id,
+                  result_text: m.result_text || existingLocal?.result_text,
+                  man_of_the_match_id: m.man_of_the_match_id || motmObj?.id || existingLocal?.man_of_the_match_id,
                   man_of_the_match: motmObj,
                   playerOfMatch: motmObj,
                   scorer_id: m.scorer_id,
@@ -187,7 +208,7 @@ export function useDataSync({ auth, ui }) {
                   status: m.status,
                   match_format: m.match_format,
                   max_overs: m.max_overs,
-                  venue_name: m.venue_name || m.venue,
+                  venue_name: m.venue_name || m.venue || existingLocal?.venue_name,
                   deleted_at: m.deleted_at
                 };
               });
@@ -341,15 +362,31 @@ export function useDataSync({ auth, ui }) {
       const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)').is('deleted_at', null);
       if (!mErr && mData) {
         let curPlayers = [];
-        try { curPlayers = await db.players.toArray(); } catch (e) {}
+        let curMatches = [];
+        try {
+          curPlayers = await db.players.toArray();
+          curMatches = await db.matches.toArray();
+        } catch (e) {}
         const enrichedMatches = mData.map(m => {
-          const motmPlayer = m.man_of_the_match || (m.man_of_the_match_id ? curPlayers.find(p => p.id === m.man_of_the_match_id) : null);
-          const motmObj = motmPlayer ? {
+          const matchId = m.match_id || m.id;
+          const existing = curMatches.find(cm => String(cm.id) === String(matchId));
+          const rawMotm = Array.isArray(m.man_of_the_match) ? m.man_of_the_match[0] : m.man_of_the_match;
+          const targetPlayerId = m.man_of_the_match_id || rawMotm?.id;
+          const motmPlayer = (rawMotm && (rawMotm.full_name || rawMotm.name))
+            ? rawMotm
+            : (targetPlayerId ? curPlayers.find(p => String(p.id) === String(targetPlayerId)) : null);
+          let motmObj = motmPlayer ? {
             id: motmPlayer.id,
             full_name: motmPlayer.full_name || motmPlayer.name,
             name: motmPlayer.full_name || motmPlayer.name,
             avatar_url: motmPlayer.avatar_url || motmPlayer.image
           } : null;
+          if ((!motmObj || !motmObj.name) && existing?.man_of_the_match) {
+            motmObj = existing.man_of_the_match;
+          }
+          if ((!motmObj || !motmObj.name) && existing?.playerOfMatch) {
+            motmObj = existing.playerOfMatch;
+          }
           return {
             ...m,
             man_of_the_match: motmObj,

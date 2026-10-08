@@ -30,37 +30,11 @@ const ROLES = [
   'District Admin',
   'Tournament Admin',
   'Scorer',
+  'Umpire',
   'Selection Staff',
   'Other Staff'
 ];
 
-const INITIAL_DISTRICTS = [
-  { name: 'Jabalpur', code: 'JBP', grounds: 4, teams: 12, contact: 'Shri R. K. Tiwari', phone: '+91 94251 00001' },
-  { name: 'Katni', code: 'KTN', grounds: 3, teams: 8, contact: 'Shri V. P. Patel', phone: '+91 94251 00002' },
-  { name: 'Narsinghpur', code: 'NSP', grounds: 2, teams: 8, contact: 'Shri S. K. Dubey', phone: '+91 94251 00003' },
-  { name: 'Seoni', code: 'SNI', grounds: 2, teams: 6, contact: 'Shri A. K. Shukla', phone: '+91 94251 00004' },
-  { name: 'Mandla', code: 'MDL', grounds: 2, teams: 6, contact: 'Shri M. L. Yadav', phone: '+91 94251 00005' },
-  { name: 'Balaghat', code: 'BGT', grounds: 3, teams: 8, contact: 'Shri D. C. Bisen', phone: '+91 94251 00006' },
-  { name: 'Chhindwara', code: 'CDW', grounds: 3, teams: 10, contact: 'Shri P. N. Verma', phone: '+91 94251 00007' },
-  { name: 'Dindori', code: 'DND', grounds: 1, teams: 4, contact: 'Shri B. S. Maravi', phone: '+91 94251 00008' },
-  { name: 'Pandhurna', code: 'PDR', grounds: 2, teams: 6, contact: 'Shri S. R. Deshmukh', phone: '+91 94251 00009' },
-];
-
-const INITIAL_VENUES = [
-  { name: 'Jabalpur Cricket Stadium (Wright Town)', district: 'Jabalpur', type: 'Stadium (Turf Pitch)', floodlights: 'Yes' },
-  { name: 'Ranital Sports Complex', district: 'Jabalpur', type: 'Turf Pitch', floodlights: 'Yes' },
-  { name: 'Katni District Sports Ground', district: 'Katni', type: 'Turf Pitch', floodlights: 'No' },
-  { name: 'Narsinghpur Stadium Ground', district: 'Narsinghpur', type: 'Matting / Turf', floodlights: 'No' },
-  { name: 'Seoni District Ground', district: 'Seoni', type: 'Turf Pitch', floodlights: 'No' },
-  { name: 'Police Grounds Chhindwara', district: 'Chhindwara', type: 'Turf Pitch', floodlights: 'No' },
-];
-
-const INITIAL_FORMATS = [
-  { name: 'T20 Match', overs: 20, ballsPerOver: 6, powerplayOvers: 6, maxBowlerOvers: 4 },
-  { name: 'One Day (50 Overs)', overs: 50, ballsPerOver: 6, powerplayOvers: 10, maxBowlerOvers: 10 },
-  { name: '40-Over Tournament', overs: 40, ballsPerOver: 6, powerplayOvers: 8, maxBowlerOvers: 8 },
-  { name: 'Test / Days Match', overs: 'Multi-Day', ballsPerOver: 6, powerplayOvers: '-', maxBowlerOvers: 'Unlimited' },
-];
 export default function AdministrationScreen() {
   const { registeredUsers, setRegisteredUsers, userRole, userId, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
   
@@ -337,6 +311,7 @@ export default function AdministrationScreen() {
                                 <option value="DISTRICT_ADMIN">District Admin</option>
                                 <option value="SELECTOR">Selector</option>
                                 <option value="SCORER">Scorer</option>
+                                <option value="UMPIRE">Umpire</option>
                                 <option value="VIEWER">Viewer</option>
                               </select>
                             ) : (
@@ -482,16 +457,22 @@ export default function AdministrationScreen() {
 
               <div className="flex items-center justify-between pt-3">
                 <div>
-                  <div className="font-semibold text-slate-900 text-sm">Selection Committee Notifications</div>
-                  <div className="text-xs text-slate-500">Send WhatsApp / SMS alerts to selectors when new trials are posted</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-900 text-sm">Selection Committee Notifications</span>
+                    <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">Gateway Config</span>
+                  </div>
+                  <div className="text-xs text-slate-500">Send WhatsApp / SMS alerts to selectors when new trials are posted (requires SMS gateway API key)</div>
                 </div>
                 <input type="checkbox" checked={systemSettings?.notifications !== false} onChange={() => toggleSetting('notifications')} className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
               </div>
 
               <div className="flex items-center justify-between pt-3">
                 <div>
-                  <div className="font-semibold text-slate-900 text-sm">Official Association Branding Watermark</div>
-                  <div className="text-xs text-slate-500">Embed JDCA seal and MPCA affiliation badge onto PDF scorecards</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-900 text-sm">Association Branding Watermark</span>
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">Scorecard Engine</span>
+                  </div>
+                  <div className="text-xs text-slate-500">Embed JDCA seal and MPCA affiliation badge onto printable scorecard layouts</div>
                 </div>
                 <input type="checkbox" checked={systemSettings?.watermark !== false} onChange={() => toggleSetting('watermark')} className="w-4 h-4 text-[#2457D6] rounded border-slate-300 cursor-pointer" />
               </div>
@@ -575,6 +556,7 @@ export default function AdministrationScreen() {
                   >
                     <option value="VIEWER">Viewer (Read Only)</option>
                     <option value="SCORER">Scorer</option>
+                    <option value="UMPIRE">Umpire</option>
                     <option value="SELECTOR">Selector</option>
                     <option value="DISTRICT_ADMIN">District Admin</option>
                     <option value="SUPER_ADMIN">Super Admin</option>

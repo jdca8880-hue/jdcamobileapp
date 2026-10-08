@@ -19,45 +19,15 @@ const updateSW = registerSW({
   }
 });
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("Caught by ErrorBoundary:", error, errorInfo);
-    captureException(error, { componentStack: errorInfo?.componentStack });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '20px', color: 'red', fontFamily: 'sans-serif' }}>
-          <h2>Something went wrong.</h2>
-          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {this.state.error && this.state.error.toString()}
-          </pre>
-          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '12px' }}>
-            {this.state.error && this.state.error.stack}
-          </pre>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 window.addEventListener('error', (e) => {
+  console.error('[Global Error]', e.error || e.message);
   captureException(e.error || new Error(e.message), { source: 'window.error' });
-  document.body.innerHTML = `<div style="padding:20px;color:red;">Global Error: ${e.message}<br/><pre>${e.error?.stack}</pre></div>`;
 });
 
 window.addEventListener('unhandledrejection', (e) => {
+  console.error('[Unhandled Rejection]', e.reason);
   captureException(e.reason || new Error('Unhandled promise rejection'), { source: 'unhandledrejection' });
 });
 

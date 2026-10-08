@@ -1,6 +1,13 @@
 export async function deleteCloudinaryImage(imageUrl, apiKey, apiSecret, cloudName) {
   if (!imageUrl || !imageUrl.includes('cloudinary.com')) return false;
 
+  // Cloudinary destroy API requires signature with API Secret.
+  // In production client-side code, API Secret must NEVER be bundled in the browser.
+  if (!apiSecret) {
+    // Client-side execution without secret: skip client-side destructive call safely
+    return false;
+  }
+
   try {
     // Extract public ID from URL
     // URL format: https://res.cloudinary.com/cloudName/image/upload/v1234567/public_id.jpg

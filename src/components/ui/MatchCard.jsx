@@ -9,14 +9,15 @@ export const MatchCard = ({ match, onClick }) => {
 
   // Fetch dynamic data if available
   const dateStr = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : 'Date Not Set';
-  const playerOfMatch = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch || null;
+  const rawPlayerOfMatch = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch || null;
+  const playerOfMatch = Array.isArray(rawPlayerOfMatch) ? rawPlayerOfMatch[0] : rawPlayerOfMatch;
   const teamAName = match.home_team?.name || 'Home Team';
   const teamBName = match.away_team?.name || 'Away Team';
 
   // Image placeholders
   const bannerImage = match.bannerImage || "/imageformatchescard.png";
   const playerAvatar = typeof playerOfMatch === 'object' ? (playerOfMatch?.avatar_url || playerOfMatch?.image) : null;
-  const potmDisplayName = typeof playerOfMatch === 'string' ? playerOfMatch : (playerOfMatch?.full_name || playerOfMatch?.name || 'Not Awarded');
+  const potmDisplayName = typeof playerOfMatch === 'string' ? playerOfMatch : (playerOfMatch?.full_name || playerOfMatch?.name || (match.man_of_the_match_id ? 'Official Award' : 'Not Awarded'));
 
   const haptics = useHaptics();
 
