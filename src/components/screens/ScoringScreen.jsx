@@ -75,7 +75,7 @@ export default function ScoringScreen() {
   // Guard: if the stored activeMatchId is no longer a valid match in the DB list, clear it
   // This prevents the scorer from getting stuck on a "no network" error after a stale session
   useEffect(() => {
-    if (!activeMatchId || !matches) return;
+    if (!activeMatchId || !matches || matches.length === 0) return;
     if (isAppLoading) return; // wait until initial app data is loaded
     const exists = matches.some(m => m.id === activeMatchId);
     if (!exists) {
@@ -86,11 +86,22 @@ export default function ScoringScreen() {
     }
   }, [activeMatchId, matches, isAppLoading]);
 
+  const performHydration = React.useCallback(async () => {
+    if (!activeMatchId) return;
+    setIsHydrating(true);
+    setHydrationError(null);
+    const result = await hydrateMatchState(activeMatchId);
+    setIsHydrating(false);
+    if (!result?.success) {
+      setHydrationError(result?.error || 'Unknown error');
+    }
+  }, [activeMatchId, hydrateMatchState]);
+
   useEffect(() => {
     let isMounted = true;
     const checkHydration = async () => {
-      // If we have an active match but no Team A Playing XI in state, we must have refreshed.
-      if (activeMatchId && (!matchSetup?.teamAXI || matchSetup.teamAXI.length === 0)) {
+      // If we have an active match but no Team A Playing XI in state, or mismatching match, we must hydrate.
+      if (activeMatchId && (!matchSetup?.teamAXI || matchSetup.teamAXI.length === 0 || matchSetup?.matchId !== activeMatchId)) {
         setIsHydrating(true);
         setHydrationError(null);
         const result = await hydrateMatchState(activeMatchId);
@@ -104,7 +115,18 @@ export default function ScoringScreen() {
     };
     checkHydration();
     return () => { isMounted = false; };
-  }, [activeMatchId]); // intentionally excluding matchSetup to avoid loop
+  }, [activeMatchId, matchSetup?.matchId]);
+
+  // Auto-retry hydration when connectivity is restored
+  useEffect(() => {
+    const handleOnline = () => {
+      if (hydrationError && activeMatchId) {
+        performHydration();
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [hydrationError, activeMatchId, performHydration]);
 
   const hydrateMatchStateRef = React.useRef(hydrateMatchState);
   useEffect(() => {
@@ -294,17 +316,25 @@ export default function ScoringScreen() {
       <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
         <WifiOff className="h-12 w-12 text-red-500 mb-4" />
         <h3 className="text-xl font-bold text-gray-800 dark:text-white">Failed to Load Match</h3>
-        <p className="text-gray-500 dark:text-gray-400 mt-2">Error: {hydrationError}</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">Error: {String(hydrationError)}</p>
         <p className="text-gray-400 text-sm mt-1">Please check your network connection and try again.</p>
-        <button 
-          onClick={() => {
-            setActiveMatchId(null);
-            navigateTo('home');
-          }}
-          className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold"
-        >
-          Return Home
-        </button>
+        <div className="flex items-center gap-3 mt-6">
+          <button 
+            onClick={() => performHydration()}
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-primary-700 transition"
+          >
+            <RefreshCw className="h-4 w-4" /> Retry Loading
+          </button>
+          <button 
+            onClick={() => {
+              setActiveMatchId(null);
+              navigateTo('home');
+            }}
+            className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+          >
+            Return Home
+          </button>
+        </div>
       </div>
     );
   }

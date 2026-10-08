@@ -713,54 +713,115 @@ export const api = {
   async hydrateLiveMatch(matchId) {
     if (!matchId) throw new Error("Match ID required");
     
-    // 1. Fetch match and teams
-    const { data: match, error: matchError } = await supabase
-      .from('matches')
-      .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
-      .eq('id', matchId)
-      .single();
-      
-    if (matchError) throw matchError;
+    // 1. Fetch match and teams (with offline Dexie fallback)
+    let match = null;
+    let matchError = null;
+    try {
+      const res = await supabase
+        .from('matches')
+        .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*)')
+        .eq('id', matchId)
+        .single();
+      match = res.data;
+      matchError = res.error;
+    } catch (err) {
+      matchError = err;
+    }
+
+    if (matchError || !match) {
+      try {
+        const { db } = await import('./db');
+        match = await db.matches.get(matchId);
+      } catch (e) {}
+    }
+
+    if (!match) throw (matchError || new Error("Match not found"));
 
     // 2. Fetch Match Rosters
-    const { data: rosters } = await supabase
-      .from('match_rosters')
-      .select('*, player:players(*)')
-      .eq('match_id', matchId);
+    let rosters = null;
+    try {
+      const { data, error } = await supabase
+        .from('match_rosters')
+        .select('*, player:players(*)')
+        .eq('match_id', matchId);
+      if (!error && data) rosters = data;
+    } catch (e) {}
 
-    const home_team_roster = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({
+    let home_team_roster = rosters?.filter(r => r.team_id === match.home_team_id).map(r => ({
       ...(r.player || {}),
       id: r.player_id || r.player?.id,
       name: r.player?.full_name || r.player?.name || 'Player',
       role: r.is_wicketkeeper ? 'Wicket Keeper' : (r.player?.primary_role || r.player?.role || 'Batter'),
       isCaptain: !!r.is_captain
     })) || [];
-    const away_team_roster = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({
+    let away_team_roster = rosters?.filter(r => r.team_id === match.away_team_id).map(r => ({
       ...(r.player || {}),
       id: r.player_id || r.player?.id,
       name: r.player?.full_name || r.player?.name || 'Player',
       role: r.is_wicketkeeper ? 'Wicket Keeper' : (r.player?.primary_role || r.player?.role || 'Batter'),
       isCaptain: !!r.is_captain
     })) || [];
+
+    // Fallback: If remote rosters are empty, recover from cached setup
+    if (home_team_roster.length === 0 || away_team_roster.length === 0) {
+      try {
+        const cachedSetup = JSON.parse(localStorage.getItem(`jdca-match-setup-${matchId}`) || 'null');
+        if (cachedSetup) {
+          if (home_team_roster.length === 0 && Array.isArray(cachedSetup.teamAXI) && cachedSetup.teamAXI.length > 0) {
+            home_team_roster = cachedSetup.teamAXI;
+          }
+          if (away_team_roster.length === 0 && Array.isArray(cachedSetup.teamBXI) && cachedSetup.teamBXI.length > 0) {
+            away_team_roster = cachedSetup.teamBXI;
+          }
+        }
+      } catch (e) {}
+    }
 
     // 3. Fetch Innings
-    const { data: inningsData } = await supabase
-      .from('innings')
-      .select('*')
-      .eq('match_id', matchId)
-      .order('innings_number', { ascending: false })
-      .limit(1);
+    let inningsData = null;
+    try {
+      const { data } = await supabase
+        .from('innings')
+        .select('*')
+        .eq('match_id', matchId)
+        .order('innings_number', { ascending: false })
+        .limit(1);
+      if (data) inningsData = data;
+    } catch (e) {}
 
-    const currentInning = inningsData && inningsData.length > 0 ? inningsData[0] : null;
+    let currentInning = inningsData && inningsData.length > 0 ? inningsData[0] : null;
+    if (!currentInning) {
+      try {
+        const { db } = await import('./db');
+        const localInnings = await db.innings.where('match_id').equals(matchId).reverse().sortBy('innings_number');
+        if (localInnings && localInnings.length > 0) {
+          currentInning = localInnings[0];
+        }
+      } catch (e) {}
+    }
+
     let deliveries = [];
-    
     if (currentInning) {
-      const { data: dData } = await supabase
-        .from('deliveries')
-        .select('*, striker:striker_id(*), non_striker:non_striker_id(*), bowler:bowler_id(*)')
-        .eq('innings_id', currentInning.id)
-        .order('delivery_sequence', { ascending: true });
-      if (dData) deliveries = dData;
+      try {
+        const { data: dData } = await supabase
+          .from('deliveries')
+          .select('*, striker:striker_id(*), non_striker:non_striker_id(*), bowler:bowler_id(*)')
+          .eq('innings_id', currentInning.id)
+          .order('delivery_sequence', { ascending: true });
+        if (dData) deliveries = dData;
+      } catch (e) {}
+
+      if (deliveries.length === 0) {
+        try {
+          const { db } = await import('./db');
+          const localDeliveries = await db.deliveries
+            .where('innings_id').equals(currentInning.id)
+            .sortBy('ball_number');
+          if (localDeliveries && localDeliveries.length > 0) {
+            deliveries = localDeliveries;
+          }
+        } catch (e) {}
+      }
     }
 
     return {
@@ -809,14 +870,24 @@ export const api = {
   async getMatchScorecard(matchId) {
     if (!matchId) return null;
 
-    // 1. Fetch match and teams
-    const { data: matchData, error: matchError } = await supabase
-      .from('matches')
-      .select('*, home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)')
-      .eq('id', matchId)
-      .single();
+    // 1. Fetch match and teams (with Dexie offline fallback)
+    let matchData = null;
+    try {
+      const res = await supabase
+        .from('matches')
+        .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)')
+        .eq('id', matchId)
+        .single();
+      matchData = res.data;
+    } catch (e) {}
 
-    if (matchError) throw matchError;
+    if (!matchData) {
+      try {
+        const { db } = await import('./db');
+        matchData = await db.matches.get(matchId);
+      } catch (e) {}
+    }
+
     if (!matchData) throw new Error("Match not found");
 
     // 2. Fetch innings
@@ -1694,6 +1765,17 @@ export const api = {
         status: 'IN_PROGRESS',
         ...(setupData.totalOvers ? { max_overs: Number(setupData.totalOvers) } : {})
       });
+    } catch (e) {}
+
+    try {
+      localStorage.setItem(`jdca-match-setup-${matchId}`, JSON.stringify({
+        ...setupData,
+        matchId,
+        tossWinnerTeamId: tossWinnerTeamId || null,
+        tossDecision: tossWinnerTeamId ? tossDecision : null,
+        teamAXI: setupData.teamAXI || [],
+        teamBXI: setupData.teamBXI || []
+      }));
     } catch (e) {}
     
     // 4. Force Upsert Innings 1 to guarantee correct batting team

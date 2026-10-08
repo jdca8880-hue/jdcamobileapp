@@ -88,20 +88,50 @@ export function useMatchScoring({
       } catch (err) {
         console.warn('[useMatchScoring] hydrateLiveMatch from API failed, attempting fallback to local state:', err);
         match = matches?.find(m => m.id === matchId);
+        if (!match) {
+          try {
+            const { db } = await import('../lib/db.js');
+            match = await db.matches.get(matchId);
+          } catch (e) {}
+        }
         
-        // DO NOT blindly set rosters to []. 
-        // Preserve last known valid state if we have it in memory for THIS match.
-        if (matchSetup && matchSetup.teamAId === match?.home_team_id && matchSetup.teamAXI?.length > 0) {
+        // Recover rosters from cached match setup or existing state
+        let cachedSetup = null;
+        try {
+          cachedSetup = JSON.parse(localStorage.getItem(`jdca-match-setup-${matchId}`) || 'null');
+        } catch (e) {}
+
+        if (cachedSetup && Array.isArray(cachedSetup.teamAXI) && cachedSetup.teamAXI.length > 0) {
+          home_team_roster = cachedSetup.teamAXI;
+          away_team_roster = cachedSetup.teamBXI || [];
+          currentInning = null;
+          deliveries = [];
+        } else if (matchSetup && (matchSetup.matchId === matchId || matchSetup.teamAId === match?.home_team_id) && matchSetup.teamAXI?.length > 0) {
           home_team_roster = matchSetup.teamAXI;
           away_team_roster = matchSetup.teamBXI;
           currentInning = null;
           deliveries = [];
         } else {
-          return { success: false, error: 'Network or database fetch failed while loading match. ' + err.message };
+          return { success: false, error: 'Network or database fetch failed while loading match. ' + (err?.message || '') };
         }
       }
 
       if (!match) return { success: false, error: 'Match not found locally or remotely' };
+
+      // Fallback: If rosters are empty from API, recover from cached setup in localStorage
+      if (!home_team_roster || home_team_roster.length === 0 || !away_team_roster || away_team_roster.length === 0) {
+        try {
+          const cachedSetup = JSON.parse(localStorage.getItem(`jdca-match-setup-${matchId}`) || 'null');
+          if (cachedSetup) {
+            if ((!home_team_roster || home_team_roster.length === 0) && cachedSetup.teamAXI?.length > 0) {
+              home_team_roster = cachedSetup.teamAXI;
+            }
+            if ((!away_team_roster || away_team_roster.length === 0) && cachedSetup.teamBXI?.length > 0) {
+              away_team_roster = cachedSetup.teamBXI;
+            }
+          }
+        } catch (e) {}
+      }
 
       // Ensure rosters are enriched with full offline persistent data (district, age, etc.)
       try {
@@ -126,6 +156,7 @@ export function useMatchScoring({
       const effectiveOvers = match.max_overs || 20;
       setTotalMatchOvers(effectiveOvers);
       setMatchSetup({
+        matchId: match.id,
         teamA: match.home_team?.name || '',
         teamAId: match.home_team_id,
         teamB: match.away_team?.name || '',
@@ -135,9 +166,25 @@ export function useMatchScoring({
         tossWinnerTeamId: match.toss_winner_id,
         electedTo: String(match.toss_decision || '').toUpperCase() === 'BAT' ? 'Bat' : 'Bowl',
         totalOvers: effectiveOvers,
-        teamAXI: home_team_roster, // Temporarily alias for components in Phase 1
-        teamBXI: away_team_roster  // Temporarily alias for components in Phase 1
+        teamAXI: home_team_roster,
+        teamBXI: away_team_roster
       });
+
+      // Cache setup and enriched rosters to localStorage for bulletproof offline recovery
+      try {
+        localStorage.setItem(`jdca-match-setup-${matchId}`, JSON.stringify({
+          matchId: match.id,
+          teamAId: match.home_team_id,
+          teamBId: match.away_team_id,
+          teamA: match.home_team?.name || '',
+          teamB: match.away_team?.name || '',
+          tossWinnerTeamId: match.toss_winner_id,
+          tossDecision: match.toss_decision,
+          totalOvers: effectiveOvers,
+          teamAXI: home_team_roster,
+          teamBXI: away_team_roster
+        }));
+      } catch (e) {}
 
       if (currentInning) {
         if (currentInning.overs_limit) {
@@ -250,144 +297,200 @@ export function useMatchScoring({
         }));
         setCurrentOverBalls(currentOverBallsArr);
 
-        if (mergedDeliveries.length > 0) {
-          let scorecard = null;
-          try {
-            scorecard = await api.getMatchScorecard(matchId);
-          } catch (e) {
-            console.warn('[useMatchScoring] Offline: could not fetch remote scorecard, using local data:', e);
-          }
-          
-          // Hydrate target for 2nd/4th innings.
-          // Prefer the authoritative DB value (target_runs on the current
-          // innings row) — it survives localStorage clears and travels
-          // across devices. Fall back to re-deriving from scorecard runs,
-          // then to localStorage.
-          if (currentInning?.target_runs && Number(currentInning.target_runs) > 0) {
-            setTarget(Number(currentInning.target_runs));
-          } else if (scorecard && scorecard.innings) {
-            let firstInningsRuns = null;
-            if (currentInning.innings_number === 2 && scorecard.innings.length >= 1) {
-              firstInningsRuns = scorecard.innings[0].runs || 0;
-            } else if (currentInning.innings_number === 4 && scorecard.innings.length >= 3) {
-              firstInningsRuns = scorecard.innings[2].runs || 0;
-            }
-
-            if (firstInningsRuns !== null) {
-              try {
-                const { db } = await import('../lib/db.js');
-                if (db.sync_queue) {
-                  const pendingActions = await db.sync_queue.toArray();
-                  const targetInningsNum = currentInning.innings_number === 2 ? 1 : 3;
-                  const offlineDelivs = pendingActions.filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.matchId === matchId && Number(a.payload?.innings || 1) === targetInningsNum);
-                  const offlineRuns = offlineDelivs.reduce((acc, a) => acc + (a.payload?.runsTotal ?? a.payload?.totalRuns ?? 0), 0);
-                  firstInningsRuns += offlineRuns;
-                }
-              } catch (e) {
-                console.warn('[useMatchScoring] Failed to add offline deliveries to target:', e);
-              }
-              setTarget(firstInningsRuns + 1);
-            } else {
-              let savedTarget = null;
-              try { savedTarget = localStorage.getItem(`jdca-target-${matchId}`); } catch {}
-              if (savedTarget) {
-                setTarget(Number(savedTarget));
-              }
-            }
+        let scorecard = null;
+        try {
+          scorecard = await api.getMatchScorecard(matchId);
+        } catch (e) {
+          console.warn('[useMatchScoring] Offline: could not fetch remote scorecard, using local data:', e);
+        }
+        
+        // Hydrate target for 2nd/4th innings.
+        // Prefer the authoritative DB value (target_runs on the current
+        // innings row) — it survives localStorage clears and travels
+        // across devices. Fall back to re-deriving from scorecard runs,
+        // then to localStorage.
+        if (currentInning?.target_runs && Number(currentInning.target_runs) > 0) {
+          setTarget(Number(currentInning.target_runs));
+        } else if (scorecard && scorecard.innings) {
+          let firstInningsRuns = null;
+          if (currentInning.innings_number === 2 && scorecard.innings.length >= 1) {
+            firstInningsRuns = scorecard.innings[0].runs || 0;
+          } else if (currentInning.innings_number === 4 && scorecard.innings.length >= 3) {
+            firstInningsRuns = scorecard.innings[2].runs || 0;
           }
 
-          const currentInningsNum = currentInning?.innings_number || 1;
-          let currentBattingXI = home_team_roster;
-          let currentBowlingXI = away_team_roster;
-          if (currentInning?.batting_team_id) {
-            currentBattingXI = currentInning.batting_team_id === match.home_team_id ? home_team_roster : away_team_roster;
-            currentBowlingXI = currentInning.bowling_team_id === match.home_team_id ? home_team_roster : away_team_roster;
+          if (firstInningsRuns !== null) {
+            try {
+              const { db } = await import('../lib/db.js');
+              if (db.sync_queue) {
+                const pendingActions = await db.sync_queue.toArray();
+                const targetInningsNum = currentInning.innings_number === 2 ? 1 : 3;
+                const offlineDelivs = pendingActions.filter(a => a.action === 'RECORD_DELIVERY' && a.payload?.matchId === matchId && Number(a.payload?.innings || 1) === targetInningsNum);
+                const offlineRuns = offlineDelivs.reduce((acc, a) => acc + (a.payload?.runsTotal ?? a.payload?.totalRuns ?? 0), 0);
+                firstInningsRuns += offlineRuns;
+              }
+            } catch (e) {
+              console.warn('[useMatchScoring] Failed to add offline deliveries to target:', e);
+            }
+            setTarget(firstInningsRuns + 1);
           } else {
-            const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
-            const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
-            const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
-            const inn1Batting = homeBatsFirst ? match.home_team_id : match.away_team_id;
-            const isHomeBatting = currentInningsNum === 2 ? inn1Batting !== match.home_team_id : inn1Batting === match.home_team_id;
-            currentBattingXI = isHomeBatting ? home_team_roster : away_team_roster;
-            currentBowlingXI = isHomeBatting ? away_team_roster : home_team_roster;
-          }
-
-          let cachedStriker = null;
-          let cachedNonStriker = null;
-          let cachedBowler = null;
-          try {
-            cachedStriker = JSON.parse(localStorage.getItem(`jdca-striker-${matchId}`));
-            cachedNonStriker = JSON.parse(localStorage.getItem(`jdca-nonstriker-${matchId}`));
-            cachedBowler = JSON.parse(localStorage.getItem(`jdca-bowler-${matchId}`));
-          } catch {}
-
-          const isStrikerValid = cachedStriker && currentBattingXI.some(p => String(p.id) === String(cachedStriker.id));
-          const isNonStrikerValid = cachedNonStriker && currentBattingXI.some(p => String(p.id) === String(cachedNonStriker.id));
-          const isBowlerValid = cachedBowler && currentBowlingXI.some(p => String(p.id) === String(cachedBowler.id));
-
-          const currentStats = scorecard?.innings?.[currentInning.innings_number - 1];
-          const lastDel = mergedDeliveries[mergedDeliveries.length - 1];
-
-          // 1. Resolve Striker
-          if (isStrikerValid) {
-            const stat = currentStats?.batting?.find(bt => bt.id === cachedStriker.id);
-            setStriker({ ...cachedStriker, ...(stat || {}), strikeRate: stat?.strikeRate || cachedStriker.strikeRate || '0.00' });
-          } else if (lastDel && lastDel.striker_id) {
-            const dismissedId = lastDel.dismissed_player_id || (lastDel.wicket_type !== 'NONE' ? lastDel.striker_id : null);
-            if (lastDel.striker_id !== dismissedId) {
-              let strikerStat = currentStats?.batting?.find(bt => bt.id === lastDel.striker_id);
-              if (!strikerStat) {
-                const p = currentBattingXI.find(x => x.id === lastDel.striker_id);
-                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id).reduce((sum, d) => sum + (d.runs_off_bat || 0), 0);
-                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.striker_id && d.extra_type !== 'WIDE').length;
-                strikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
-              }
-              if (strikerStat) setStriker({ ...strikerStat, strikeRate: strikerStat.strikeRate || '0.00' });
-            } else {
-              setStriker(null);
+            let savedTarget = null;
+            try { savedTarget = localStorage.getItem(`jdca-target-${matchId}`); } catch {}
+            if (savedTarget) {
+              setTarget(Number(savedTarget));
             }
-          } else {
-            setStriker(null);
           }
+        } else {
+          let savedTarget = null;
+          try { savedTarget = localStorage.getItem(`jdca-target-${matchId}`); } catch {}
+          if (savedTarget) {
+            setTarget(Number(savedTarget));
+          }
+        }
 
-          // 2. Resolve Non-Striker
-          if (isNonStrikerValid) {
-            const stat = currentStats?.batting?.find(bt => bt.id === cachedNonStriker.id);
-            setNonStriker({ ...cachedNonStriker, ...(stat || {}), strikeRate: stat?.strikeRate || cachedNonStriker.strikeRate || '0.00' });
-          } else if (lastDel && lastDel.non_striker_id) {
-            const dismissedId = lastDel.dismissed_player_id;
-            if (lastDel.non_striker_id !== dismissedId) {
-              let nonStrikerStat = currentStats?.batting?.find(bt => bt.id === lastDel.non_striker_id);
-              if (!nonStrikerStat) {
-                const p = currentBattingXI.find(x => x.id === lastDel.non_striker_id);
-                const pRuns = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id).reduce((sum, d) => sum + (d.runs_off_bat || 0), 0);
-                const pBalls = mergedDeliveries.filter(d => d.striker_id === lastDel.non_striker_id && d.extra_type !== 'WIDE').length;
-                nonStrikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
-              }
-              if (nonStrikerStat) setNonStriker({ ...nonStrikerStat, strikeRate: nonStrikerStat.strikeRate || '0.00' });
-            } else {
-              setNonStriker(null);
+        const currentInningsNum = currentInning?.innings_number || 1;
+        let currentBattingXI = home_team_roster;
+        let currentBowlingXI = away_team_roster;
+        if (currentInning?.batting_team_id) {
+          currentBattingXI = currentInning.batting_team_id === match.home_team_id ? home_team_roster : away_team_roster;
+          currentBowlingXI = currentInning.bowling_team_id === match.home_team_id ? home_team_roster : away_team_roster;
+        } else {
+          const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
+          const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+          const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+          const inn1Batting = homeBatsFirst ? match.home_team_id : match.away_team_id;
+          const isHomeBatting = currentInningsNum === 2 ? inn1Batting !== match.home_team_id : inn1Batting === match.home_team_id;
+          currentBattingXI = isHomeBatting ? home_team_roster : away_team_roster;
+          currentBowlingXI = isHomeBatting ? away_team_roster : home_team_roster;
+        }
+
+        let cachedStriker = null;
+        let cachedNonStriker = null;
+        let cachedBowler = null;
+        try {
+          cachedStriker = JSON.parse(localStorage.getItem(`jdca-striker-${matchId}`));
+          cachedNonStriker = JSON.parse(localStorage.getItem(`jdca-nonstriker-${matchId}`));
+          cachedBowler = JSON.parse(localStorage.getItem(`jdca-bowler-${matchId}`));
+        } catch {}
+
+        const currentStats = scorecard?.innings?.[currentInning.innings_number - 1];
+        const lastDel = mergedDeliveries.length > 0 ? mergedDeliveries[mergedDeliveries.length - 1] : null;
+
+        // Dismissed Batters set (prevents resurrecting out players as striker/non-striker)
+        const dismissedBatterIds = new Set();
+        for (const d of mergedDeliveries) {
+          if (d.wicket_type && d.wicket_type !== 'NONE') {
+            const dismissed = d.dismissed_player_id || (d.wicket_type !== 'RUN_OUT' ? d.striker_id : null);
+            if (dismissed) dismissedBatterIds.add(String(dismissed));
+          }
+        }
+        if (currentStats?.batting) {
+          for (const bt of currentStats.batting) {
+            if (bt.dismissal && bt.dismissal !== 'not out' && bt.id) {
+              dismissedBatterIds.add(String(bt.id));
             }
-          } else {
-            setNonStriker(null);
           }
+        }
 
-          // 3. Resolve Bowler
-          if (isBowlerValid) {
-            const stat = currentStats?.bowling?.find(bw => bw.id === cachedBowler.id);
+        const isStrikerValid = cachedStriker && 
+          currentBattingXI.some(p => String(p.id) === String(cachedStriker.id)) &&
+          !dismissedBatterIds.has(String(cachedStriker.id));
+
+        const isNonStrikerValid = cachedNonStriker && 
+          currentBattingXI.some(p => String(p.id) === String(cachedNonStriker.id)) &&
+          !dismissedBatterIds.has(String(cachedNonStriker.id)) &&
+          (!cachedStriker || String(cachedStriker.id) !== String(cachedNonStriker.id));
+
+        const isBowlerValid = cachedBowler && currentBowlingXI.some(p => String(p.id) === String(cachedBowler.id));
+
+        // 1. Resolve Striker
+        if (isStrikerValid) {
+          const stat = currentStats?.batting?.find(bt => String(bt.id) === String(cachedStriker.id));
+          setStriker({ ...cachedStriker, ...(stat || {}), strikeRate: stat?.strikeRate || cachedStriker.strikeRate || '0.00' });
+        } else if (lastDel && lastDel.striker_id && !dismissedBatterIds.has(String(lastDel.striker_id))) {
+          let strikerStat = currentStats?.batting?.find(bt => String(bt.id) === String(lastDel.striker_id));
+          if (!strikerStat) {
+            const p = currentBattingXI.find(x => String(x.id) === String(lastDel.striker_id));
+            const pRuns = mergedDeliveries.filter(d => String(d.striker_id) === String(lastDel.striker_id)).reduce((sum, d) => sum + (d.runs_off_bat || 0), 0);
+            const pBalls = mergedDeliveries.filter(d => String(d.striker_id) === String(lastDel.striker_id) && d.extra_type !== 'WIDE').length;
+            strikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
+          }
+          if (strikerStat) setStriker({ ...strikerStat, strikeRate: strikerStat.strikeRate || '0.00' });
+          else setStriker(null);
+        } else {
+          setStriker(null);
+        }
+
+        // 2. Resolve Non-Striker
+        if (isNonStrikerValid) {
+          const stat = currentStats?.batting?.find(bt => String(bt.id) === String(cachedNonStriker.id));
+          setNonStriker({ ...cachedNonStriker, ...(stat || {}), strikeRate: stat?.strikeRate || cachedNonStriker.strikeRate || '0.00' });
+        } else if (lastDel && lastDel.non_striker_id && !dismissedBatterIds.has(String(lastDel.non_striker_id))) {
+          let nonStrikerStat = currentStats?.batting?.find(bt => String(bt.id) === String(lastDel.non_striker_id));
+          if (!nonStrikerStat) {
+            const p = currentBattingXI.find(x => String(x.id) === String(lastDel.non_striker_id));
+            const pRuns = mergedDeliveries.filter(d => String(d.striker_id) === String(lastDel.non_striker_id)).reduce((sum, d) => sum + (d.runs_off_bat || 0), 0);
+            const pBalls = mergedDeliveries.filter(d => String(d.striker_id) === String(lastDel.non_striker_id) && d.extra_type !== 'WIDE').length;
+            nonStrikerStat = p ? { ...p, runs: pRuns, balls: pBalls, fours: 0, sixes: 0, strikeRate: pBalls > 0 ? ((pRuns/pBalls)*100).toFixed(2) : '0.00' } : null;
+          }
+          if (nonStrikerStat) setNonStriker({ ...nonStrikerStat, strikeRate: nonStrikerStat.strikeRate || '0.00' });
+          else setNonStriker(null);
+        } else {
+          setNonStriker(null);
+        }
+
+        // 3. Resolve Bowler & Over State
+        const legalBalls = mergedDeliveries.filter(d => d.extra_type !== 'WIDE' && d.extra_type !== 'NO_BALL').length;
+        const isOverEnd = (legalBalls > 0 && legalBalls % 6 === 0);
+
+        if (isOverEnd) {
+          // Over just finished!
+          if (lastDel?.bowler_id) {
+            setLastOverBowlerId(lastDel.bowler_id);
+          }
+          // If cached bowler is valid AND not the one who just bowled this over, keep them
+          if (isBowlerValid && lastDel && String(cachedBowler.id) !== String(lastDel.bowler_id)) {
+            const stat = currentStats?.bowling?.find(bw => String(bw.id) === String(cachedBowler.id));
             setCurrentBowler({ ...cachedBowler, ...(stat || {}) });
-            setLastOverBowlerId(cachedBowler.id);
+          } else {
+            // Bowler cannot bowl consecutive overs; prompt scorer for new bowler
+            setCurrentBowler(null);
+          }
+        } else {
+          // Mid-over or over 1 start
+          if (legalBalls >= 6) {
+            let legalCount = 0;
+            let prevOverLastDel = null;
+            const prevOverTargetCount = Math.floor(legalBalls / 6) * 6;
+            for (const d of mergedDeliveries) {
+              if (d.extra_type !== 'WIDE' && d.extra_type !== 'NO_BALL') {
+                legalCount++;
+              }
+              if (legalCount === prevOverTargetCount) {
+                prevOverLastDel = d;
+                break;
+              }
+            }
+            if (prevOverLastDel?.bowler_id) {
+              setLastOverBowlerId(prevOverLastDel.bowler_id);
+            }
+          } else {
+            setLastOverBowlerId(null);
+          }
+
+          if (isBowlerValid) {
+            const stat = currentStats?.bowling?.find(bw => String(bw.id) === String(cachedBowler.id));
+            setCurrentBowler({ ...cachedBowler, ...(stat || {}) });
           } else if (lastDel && lastDel.bowler_id) {
-            let bowlerStat = currentStats?.bowling?.find(bw => bw.id === lastDel.bowler_id);
+            let bowlerStat = currentStats?.bowling?.find(bw => String(bw.id) === String(lastDel.bowler_id));
             if (!bowlerStat) {
-              const p = currentBowlingXI.find(x => x.id === lastDel.bowler_id);
-              const bRuns = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE').reduce((sum, d) => sum + (d.runs_total || 0), 0);
-              const bBalls = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.extra_type !== 'WIDE' && d.extra_type !== 'NO_BALL').length;
-              const bWickets = mergedDeliveries.filter(d => d.bowler_id === lastDel.bowler_id && d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT').length;
+              const p = currentBowlingXI.find(x => String(x.id) === String(lastDel.bowler_id));
+              const bRuns = mergedDeliveries.filter(d => String(d.bowler_id) === String(lastDel.bowler_id) && d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE').reduce((sum, d) => sum + (d.runs_total || 0), 0);
+              const bBalls = mergedDeliveries.filter(d => String(d.bowler_id) === String(lastDel.bowler_id) && d.extra_type !== 'WIDE' && d.extra_type !== 'NO_BALL').length;
+              const bWickets = mergedDeliveries.filter(d => String(d.bowler_id) === String(lastDel.bowler_id) && d.wicket_type !== 'NONE' && d.wicket_type !== 'RUN_OUT').length;
               bowlerStat = p ? { ...p, runsConceded: bRuns, overs: Math.floor(bBalls/6) + '.' + (bBalls%6), wickets: bWickets, maidens: 0, economy: '0.00' } : null;
             }
             if (bowlerStat) setCurrentBowler({ ...bowlerStat, economy: bowlerStat.economy || '0.00', overs: bowlerStat.overs || '0.0' });
-            setLastOverBowlerId(lastDel.bowler_id);
           }
         }
       }
