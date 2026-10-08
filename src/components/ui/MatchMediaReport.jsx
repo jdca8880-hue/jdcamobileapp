@@ -7,7 +7,9 @@ export default function MatchMediaReport({ match }) {
   const highlights = useMemo(() => calculateMatchHighlights(match), [match]);
   const summary = useMemo(() => generateMatchSummary(match, highlights), [match, highlights]);
   const caption = useMemo(() => generateSocialCaption(match, highlights), [match, highlights]);
-  const headline = match.mediaHeadline || `${match.home_team?.name || 'Unknown Team'} vs ${match.away_team?.name || 'Unknown Team'} — Official Match Report`;
+  const homeName = match.home_team?.name || match.home_team?.short_name || 'Home';
+  const awayName = match.away_team?.name || match.away_team?.short_name || 'Away';
+  const headline = match.mediaHeadline || `${homeName} vs ${awayName} — Official Match Report`;
 
   const copy = async (text = summary) => {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}

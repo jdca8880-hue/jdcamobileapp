@@ -999,6 +999,72 @@ export const api = {
     const topBatter = allBatters[0] ? { name: allBatters[0].name, stat: `${allBatters[0].runs} (${allBatters[0].balls})` } : null;
     const topBowler = allBowlers[0] ? { name: allBowlers[0].name, stat: `${allBowlers[0].wickets}/${allBowlers[0].runs}` } : null;
 
+    // Best partnership: walk each innings' deliveries in order, break at each
+    // dismissal, track runs between the two batters currently at the crease.
+    const computeBestPartnership = (inningId) => {
+      const inningBalls = deliveries
+        .filter(d => d.innings_id === inningId && (d.event_type || 'DELIVERY') === 'DELIVERY')
+        .slice()
+        .sort((a, b) => (a.delivery_sequence || 0) - (b.delivery_sequence || 0));
+      if (!inningBalls.length) return null;
+
+      let best = null;
+      let currentPair = null; // { ids:Set, names:Map, runs, balls }
+
+      const startPair = (strikerId, nonStrikerId, strikerName, nonStrikerName) => {
+        currentPair = {
+          ids: new Set([strikerId, nonStrikerId].filter(Boolean)),
+          names: new Map([[strikerId, strikerName], [nonStrikerId, nonStrikerName]]),
+          runs: 0,
+          balls: 0
+        };
+      };
+
+      for (const d of inningBalls) {
+        if (!currentPair) {
+          startPair(d.striker_id, d.non_striker_id, d.striker?.full_name || d.striker?.name, '');
+        } else {
+          if (d.striker_id && !currentPair.ids.has(d.striker_id)) {
+            currentPair.ids.add(d.striker_id);
+            currentPair.names.set(d.striker_id, d.striker?.full_name || d.striker?.name);
+          }
+          if (d.non_striker_id && !currentPair.ids.has(d.non_striker_id)) {
+            currentPair.ids.add(d.non_striker_id);
+            currentPair.names.set(d.non_striker_id, '');
+          }
+        }
+        currentPair.runs += d.runs_total || 0;
+        if (d.extra_type === 'NONE' || d.extra_type === 'BYE' || d.extra_type === 'LEG_BYE' || d.extra_type === 'NO_BALL') {
+          currentPair.balls += 1;
+        }
+        if (d.wicket_type && d.wicket_type !== 'NONE' && d.wicket_type !== 'RETIRED_HURT') {
+          if (!best || currentPair.runs > best.runs) best = { ...currentPair };
+          currentPair = null;
+        }
+      }
+      if (currentPair && (!best || currentPair.runs > best.runs)) best = currentPair;
+      if (!best || !best.ids.size) return null;
+
+      const names = [...best.ids].map(id => best.names.get(id)).filter(Boolean);
+      if (names.length < 2) return null;
+      return {
+        names: names.join(' & '),
+        pair: names.join(' & '),
+        runs: best.runs,
+        balls: best.balls,
+        stat: `${best.runs} runs (${best.balls} balls)`
+      };
+    };
+
+    const partnership1 = innings.length > 0 ? computeBestPartnership(innings[0].id) : null;
+    const partnership2 = innings.length > 1 ? computeBestPartnership(innings[1].id) : null;
+    let bestPartnership = null;
+    if (partnership1 && partnership2) {
+      bestPartnership = partnership1.runs >= partnership2.runs ? partnership1 : partnership2;
+    } else {
+      bestPartnership = partnership1 || partnership2 || null;
+    }
+
     let mvp = matchData.man_of_the_match ? { id: matchData.man_of_the_match.id, name: matchData.man_of_the_match.full_name } : null;
     
     if (!mvp) {
@@ -1072,7 +1138,8 @@ export const api = {
       innings_2: stats2,
       innings: [stats1, stats2],
       topBatter,
-      topBowler
+      topBowler,
+      bestPartnership
     };
   },
 
