@@ -116,6 +116,12 @@ export function processDelivery(currentState, ballInput) {
   if (ball.extraType === 'NO_BALL' && ball.isLegalDelivery) {
     return { success: false, error: 'A No-Ball cannot be a legal delivery.' };
   }
+  if (ball.extraType === 'NO_BALL' && ball.runsExtras < 1) {
+    // The no-ball penalty itself is one extra. Allowing zero would leave the
+    // scorecard with Extras=0 even though a no-ball was recorded (seen on
+    // older tracked rows). Enforce the Law 21 minimum here.
+    return { success: false, error: 'A No-Ball must include the 1-run penalty in runs_extras.' };
+  }
 
   if (ball.extraType === 'WIDE') {
     if (ball.isLegalDelivery) {
@@ -144,6 +150,25 @@ export function processDelivery(currentState, ballInput) {
   // Base validations
   if (!currentState.striker?.id || !currentState.nonStriker?.id || !currentState.currentBowler?.id) {
     return { success: false, error: 'Missing active batter or bowler.' };
+  }
+
+  // Bowler over limit: Law 17 limits bowlers to max_overs / 5 overs in limited
+  // formats (4 in T20, 10 in ODI, 2 in T10). We only block when the bowler
+  // would start a *new* over past that cap — mid-over illegal balls are OK.
+  // Super overs (innings 3/4) exempted because each bowler bowls only one over.
+  const maxOversForMatch = currentState.totalMatchOvers || 0;
+  const inSuperOver = (currentState.innings || 1) >= 3;
+  if (maxOversForMatch >= 5 && !inSuperOver) {
+    const perBowlerCap = Math.floor(maxOversForMatch / 5);
+    const bowlerBalls = currentState.currentBowler.ballsBowled || 0;
+    const bowlerCompletedOvers = Math.floor(bowlerBalls / 6);
+    const atOverStart = bowlerBalls % 6 === 0;
+    if (atOverStart && bowlerCompletedOvers >= perBowlerCap) {
+      return {
+        success: false,
+        error: `${currentState.currentBowler.name || 'Bowler'} has already bowled ${perBowlerCap} overs (the maximum for this match).`
+      };
+    }
   }
 
   const sId = currentState.striker.id;

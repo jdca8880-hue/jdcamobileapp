@@ -817,24 +817,41 @@ export function useMatchScoring({
         const battingName = isBattingTeamA ? teamAName : teamBName;
         const bowlingName = isBattingTeamA ? teamBName : teamAName;
         
+        const isSuperOverFinal = (newState.innings || innings) >= 4;
+        const superOverSuffix = isSuperOverFinal ? ' (Super Over)' : '';
+
         if (newState.target && newState.runs >= newState.target) {
           // Chasing team won
-          winnerId = battingTId; 
-          const wktsLeft = 10 - newState.wickets;
-          margin = `${wktsLeft} wickets`;
-          text = `${battingName} won by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
+          winnerId = battingTId;
+          if (isSuperOverFinal) {
+            margin = 'Super Over';
+            text = `${battingName} won the Super Over`;
+          } else {
+            const wktsLeft = 10 - newState.wickets;
+            margin = `${wktsLeft} wickets`;
+            text = `${battingName} won by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
+          }
         } else if (newState.runs < firstInningsScore) {
           // Defending team won (chasing team bowled out or overs done without reaching target)
           winnerId = bowlingTId;
           const runsDiff = firstInningsScore - newState.runs;
-          margin = `${runsDiff} runs`;
-          text = `${bowlingName} won by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
+          if (isSuperOverFinal) {
+            margin = 'Super Over';
+            text = `${bowlingName} won the Super Over by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
+          } else {
+            margin = `${runsDiff} runs`;
+            text = `${bowlingName} won by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
+          }
         } else {
-          // Scores level = Tie
+          // Scores level = Tie. In a Super Over this means another Super Over
+          // is required; in a normal match the match is tied.
           winnerId = null;
           margin = 'Tie';
-          text = 'Match tied';
+          text = isSuperOverFinal
+            ? 'Super Over tied — another Super Over required'
+            : 'Match tied';
         }
+        if (isSuperOverFinal && text && !text.includes('Super Over')) text += superOverSuffix;
         
         api.updateMatchDetails(activeMatchId, { 
           winner_team_id: winnerId, 

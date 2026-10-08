@@ -997,6 +997,33 @@ export const api = {
         strikeRate: b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'
       }));
 
+      // Maidens: an over of 6 legal balls where the bowler conceded nothing
+      // charged to them (no wides, no-balls, no runs off bat; byes/leg-byes
+      // are OK because they're not the bowler's fault). Group deliveries by
+      // (bowler_id, over_number).
+      const overBuckets = new Map();
+      for (const d of balls) {
+        if ((d.event_type || 'DELIVERY') !== 'DELIVERY') continue;
+        if (!d.bowler_id) continue;
+        const key = `${d.bowler_id}::${d.over_number ?? 0}`;
+        if (!overBuckets.has(key)) {
+          overBuckets.set(key, { legalBalls: 0, chargedRuns: 0, hadWideOrNb: false });
+        }
+        const bucket = overBuckets.get(key);
+        const isLegal = d.extra_type === 'NONE' || d.extra_type === 'BYE' || d.extra_type === 'LEG_BYE';
+        if (isLegal) bucket.legalBalls += 1;
+        if (d.extra_type === 'WIDE' || d.extra_type === 'NO_BALL') bucket.hadWideOrNb = true;
+        if (d.extra_type !== 'BYE' && d.extra_type !== 'LEG_BYE') {
+          bucket.chargedRuns += d.runs_total || 0;
+        }
+      }
+      for (const [key, bucket] of overBuckets) {
+        if (bucket.legalBalls === 6 && !bucket.hadWideOrNb && bucket.chargedRuns === 0) {
+          const bowlerId = key.split('::')[0];
+          if (bowlers[bowlerId]) bowlers[bowlerId].maidens = (bowlers[bowlerId].maidens || 0) + 1;
+        }
+      }
+
       const bowlArr = Object.values(bowlers).map(b => ({
         ...b,
         overs: `${Math.floor(b.balls / 6)}.${b.balls % 6}`,
