@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
-import { api } from '../lib/api';
+import { api, parseOversFromFormat } from '../lib/api';
 import { syncService } from '../services/SyncService';
 import { queueOfflineAction } from '../lib/db';
 import {
@@ -123,6 +123,8 @@ export function useMatchScoring({
         console.warn('Failed to enrich rosters with persistent local data', err);
       }
 
+      const effectiveOvers = match.max_overs || 20;
+      setTotalMatchOvers(effectiveOvers);
       setMatchSetup({
         teamA: match.home_team?.name || '',
         teamAId: match.home_team_id,
@@ -132,12 +134,15 @@ export function useMatchScoring({
         teamBShort: match.away_team?.short_name || '',
         tossWinnerTeamId: match.toss_winner_id,
         electedTo: String(match.toss_decision || '').toUpperCase() === 'BAT' ? 'Bat' : 'Bowl',
-        totalOvers: match.max_overs || 20,
+        totalOvers: effectiveOvers,
         teamAXI: home_team_roster, // Temporarily alias for components in Phase 1
         teamBXI: away_team_roster  // Temporarily alias for components in Phase 1
       });
 
       if (currentInning) {
+        if (currentInning.overs_limit) {
+          setTotalMatchOvers(currentInning.overs_limit);
+        }
         setInnings(currentInning.innings_number);
         setCurrentInningsId(currentInning.id);
         if (currentInning.batting_team_id) setCurrentBattingTeamId(currentInning.batting_team_id);
@@ -523,8 +528,18 @@ export function useMatchScoring({
       if (['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(activeMatch.status)) {
         setMatchStatus(activeMatch.status);
       }
+      const effectiveOvers = activeMatch.max_overs || activeMatch.overs || parseOversFromFormat(activeMatch.match_format, null);
+      if (effectiveOvers) {
+        setTotalMatchOvers(effectiveOvers);
+      }
     }
   }, [activeMatchId, matches]);
+
+  useEffect(() => {
+    if (matchSetup?.totalOvers) {
+      setTotalMatchOvers(matchSetup.totalOvers);
+    }
+  }, [matchSetup?.totalOvers]);
 
   const latestDeliveryLogRef = useRef([]);
   useEffect(() => {
@@ -663,7 +678,7 @@ export function useMatchScoring({
 
   // Projected Score
   const getProjectedScore = () => {
-    return calculateProjectedScore(runs, balls, matchSetup.totalOvers);
+    return calculateProjectedScore(runs, balls, totalMatchOvers || matchSetup?.totalOvers || 20);
   };
 
   // Switch striker manually
@@ -727,7 +742,7 @@ export function useMatchScoring({
       extras: { ...extras },
       isFreeHit,
       innings,
-      totalMatchOvers: matchSetup?.totalOvers || 20,
+      totalMatchOvers: totalMatchOvers || matchSetup?.totalOvers || 20,
       matchStatus,
       scorecard: JSON.parse(JSON.stringify(scorecard)),
       lastOverBowlerId,

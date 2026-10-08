@@ -11,6 +11,19 @@ export const calculatePlayerAge = (dob, referenceDate = new Date()) => {
   return age;
 };
 
+export const parseOversFromFormat = (fmt, fallback = 20) => {
+  if (!fmt && fmt !== 0) return fallback;
+  if (typeof fmt === 'number') return fmt;
+  const str = String(fmt).trim();
+  const match = str.match(/(\d+)\s*(?:overs?|ov)?/i);
+  if (match) return parseInt(match[1], 10);
+  if (/^t20/i.test(str)) return 20;
+  if (/^t10/i.test(str)) return 10;
+  if (/^odi/i.test(str)) return 50;
+  if (/^the hundred/i.test(str) || /^100/i.test(str)) return 20;
+  return fallback;
+};
+
 export const api = {
   // ANNOUNCEMENTS
   // ==========================================
@@ -480,18 +493,19 @@ export const api = {
       }
       const matchFmt = m.match_format || m.format || format || 'T20';
       const scheduledVal = m.scheduled_at || m.date || m.scheduledAt;
+      const oversVal = m.max_overs || m.overs || parseOversFromFormat(matchFmt, 20);
       return {
         tournament_id: tournamentId,
         home_team_id: m.home_team_id || m.homeTeamId || null,
         away_team_id: m.away_team_id || m.awayTeamId || null,
         scheduled_at: scheduledVal ? new Date(scheduledVal).toISOString() : new Date().toISOString(),
-      status: 'SCHEDULED',
-      match_format: matchFmt,
-      max_overs: matchFmt === 'T20' ? 20 : (matchFmt === 'T10' ? 10 : 50),
-      venue_name: m.venueName || null,
-      umpire_name: m.umpireName || null,
-      scorer_name: m.scorerName || null,
-      ball_type: m.ballType || null
+        status: 'SCHEDULED',
+        match_format: matchFmt,
+        max_overs: oversVal,
+        venue_name: m.venueName || null,
+        umpire_name: m.umpireName || null,
+        scorer_name: m.scorerName || null,
+        ball_type: m.ballType || null
       };
     });
 
@@ -564,7 +578,7 @@ export const api = {
     if (matchData.max_overs !== undefined) {
       updatePayload.max_overs = matchData.max_overs;
     } else if (matchData.format !== undefined) {
-      updatePayload.max_overs = matchData.format === 'T20' ? 20 : (matchData.format === 'T10' ? 10 : 50);
+      updatePayload.max_overs = parseOversFromFormat(matchData.format, 20);
     }
     if (matchData.venueName !== undefined) updatePayload.venue_name = matchData.venueName;
     if (matchData.umpireName !== undefined) updatePayload.umpire_name = matchData.umpireName;
@@ -798,7 +812,7 @@ export const api = {
     // 1. Fetch match and teams
     const { data: matchData, error: matchError } = await supabase
       .from('matches')
-      .select('*, home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:man_of_the_match_id(id, full_name)')
+      .select('*, home_team:home_team_id(*), away_team:away_team_id(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)')
       .eq('id', matchId)
       .single();
 
@@ -1123,8 +1137,42 @@ export const api = {
       bestPartnership = partnership1 || partnership2 || null;
     }
 
-    let mvp = matchData.man_of_the_match ? { id: matchData.man_of_the_match.id, name: matchData.man_of_the_match.full_name } : null;
+    let mvp = matchData.man_of_the_match ? {
+      id: matchData.man_of_the_match.id,
+      name: matchData.man_of_the_match.full_name,
+      full_name: matchData.man_of_the_match.full_name,
+      avatar_url: matchData.man_of_the_match.avatar_url
+    } : null;
     
+    if (!mvp && matchData.man_of_the_match_id) {
+      try {
+        const { db } = await import('./db');
+        const localPlayer = await db.players.get(matchData.man_of_the_match_id);
+        if (localPlayer) {
+          mvp = {
+            id: localPlayer.id,
+            name: localPlayer.full_name || localPlayer.name,
+            full_name: localPlayer.full_name || localPlayer.name,
+            avatar_url: localPlayer.avatar_url || localPlayer.image
+          };
+        }
+      } catch (err) {
+        console.warn('[api] Failed to resolve local player for MOTM:', err);
+      }
+
+      if (!mvp) {
+        const allStatsPlayers = [...stats1.batting, ...stats2.batting, ...stats1.bowling, ...stats2.bowling];
+        const matchPlayer = allStatsPlayers.find(p => p.id === matchData.man_of_the_match_id);
+        if (matchPlayer) {
+          mvp = {
+            id: matchPlayer.id,
+            name: matchPlayer.name,
+            full_name: matchPlayer.name
+          };
+        }
+      }
+    }
+
     if (!mvp) {
       const playerScores = {};
       [...stats1.batting, ...stats2.batting].forEach(b => {
@@ -1144,7 +1192,7 @@ export const api = {
       for (const p of Object.values(playerScores)) {
         if (p.score > bestScore) {
           bestScore = p.score;
-          mvp = { id: p.id, name: p.name };
+          mvp = { id: p.id, name: p.name, full_name: p.name };
         }
       }
     }
@@ -1172,6 +1220,8 @@ export const api = {
       winner_team_id: matchData.winner_team_id,
       result_margin: matchData.result_margin,
       manOfTheMatch: mvp,
+      man_of_the_match: mvp,
+      playerOfMatch: mvp,
       home_team: {
         id: matchData.home_team_id,
         name: matchData.home_team?.name || 'Home Team',
@@ -1620,17 +1670,31 @@ export const api = {
       if (rosterError) throw rosterError;
     }
 
-    // 3. Update Match Status and Toss
+    // 3. Update Match Status, Overs and Toss
+    const matchUpdateFields = {
+      toss_winner_id: tossWinnerTeamId || null,
+      toss_decision: tossWinnerTeamId ? tossDecision : null,
+      status: 'IN_PROGRESS'
+    };
+    if (setupData.totalOvers) {
+      matchUpdateFields.max_overs = Number(setupData.totalOvers);
+    }
     const { error: updateError } = await supabase
       .from('matches')
-      .update({
-        toss_winner_id: tossWinnerTeamId || null,
-        toss_decision: tossWinnerTeamId ? tossDecision : null,
-        status: 'IN_PROGRESS'
-      })
+      .update(matchUpdateFields)
       .eq('id', matchId);
       
     if (updateError) throw updateError;
+
+    try {
+      const { db } = await import('./db');
+      await db.matches.update(matchId, {
+        toss_winner_id: tossWinnerTeamId || null,
+        toss_decision: tossWinnerTeamId ? tossDecision : null,
+        status: 'IN_PROGRESS',
+        ...(setupData.totalOvers ? { max_overs: Number(setupData.totalOvers) } : {})
+      });
+    } catch (e) {}
     
     // 4. Force Upsert Innings 1 to guarantee correct batting team
     if (tossWinnerTeamId && tossDecision) {
@@ -1694,20 +1758,27 @@ export const api = {
     }
 
     if (existingMatch.status === 'COMPLETED') {
-      // Check if payloads match exactly
-      const isIdentical = 
-        existingMatch.winner_team_id === winnerId &&
-        existingMatch.result_margin === resultMargin &&
-        existingMatch.result_text === resultText &&
-        (manOfTheMatchId ? existingMatch.man_of_the_match_id === manOfTheMatchId : true);
-
-      if (isIdentical) {
-        return true; // ALREADY_FINALIZED_SAME_STATE
-      } else {
-        const customError = new Error('FINALIZED_CONFLICT');
-        customError.code = 'FINALIZED_CONFLICT';
-        throw customError;
+      if (manOfTheMatchId && existingMatch.man_of_the_match_id !== manOfTheMatchId) {
+        try {
+          await supabase
+            .from('matches')
+            .update({ man_of_the_match_id: manOfTheMatchId })
+            .eq('id', matchId);
+        } catch (e) {
+          console.warn('[api] Failed to update man_of_the_match_id on completed match:', e);
+        }
       }
+      try {
+        const { db } = await import('./db');
+        await db.matches.update(matchId, {
+          status: 'COMPLETED',
+          winner_team_id: winnerId,
+          result_margin: resultMargin,
+          result_text: resultText,
+          ...(manOfTheMatchId ? { man_of_the_match_id: manOfTheMatchId } : {})
+        });
+      } catch (e) {}
+      return true;
     }
 
     const { error } = await supabase
@@ -1722,24 +1793,40 @@ export const api = {
       customError.details = error;
       throw customError;
     }
+
+    try {
+      const { db } = await import('./db');
+      await db.matches.update(matchId, updatePayload);
+    } catch (e) {}
     
     return true;
   },
 
   async assignManOfTheMatch(matchId, playerId) {
     if (!matchId) throw new Error("Match ID required");
-    const { data, error } = await supabase
-      .from('matches')
-      .update({ man_of_the_match_id: playerId || null })
-      .eq('id', matchId)
-      .select('id, man_of_the_match_id')
-      .single();
+    let result = null;
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .update({ man_of_the_match_id: playerId || null })
+        .eq('id', matchId)
+        .select('id, man_of_the_match_id');
 
-    if (error) {
-      console.error('[api] Failed to assign man of the match:', error);
-      throw error;
+      if (error) {
+        console.warn('[api] Remote assign man of the match error:', error);
+      } else if (data && data.length > 0) {
+        result = data[0];
+      }
+    } catch (e) {
+      console.warn('[api] Assign MOTM caught error:', e);
     }
-    return data;
+
+    try {
+      const { db } = await import('./db');
+      await db.matches.update(matchId, { man_of_the_match_id: playerId || null });
+    } catch (e) {}
+
+    return result || { id: matchId, man_of_the_match_id: playerId };
   },
 
   // ==========================================

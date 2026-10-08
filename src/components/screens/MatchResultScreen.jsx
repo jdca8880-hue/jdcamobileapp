@@ -28,8 +28,12 @@ export default function MatchResultScreen() {
         }
         const data = await api.getMatchScorecard(targetId);
         setMatchData(data);
-        if (data.manOfTheMatch) {
+        if (data.manOfTheMatch?.id) {
            setSelectedMotm(data.manOfTheMatch.id);
+        } else if (data.man_of_the_match?.id) {
+           setSelectedMotm(data.man_of_the_match.id);
+        } else if (data.man_of_the_match_id) {
+           setSelectedMotm(data.man_of_the_match_id);
         }
         setCustomResultText(data.resultText || data.result || 'Match Completed');
       } catch (err) {
@@ -226,8 +230,8 @@ export default function MatchResultScreen() {
           </select>
         ) : (
           <>
-            <b>{highlights.playerOfMatch?.name || matchData.manOfTheMatch?.name || 'Not yet awarded'}</b>
-            <span>{highlights.playerOfMatch?.name ? 'Official award' : 'Pending official selection'}</span>
+            <b>{highlights.playerOfMatch?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name || 'Not yet awarded'}</b>
+            <span>{highlights.playerOfMatch?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name ? 'Official award' : 'Pending official selection'}</span>
           </>
         )}
       </div>
@@ -313,7 +317,7 @@ export default function MatchResultScreen() {
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Player of the Match</span>
-              <span className="font-extrabold text-slate-900">{allMatchPlayers.find(p => p.id === selectedMotm)?.name || matchData.manOfTheMatch?.name || 'Not yet selected'}</span>
+              <span className="font-extrabold text-slate-900">{allMatchPlayers.find(p => p.id === selectedMotm)?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name || 'Not yet selected'}</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Scorer Screen Status</span>

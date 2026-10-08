@@ -64,6 +64,9 @@ export default function ScoringScreen() {
   const [selectedTournament, setSelectedTournament] = useState('');
   const [interruptionModalOpen, setInterruptionModalOpen] = useState(false);
 
+  const activeMatch = matches?.find(m => m.id === activeMatchId);
+  const currentTotalOvers = matchSetup?.totalOvers || activeMatch?.max_overs || totalMatchOvers || 20;
+
   const latestDeliveryLogRef = React.useRef(deliveryLog || []);
   useEffect(() => {
     latestDeliveryLogRef.current = deliveryLog || [];
@@ -130,7 +133,6 @@ export default function ScoringScreen() {
 
 
 
-  const activeMatch = matches?.find(m => m.id === activeMatchId);
   const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'Unknown Team';
   const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'Unknown Team';
   const matchTournament = tournaments?.find(t => t.id === activeMatch?.tournament_id);
@@ -619,7 +621,7 @@ export default function ScoringScreen() {
             </div>
             <div className="flex items-center justify-center gap-4 text-[14px] font-bold mt-4">
               <div className="bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-full text-slate-500">
-                Overs <span className="text-slate-900 ml-1">{formatOvers(balls)} / {totalMatchOvers || matchSetup?.totalOvers || 20}</span>
+                Overs <span className="text-slate-900 ml-1">{formatOvers(balls)} / {currentTotalOvers}</span>
               </div>
               <div className="bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-full text-slate-500">
                 CRR <span className="text-slate-900 ml-1">{calculateCRR()}</span>
@@ -668,7 +670,7 @@ export default function ScoringScreen() {
               <div className="mt-4 bg-jade-50 border border-jade-100 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-jade-700">
                 <div className="text-[12px] font-bold uppercase tracking-widest opacity-80 mb-0.5">Target: {target}</div>
                 <div className="text-[15px] font-black">
-                  Need {Math.max(0, target - runs)} runs from {Math.max(0, ((matchSetup?.maxOvers || 20) * 6) - balls)} balls
+                  Need {Math.max(0, target - runs)} runs from {Math.max(0, (currentTotalOvers * 6) - balls)} balls
                 </div>
               </div>
             )}

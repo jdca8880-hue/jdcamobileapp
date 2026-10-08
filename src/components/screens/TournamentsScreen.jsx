@@ -153,9 +153,18 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
         <MatchCard match={match} onClick={onOpenDetail} />
         {isCompleted && (
           <div className="mt-2 ml-4 mr-2 bg-slate-50 p-3 rounded-xl border border-gray-100 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
-            {match.playerOfMatch && (
-              <div><span className="text-[#8a99b0] uppercase font-bold tracking-wider text-[10px] block">Man of the Match</span> <span className="font-bold text-[#101827]">{match.playerOfMatch.name || match.playerOfMatch}</span></div>
-            )}
+            {(() => {
+              const potm = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch;
+              if (!potm) return null;
+              const potmName = typeof potm === 'string' ? potm : (potm.full_name || potm.name);
+              if (!potmName) return null;
+              return (
+                <div>
+                  <span className="text-[#8a99b0] uppercase font-bold tracking-wider text-[10px] block">Man of the Match</span>
+                  <span className="font-bold text-[#101827]">{potmName}</span>
+                </div>
+              );
+            })()}
             {match.topBatter && (
               <div><span className="text-[#8a99b0] uppercase font-bold tracking-wider text-[10px] block">Top Batter</span> <span className="font-bold text-[#101827]">{match.topBatter.name || match.topBatter}</span></div>
             )}
@@ -192,7 +201,7 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
             {isLive ? (
               <span className="text-[#0FA968] font-bold">LIVE • {match.home_team?.score || 'Batting'}</span>
             ) : isCompleted ? (
-              <span className="text-[#2457D6] font-bold">{match.result || 'Match Completed'}</span>
+              <span className="text-[#2457D6] font-bold">{match.result_text || match.result || 'Match Completed'}</span>
             ) : (
               <span>{match.date || match.scheduled_at?.split('T')[0] || 'Tomorrow'}</span>
             )}

@@ -170,7 +170,8 @@ export default function MatchSetupScreen() {
   const {
     matchSetup, setMatchSetup, navigateTo, goBack, players,
     activeMatchId, matches = [], registeredUsers = [],
-    replaceStriker, replaceBatter, replaceBowler, startInnings
+    replaceStriker, replaceBatter, replaceBowler, startInnings,
+    setTotalMatchOvers
   } = useCricket();
   
   React.useEffect(() => {
@@ -182,6 +183,7 @@ export default function MatchSetupScreen() {
         const nextTeamB = activeMatch.away_team?.name || activeMatch.teamB?.name || prev.teamB || 'Team B';
         const nextTeamBId = activeMatch.away_team_id || activeMatch.teamB?.id || prev.teamBId;
         const nextScorerId = activeMatch.scorer_id || prev.assignedScorerId;
+        const nextOvers = activeMatch.max_overs || prev.totalOvers || 20;
 
         let newTeamAXI = prev.teamAXI;
         let newTeamBXI = prev.teamBXI;
@@ -206,6 +208,7 @@ export default function MatchSetupScreen() {
           prev.teamB === nextTeamB &&
           prev.teamBId === nextTeamBId &&
           prev.assignedScorerId === nextScorerId &&
+          prev.totalOvers === nextOvers &&
           prev.teamAXI.length === newTeamAXI.length &&
           prev.teamBXI.length === newTeamBXI.length
         ) {
@@ -221,10 +224,14 @@ export default function MatchSetupScreen() {
           teamAXI: newTeamAXI,
           teamBXI: newTeamBXI,
           assignedScorerId: nextScorerId,
+          totalOvers: nextOvers,
         };
       });
+      if (activeMatch.max_overs && setTotalMatchOvers) {
+        setTotalMatchOvers(activeMatch.max_overs);
+      }
     }
-  }, [activeMatchId, matches, players, setMatchSetup]);
+  }, [activeMatchId, matches, players, setMatchSetup, setTotalMatchOvers]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [activeTeamTab, setActiveTeamTab] = useState('A');
@@ -384,6 +391,9 @@ export default function MatchSetupScreen() {
       const b = bowlingXI.find(p => String(p.id) === String(selectedBowler));
 
       if (s && ns && b) {
+        if (setTotalMatchOvers) {
+          setTotalMatchOvers(matchSetup.totalOvers || 20);
+        }
         // Also update matchSetup with resolved toss winner for the scoring screen
         setMatchSetup(prev => ({
           ...prev,

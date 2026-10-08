@@ -141,7 +141,7 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
           homeTeamId: '',
           awayTeamId: '',
           date: '',
-          format: 'T20',
+          format: prev.format || 'T20',
           venueId: null,
           umpireName: '',
           scorerName: '',
@@ -230,6 +230,24 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                         {season.name} {season.is_current_active ? '(Active)' : ''}
                       </option>
                     ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-bold text-slate-700 uppercase tracking-wider">Format</label>
+                  <select 
+                    name="format"
+                    value={formData.format || 'T20'}
+                    onChange={handleChange}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] font-medium text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  >
+                    <option value="5 Overs">5 Overs</option>
+                    <option value="T10">T10 / 10 Overs</option>
+                    <option value="15 Overs">15 Overs</option>
+                    <option value="T20">T20 / 20 Overs</option>
+                    <option value="30 Overs">30 Overs</option>
+                    <option value="40 Overs">40 Overs</option>
+                    <option value="ODI">ODI / 50 Overs</option>
+                    <option value="Multi-Day">Multi-Day</option>
                   </select>
                 </div>
               </div>

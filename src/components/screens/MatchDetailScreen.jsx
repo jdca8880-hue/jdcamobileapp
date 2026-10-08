@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText, Trash2, Play, Pause } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText, Trash2, Play, Pause, Award } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import MatchScorecard from '../ui/MatchScorecard';
 import MatchMediaReport from '../ui/MatchMediaReport';
@@ -188,6 +188,20 @@ export default function MatchDetailScreen() {
               )
             }
           </div>
+
+          {isCompleted && (() => {
+            const potm = h.playerOfMatch || displayMatch.man_of_the_match || displayMatch.playerOfMatch || displayMatch.manOfTheMatch;
+            const potmName = typeof potm === 'string' ? potm : (potm?.full_name || potm?.name);
+            if (!potmName) return null;
+            return (
+              <div className="mt-3 block">
+                <span className="text-xs font-bold text-amber-300 bg-amber-500/20 border border-amber-400/30 py-1.5 px-3.5 rounded-full inline-flex items-center gap-1.5 backdrop-blur-xs shadow-xs">
+                  <Award size={14} className="text-amber-400 shrink-0" />
+                  <span>Player of the Match: <strong>{potmName}</strong></span>
+                </span>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -208,7 +222,7 @@ export default function MatchDetailScreen() {
               <div className="divide-y divide-gray-50 text-[13px]">
                 <div className="flex justify-between p-4">
                   <span className="text-[#8a99b0] font-medium">Format</span>
-                  <span className="font-bold text-[#101827]">{match.match_format || match.format || 'Not Specified'} Â· {match.ballType || 'White Ball'}</span>
+                  <span className="font-bold text-[#101827]">{match.match_format || match.format || 'Not Specified'} · {match.ballType || 'White Ball'}</span>
                 </div>
                 <div className="flex justify-between p-4">
                   <span className="text-[#8a99b0] font-medium">Category</span>
@@ -222,6 +236,19 @@ export default function MatchDetailScreen() {
                   <span className="text-[#8a99b0] font-medium">Toss</span>
                   <span className="font-bold text-[#101827]">{match.tossDecision || 'Jabalpur won, elected to bat'}</span>
                 </div>
+                {isCompleted && (() => {
+                  const potm = h.playerOfMatch || displayMatch.man_of_the_match || displayMatch.playerOfMatch || displayMatch.manOfTheMatch;
+                  const potmName = typeof potm === 'string' ? potm : (potm?.full_name || potm?.name);
+                  if (!potmName) return null;
+                  return (
+                    <div className="flex justify-between p-4 bg-amber-50/70">
+                      <span className="text-amber-800 font-bold flex items-center gap-1.5">
+                        <Award size={15} className="text-[#ff6100]" /> Player of the Match
+                      </span>
+                      <span className="font-extrabold text-[#101827]">{potmName}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -316,19 +343,22 @@ export default function MatchDetailScreen() {
           </div>
         )}
 
-        {/* â”€â”€ TAB 3: HIGHLIGHTS â”€â”€ */}
-        {activeTab === 'highlights' && (
-          <div className="space-y-4">
-            {[['TOP BATTER', h.topBatter, '#2457D6'], ['TOP BOWLER', h.topBowler, '#F05A47'], ['POTM', h.playerOfMatch, '#ff6100']].map(([label, p, color], i) => (
-              <div key={label} className="bg-white rounded-[16px] p-5 border border-gray-100 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-2 h-full" style={{ backgroundColor: color }} />
-                <div className="text-xs font-bold tracking-widest uppercase text-[#8a99b0] mb-2">{label}</div>
-                <div className="text-[18px] font-black text-[#101827] mb-1">{p?.name || 'Waiting for completion'}</div>
-                <div className="text-[14px] font-bold text-[#596579]">{p?.stat || p?.batting || p?.bowling || 'Data recorded soon'}</div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* ── TAB 3: HIGHLIGHTS ── */}
+        {activeTab === 'highlights' && (() => {
+          const potmPlayer = h.playerOfMatch || displayMatch.man_of_the_match || displayMatch.playerOfMatch || displayMatch.manOfTheMatch;
+          return (
+            <div className="space-y-4">
+              {[['TOP BATTER', h.topBatter, '#2457D6'], ['TOP BOWLER', h.topBowler, '#F05A47'], ['POTM', potmPlayer, '#ff6100']].map(([label, p, color], i) => (
+                <div key={label} className="bg-white rounded-[16px] p-5 border border-gray-100 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-2 h-full" style={{ backgroundColor: color }} />
+                  <div className="text-xs font-bold tracking-widest uppercase text-[#8a99b0] mb-2">{label}</div>
+                  <div className="text-[18px] font-black text-[#101827] mb-1">{p?.name || p?.full_name || (typeof p === 'string' ? p : 'Waiting for completion')}</div>
+                  <div className="text-[14px] font-bold text-[#596579]">{p?.stat || p?.batting || p?.bowling || (label === 'POTM' && (p?.name || p?.full_name) ? 'Official Award' : 'Data recorded soon')}</div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* â”€â”€ TAB 4: MEDIA â”€â”€ */}
         {activeTab === 'media' && (

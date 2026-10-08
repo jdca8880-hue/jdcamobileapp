@@ -59,9 +59,24 @@ function pickTopBowler(match) {
 }
 
 function pickPlayerOfMatch(match) {
-  const src = match.manOfTheMatch || match.playerOfTheMatch || match.playerOfMatch;
+  const src = match.man_of_the_match || match.manOfTheMatch || match.playerOfTheMatch || match.playerOfMatch;
   if (!src) return null;
-  return { id: src.id || null, name: src.name || src.full_name || null };
+  if (typeof src === 'string') return { id: null, name: src };
+  const playerName = src.full_name || src.name;
+  if (playerName) return { id: src.id || null, name: playerName };
+  
+  // If only ID exists, attempt lookup in scorecard
+  if (src.id && match.scorecard) {
+    const all = [
+      ...(match.scorecard.home_team?.batting || []),
+      ...(match.scorecard.home_team?.bowling || []),
+      ...(match.scorecard.away_team?.batting || []),
+      ...(match.scorecard.away_team?.bowling || [])
+    ];
+    const found = all.find(p => p.id === src.id);
+    if (found?.name) return { id: src.id, name: found.name };
+  }
+  return src.id ? { id: src.id, name: null } : null;
 }
 
 function pickBestPartnership(match) {

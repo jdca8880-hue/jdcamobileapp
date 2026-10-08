@@ -133,19 +133,24 @@ export default function ScorecardScreen() {
         )}
 
         {/* Player of Match Highlight */}
-        {fullScorecard?.manOfTheMatch && (
-          <div className="mt-3 pt-1 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="p-1 rounded bg-amber-50 text-[#ff6100] border border-amber-200">
-                <Award size={15} />
-              </span>
-              <span className="text-slate-600 font-medium">
-                Player of the Match: <strong className="text-slate-900">{fullScorecard.manOfTheMatch.name}</strong>
-              </span>
+        {(() => {
+          const motm = fullScorecard?.manOfTheMatch || fullScorecard?.man_of_the_match || fullScorecard?.playerOfMatch || activeMatch?.man_of_the_match || activeMatch?.playerOfMatch || activeMatch?.manOfTheMatch;
+          const motmName = typeof motm === 'string' ? motm : (motm?.full_name || motm?.name);
+          if (!motmName) return null;
+          return (
+            <div className="mt-3 pt-1 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded bg-amber-50 text-[#ff6100] border border-amber-200">
+                  <Award size={15} />
+                </span>
+                <span className="text-slate-600 font-medium">
+                  Player of the Match: <strong className="text-slate-900">{motmName}</strong>
+                </span>
+              </div>
+              <span className="text-xs font-bold text-[#0FA968]">JDCA Verified</span>
             </div>
-            <span className="text-xs font-bold text-[#0FA968]">JDCA Verified</span>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Innings Selector Tabs */}
