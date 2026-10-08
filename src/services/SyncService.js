@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { getPendingActions, clearAction, updateAction } from '../lib/db';
 import { normalizeDelivery } from '../engine/deliveryContract.js';
+import { captureException, captureMessage } from '../lib/sentry';
 
 const MAX_RETRIES = 3;
 
@@ -306,7 +307,20 @@ class SyncService {
     const errCode = action.error?.code ? ` [${action.error.code}]` : '';
     const errDesc = action.error?.message || 'Data integrity mismatch';
     const msg = `Match sync stopped at delivery ${seq}${errCode}: ${errDesc}. Match and innings data are inconsistent.`;
-    
+
+    // Report to Sentry so we can see cross-user patterns, not just the one
+    // scorer in front of us. Scrub the action payload a little before sending.
+    try {
+      captureMessage(`[sync-permanent-failure] ${action.error?.code || 'UNKNOWN'}`, {
+        matchId,
+        actionId: action.id,
+        actionType: action.action,
+        deliverySequence: seq,
+        errorCode: action.error?.code,
+        errorMessage: errDesc
+      });
+    } catch { /* never let telemetry break sync */ }
+
     // Broadcast a custom event for the UI to pick up
     const event = new CustomEvent('sync-permanent-failure', {
       detail: { matchId, actionId: action.id, message: msg, action }

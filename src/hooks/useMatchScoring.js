@@ -253,8 +253,14 @@ export function useMatchScoring({
             console.warn('[useMatchScoring] Offline: could not fetch remote scorecard, using local data:', e);
           }
           
-          // Hydrate target for 2nd/4th innings
-          if (scorecard && scorecard.innings) {
+          // Hydrate target for 2nd/4th innings.
+          // Prefer the authoritative DB value (target_runs on the current
+          // innings row) — it survives localStorage clears and travels
+          // across devices. Fall back to re-deriving from scorecard runs,
+          // then to localStorage.
+          if (currentInning?.target_runs && Number(currentInning.target_runs) > 0) {
+            setTarget(Number(currentInning.target_runs));
+          } else if (scorecard && scorecard.innings) {
             let firstInningsRuns = null;
             if (currentInning.innings_number === 2 && scorecard.innings.length >= 1) {
               firstInningsRuns = scorecard.innings[0].runs || 0;
@@ -1021,6 +1027,18 @@ export function useMatchScoring({
     setTarget(targetRuns);
     if (activeMatchId && targetRuns) {
       try { localStorage.setItem(`jdca-target-${activeMatchId}`, targetRuns); } catch {}
+      // Persist to the DB innings row so another device / a browser refresh
+      // on a cleared cache still sees the correct target.
+      (async () => {
+        try {
+          const inningsId = await resolveInningsId(activeMatchId, nextInningsNum);
+          if (inningsId && supabase) {
+            await supabase.from('innings').update({ target_runs: targetRuns }).eq('id', inningsId);
+          }
+        } catch (err) {
+          console.warn('[useMatchScoring] Could not persist target_runs to DB (keeping localStorage fallback):', err);
+        }
+      })();
     }
     setInnings(nextInningsNum);
     setCurrentInningsId(null);
