@@ -1,11 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Plus, Search, CalendarDays, ArrowRight, MapPin, Radio, Activity, Clock } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
-import { supabase } from '../../lib/supabase';
 import { MatchStatusBadge } from '../ui/Badge';
 import { MatchCard } from '../ui/MatchCard';
 import { LiveMatchCard } from '../ui/LiveMatchCard';
 import { useLiveMatchesSync } from '../../hooks/useLiveMatchesSync';
+import { useLiveSubscription } from '../../hooks/useLiveSubscription';
 
 export default function MatchesScreen() {
   useLiveMatchesSync();
@@ -21,66 +21,31 @@ export default function MatchesScreen() {
     return matches.filter(m => isMatchLive(m.status));
   }, [matches]);
 
-  // On-demand Realtime DB subscription:
-  // Subscribes ONLY when user is specifically viewing the 'live' matches panel.
-  // Immediately unsubscribes as soon as they switch tab or navigate back.
-  useEffect(() => {
-    if (activeTab !== 'live' || !supabase) return;
+  const liveMatchIds = useMemo(() => allLiveMatches.map(m => m.id), [allLiveMatches]);
 
-    let isMounted = true;
-    let channel = null;
-
-    const liveIds = matches.filter(m => isMatchLive(m.status)).map(m => m.id);
-    if (liveIds.length === 0) return;
-
-    const topic = `jdca:matches_tab_live:${Date.now()}`;
-    channel = supabase.channel(topic);
-
-    channel.on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'deliveries'
-    }, async (payload) => {
-      const matchId = payload.new?.match_id || payload.old?.match_id;
-      if (!matchId || !liveIds.includes(matchId) || !isMounted) return;
-
-      try {
-        const { api } = await import('../../lib/api');
-        const card = await api.getMatchScorecard(matchId);
-        if (card && isMounted && setMatches) {
-          setMatches(prev => prev.map(m => {
-            if (m.id !== matchId) return m;
-            return {
-              ...m,
-              status: card.status || m.status,
-              home_team: {
-                ...(m.home_team || {}),
-                score: card.home_team?.score ?? m.home_team?.score,
-                overs: card.home_team?.overs ?? m.home_team?.overs,
-              },
-              away_team: {
-                ...(m.away_team || {}),
-                score: card.away_team?.score ?? m.away_team?.score,
-                overs: card.away_team?.overs ?? m.away_team?.overs,
-              }
-            };
-          }));
+  const handleLiveUpdate = useCallback((matchId, card) => {
+    if (!card || !setMatches) return;
+    setMatches(prev => prev.map(m => {
+      if (m.id !== matchId) return m;
+      return {
+        ...m,
+        status: card.status || m.status,
+        home_team: {
+          ...(m.home_team || {}),
+          score: card.home_team?.score ?? m.home_team?.score,
+          overs: card.home_team?.overs ?? m.home_team?.overs,
+        },
+        away_team: {
+          ...(m.away_team || {}),
+          score: card.away_team?.score ?? m.away_team?.score,
+          overs: card.away_team?.overs ?? m.away_team?.overs,
         }
-      } catch (err) {
-        console.warn('[MatchesScreen] Error updating live match score:', err);
-      }
-    });
+      };
+    }));
+  }, [setMatches]);
 
-    channel.subscribe();
-
-    // UNSUBSCRIBE immediately when tab changes or screen unmounts / user presses back
-    return () => {
-      isMounted = false;
-      if (channel && supabase) {
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [activeTab, allLiveMatches.length]);
+  // On-demand subscription: only when user is on the 'live' tab
+  useLiveSubscription(liveMatchIds, handleLiveUpdate, activeTab === 'live');
 
   const TABS = useMemo(() => {
     const liveCount = allLiveMatches.length;

@@ -1,91 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../lib/api';
+import { useLiveSubscription } from './useLiveSubscription';
 
 export function useLiveMatch(matchId, initialMatch) {
   const [liveData, setLiveData] = useState(initialMatch);
-  const loadingRef = useRef(false);
 
-  useEffect(() => {
-    if (!matchId) return;
+  const isLive = initialMatch?.status === 'LIVE' || initialMatch?.status === 'IN_PROGRESS' || initialMatch?.status === 'INNINGS_BREAK';
 
-    let isMounted = true;
-    
-    // Initial fetch to get scorecard (if initialMatch doesn't have it fully)
-    const loadData = async () => {
-      try {
-        loadingRef.current = true;
-        const fullScorecard = await api.getMatchScorecard(matchId);
-        if (isMounted) {
-          setLiveData(prev => ({
-            ...prev,
-            scorecard: fullScorecard
-          }));
-        }
-      } catch (err) {
-        console.error('Error fetching initial live match scorecard:', err);
-      } finally {
-        loadingRef.current = false;
-      }
-    };
-    
-    // Only load if it's currently live
-    if (initialMatch?.status === 'LIVE' || initialMatch?.status === 'IN_PROGRESS') {
-      loadData();
-    }
+  const handleUpdate = useCallback((_matchId, scorecard) => {
+    setLiveData(prev => ({
+      ...prev,
+      scorecard
+    }));
 
-    // Unique per-hook channel name so useLiveMatchesSync (which also listens
-    // to deliveries for the active match) doesn't tear this one down and
-    // vice-versa. The old shared topic 'public:deliveries:<id>' had both
-    // hooks fighting over a single channel on every re-render.
-    const topic = `jdca:useLiveMatch:deliveries:${matchId}`;
+    window.dispatchEvent(new CustomEvent('live-scorecard-updated', {
+      detail: { matchId: _matchId, scorecard }
+    }));
+  }, []);
 
-    const channel = supabase.channel(topic);
-
-    channel.on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'deliveries',
-      filter: `match_id=eq.${matchId}`
-    }, async (payload) => {
-      // Re-fetch scorecard when a delivery is added/updated/deleted
-      if (loadingRef.current) return; // Debounce or prevent duplicate concurrent fetches
-      
-      try {
-        loadingRef.current = true;
-        const fullScorecard = await api.getMatchScorecard(matchId);
-        if (isMounted) {
-          setLiveData(prev => ({
-            ...prev,
-            scorecard: fullScorecard
-          }));
-          
-          // Dispatch custom event so other components (like ScorecardScreen) can update
-          window.dispatchEvent(new CustomEvent('live-scorecard-updated', { 
-            detail: { matchId, scorecard: fullScorecard }
-          }));
-        }
-      } catch (err) {
-        console.error('Error hydrating live scorecard on realtime event:', err);
-      } finally {
-        loadingRef.current = false;
-      }
-    });
-    
-    channel.on('system', { event: '*' }, (payload) => {
-       if (payload.status === 'SUBSCRIBED') {
-          // Re-fetch on reconnect to ensure no missed events!
-          loadData();
-       }
-    });
-
-    channel.subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, [matchId, initialMatch?.status]);
+  useLiveSubscription(matchId, handleUpdate, isLive);
 
   return liveData;
 }

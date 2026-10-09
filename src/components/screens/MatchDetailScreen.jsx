@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText, Trash2, Play, Pause, Award } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { supabase } from '../../lib/supabase';
 import MatchScorecard from '../ui/MatchScorecard';
 import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
+import { useLiveSubscription } from '../../hooks/useLiveSubscription';
 
 const MatchTabs = ({ tabs, active, onChange }) => (
   <div className="flex bg-gray-100 dark:bg-[#181A1D] p-1 rounded-xl mb-4 mx-4 border border-transparent dark:border-white/10">
@@ -33,12 +34,37 @@ export default function MatchDetailScreen() {
   const [scorecardData, setScorecardData] = useState(null);
 
   const match = matches.find(m => m.id === activeMatchId) || matches[0];
+  const targetId = activeMatchId || match?.id;
+  const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(match?.status || '').toUpperCase());
 
+  const handleLiveUpdate = useCallback((matchId, data) => {
+    if (!data) return;
+    setScorecardData(data);
+    if (setMatches) {
+      setMatches(prev => prev.map(m => m.id === matchId ? {
+        ...m,
+        status: data.status || m.status,
+        home_team: {
+          ...(m.home_team || {}),
+          score: data.home_team?.score ?? m.home_team?.score,
+          overs: data.home_team?.overs ?? m.home_team?.overs,
+        },
+        away_team: {
+          ...(m.away_team || {}),
+          score: data.away_team?.score ?? m.away_team?.score,
+          overs: data.away_team?.overs ?? m.away_team?.overs,
+        }
+      } : m));
+    }
+  }, [setMatches]);
+
+  // On-demand subscription: active only while this screen is mounted and match is live
+  useLiveSubscription(targetId, handleLiveUpdate, isLive);
+
+  // Initial scorecard load + BroadcastChannel for local cross-tab sync
   React.useEffect(() => {
     let isMounted = true;
-    let channel = null;
     let bc = null;
-    const targetId = activeMatchId || match?.id;
 
     const loadScorecard = async () => {
       if (!targetId) return;
@@ -51,16 +77,8 @@ export default function MatchDetailScreen() {
             setMatches(prev => prev.map(m => m.id === targetId ? {
               ...m,
               status: data.status || m.status,
-              home_team: {
-                ...(m.home_team || {}),
-                score: data.home_team?.score ?? m.home_team?.score,
-                overs: data.home_team?.overs ?? m.home_team?.overs,
-              },
-              away_team: {
-                ...(m.away_team || {}),
-                score: data.away_team?.score ?? m.away_team?.score,
-                overs: data.away_team?.overs ?? m.away_team?.overs,
-              }
+              home_team: { ...(m.home_team || {}), score: data.home_team?.score ?? m.home_team?.score, overs: data.home_team?.overs ?? m.home_team?.overs },
+              away_team: { ...(m.away_team || {}), score: data.away_team?.score ?? m.away_team?.score, overs: data.away_team?.overs ?? m.away_team?.overs }
             } : m));
           }
         }
@@ -69,60 +87,29 @@ export default function MatchDetailScreen() {
       }
     };
 
-    // Load initial scorecard
     loadScorecard();
 
-    const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(match?.status || '').toUpperCase());
-
-    // On-demand Realtime DB subscription: Subscribes ONLY while user is on this match panel
-    if (isLive && targetId && supabase) {
-      const topic = `jdca:match_detail:deliveries:${targetId}`;
-      channel = supabase.channel(topic);
-      channel.on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'deliveries',
-        filter: `match_id=eq.${targetId}`
-      }, () => {
-        if (isMounted) {
-          loadScorecard();
-        }
-      });
-      channel.subscribe();
-    }
-
-    // Local tab broadcast listener
     try {
       if (typeof BroadcastChannel !== 'undefined') {
         bc = new BroadcastChannel('jdca_match_sync');
         bc.onmessage = (event) => {
-          if (!isMounted) return;
-          if (event.data?.matchId === targetId) {
-            loadScorecard();
-          }
+          if (!isMounted || event.data?.matchId !== targetId) return;
+          loadScorecard();
         };
       }
     } catch (e) {}
 
     const handleCustomUpdate = (e) => {
-      if (e.detail?.matchId === targetId && isMounted) {
-        loadScorecard();
-      }
+      if (e.detail?.matchId === targetId && isMounted) loadScorecard();
     };
     window.addEventListener('live-scorecard-updated', handleCustomUpdate);
 
-    // As soon as the user presses BACK or leaves, cleanly UNSUBSCRIBE
     return () => {
       isMounted = false;
-      if (channel && supabase) {
-        supabase.removeChannel(channel);
-      }
-      if (bc) {
-        bc.close();
-      }
+      if (bc) bc.close();
       window.removeEventListener('live-scorecard-updated', handleCustomUpdate);
     };
-  }, [activeMatchId, match?.id, match?.status]);
+  }, [targetId, match?.status]);
 
   if (!match) return null;
 

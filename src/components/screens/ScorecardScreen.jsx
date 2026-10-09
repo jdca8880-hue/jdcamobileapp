@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Radio, Users, ShieldCheck, ChevronRight, Share2, Award, Printer, ArrowLeft } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
-import { supabase } from '../../lib/supabase';
 import { PageHeader, TabBar } from '../ui/PageHeader';
 import { MatchStatusBadge } from '../ui/Badge';
+import { useLiveSubscription } from '../../hooks/useLiveSubscription';
 
 export default function ScorecardScreen() {
   const { activeMatchId, matches, goBack } = useCricket();
@@ -11,11 +11,20 @@ export default function ScorecardScreen() {
   const [fullScorecard, setFullScorecard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const targetId = activeMatchId || matches?.find(m => ['COMPLETED','FINISHED','LIVE','IN_PROGRESS'].includes(m.status))?.id || matches?.[0]?.id;
+  const targetMatch = matches?.find(m => m.id === targetId);
+  const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(targetMatch?.status || '').toUpperCase());
+
+  const handleLiveUpdate = useCallback((_matchId, data) => {
+    if (data) setFullScorecard(data);
+  }, []);
+
+  // On-demand subscription: active only while viewing a live scorecard
+  useLiveSubscription(targetId, handleLiveUpdate, isLive);
+
+  // Initial scorecard load
   React.useEffect(() => {
     let isMounted = true;
-    let channel = null;
-
-    const targetId = activeMatchId || matches?.find(m => ['COMPLETED','FINISHED','LIVE','IN_PROGRESS'].includes(m.status))?.id || matches?.[0]?.id;
 
     const loadScorecard = async () => {
       try {
@@ -35,34 +44,9 @@ export default function ScorecardScreen() {
 
     loadScorecard();
 
-    const targetMatch = matches?.find(m => m.id === targetId);
-    const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(targetMatch?.status || '').toUpperCase());
+    return () => { isMounted = false; };
+  }, [targetId]);
 
-    // Subscribe ONLY while user is viewing the live scorecard
-    if (isLive && targetId && supabase) {
-      const topic = `jdca:scorecard_detail:${targetId}`;
-      channel = supabase.channel(topic);
-      channel.on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'deliveries',
-        filter: `match_id=eq.${targetId}`
-      }, () => {
-        if (isMounted) loadScorecard();
-      });
-      channel.subscribe();
-    }
-
-    // Unsubscribe immediately when user clicks back or leaves screen
-    return () => {
-      isMounted = false;
-      if (channel && supabase) {
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [activeMatchId, matches]);
-
-  const targetId = activeMatchId || matches?.find(m => ['COMPLETED','FINISHED','LIVE','IN_PROGRESS'].includes(m.status))?.id || matches?.[0]?.id;
   const activeMatch = matches?.find((m) => m.id === targetId);
   const teamAName = fullScorecard?.home_team?.name || activeMatch?.home_team?.name || 'Home Team';
   const teamBName = fullScorecard?.away_team?.name || activeMatch?.away_team?.name || 'Away Team';
