@@ -1,27 +1,27 @@
 import React from 'react';
 import {
   Home, Calendar, Trophy, Users, Clipboard, Radio, Settings,
-  LogOut, Shield, Megaphone, Award
+  LogOut, Shield, Megaphone, Award, Sun, Moon
 } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 import { RoleBadge } from './ui/Badge';
 import { motion } from 'motion/react';
 
 const NAV_ITEMS = [
-  { id: 'home',           label: 'Home',              icon: Home,      route: 'home' },
-  { id: 'teams',          label: 'Teams',              icon: Shield,    route: 'teams' },
-  { id: 'selection',      label: 'Player Selection',   icon: Clipboard, route: 'selection' },
-  { id: 'matches',        label: 'Matches',            icon: Calendar,  route: 'matches' },
-  { id: 'tournaments',    label: 'Tournaments',        icon: Trophy,    route: 'tournaments' },
-  { id: 'scoring',        label: 'Live Score',         icon: Radio,     route: 'scoring', liveIndicator: true },
-  { id: 'players',        label: 'Players',            icon: Users,     route: 'players' },
-  { id: 'officials',      label: 'Scorers & Umpires',  icon: Award,     route: 'officials', adminOnly: true },
-  { id: 'news',           label: 'News',               icon: Megaphone, route: 'news' },
-  { id: 'administration', label: 'Administration',      icon: Settings,  route: 'administration', adminOnly: true },
+  { id: 'home', label: 'Home', icon: Home, route: 'home' },
+  { id: 'teams', label: 'Teams', icon: Shield, route: 'teams' },
+  { id: 'selection', label: 'Player Selection', icon: Clipboard, route: 'selection' },
+  { id: 'matches', label: 'Matches', icon: Calendar, route: 'matches' },
+  { id: 'tournaments', label: 'Tournaments', icon: Trophy, route: 'tournaments' },
+  { id: 'scoring', label: 'Live Score', icon: Radio, route: 'scoring', liveIndicator: true },
+  { id: 'players', label: 'Players', icon: Users, route: 'players' },
+  { id: 'officials', label: 'Scorers & Umpires', icon: Award, route: 'officials', adminOnly: true },
+  { id: 'news', label: 'News', icon: Megaphone, route: 'news' },
+  { id: 'administration', label: 'Administration', icon: Settings, route: 'administration', adminOnly: true },
 ];
 
 export default function Sidebar() {
-  const { currentScreen, navigateTo, userRole, userEmail, logout } = useCricket();
+  const { currentScreen, navigateTo, userRole, userEmail, logout, isDarkMode, setIsDarkMode } = useCricket();
 
   const visible = NAV_ITEMS.map(item => {
     if (userRole === 'SCORER' && item.id === 'administration') {
@@ -31,9 +31,9 @@ export default function Sidebar() {
   }).filter(item => {
     if (item.adminOnly && !['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole)) return false;
     if (userRole === 'SUPER_ADMIN' && item.id === 'scoring') return false;
-    if (userRole === 'SCORER')   return ['matches','scoring','teams','tournaments','administration'].includes(item.id);
-    if (userRole === 'SELECTOR') return ['home','players','selection','teams','tournaments','news'].includes(item.id);
-    if (userRole === 'VIEWER')   return ['home','matches','players','teams','tournaments','news'].includes(item.id);
+    if (userRole === 'SCORER') return ['matches', 'scoring', 'teams', 'tournaments', 'administration'].includes(item.id);
+    if (userRole === 'SELECTOR') return ['home', 'players', 'selection', 'teams', 'tournaments', 'news'].includes(item.id);
+    if (userRole === 'VIEWER') return ['home', 'matches', 'players', 'teams', 'tournaments', 'news'].includes(item.id);
     return true;
   });
 
@@ -61,14 +61,14 @@ export default function Sidebar() {
       className="hidden lg:flex flex-col h-screen sticky top-0 shrink-0 z-20"
       style={{
         width: 232,
-        background: '#0B1628',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        background: '#0A0A0A',
+        borderRight: '1px solid rgba(255,255,255,0.08)',
       }}
     >
       {/* ── Brand ─────────────────────────────────────── */}
       <div
         className="flex items-center gap-3 px-5 py-5"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
       >
         <img
           src="/jdca-logo.png"
@@ -78,15 +78,16 @@ export default function Sidebar() {
         />
         <div className="min-w-0">
           <div
-            className="font-bold text-white"
+            className="font-bold text-white flex items-center gap-1.5"
             style={{ fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.1 }}
           >
             JDCA
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#A3E635', display: 'inline-block' }} />
           </div>
           <div
             style={{
               fontSize: 9,
-              color: '#475569',
+              color: '#64748B',
               lineHeight: 1.3,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -101,7 +102,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-3 py-4 overflow-y-auto no-scrollbar space-y-0.5">
         <div
           className="px-3 mb-3"
-          style={{ fontSize: 9, color: '#334155', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+          style={{ fontSize: 9, color: '#64748B', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}
         >
           Navigation
         </div>
@@ -121,18 +122,18 @@ export default function Sidebar() {
                 border: 'none',
                 background: 'transparent',
                 textAlign: 'left',
-                color: isActive ? '#BFDBFE' : '#475569',
+                color: isActive ? '#A3E635' : '#64748B',
                 transition: 'background 0.15s ease, color 0.15s ease',
                 minHeight: 40,
               }}
-              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94A3B8'; } }}
-              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; } }}
+              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F3F4F6'; } }}
+              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748B'; } }}
             >
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active-bg"
                   className="absolute inset-0"
-                  style={{ borderRadius: 10, background: 'rgba(29,78,216,0.20)', zIndex: 0 }}
+                  style={{ borderRadius: 10, background: 'rgba(163,230,53,0.12)', zIndex: 0 }}
                   initial={false}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
@@ -141,7 +142,7 @@ export default function Sidebar() {
               {isActive && (
                 <div
                   className="absolute left-0 top-2 bottom-2"
-                  style={{ width: 3, background: '#3B82F6', borderRadius: '0 3px 3px 0', zIndex: 1 }}
+                  style={{ width: 3, background: '#A3E635', borderRadius: '0 3px 3px 0', zIndex: 1, boxShadow: '0 0 8px rgba(163,230,53,0.6)' }}
                 />
               )}
               <Icon
@@ -151,7 +152,7 @@ export default function Sidebar() {
               />
               <span
                 className="flex-1 relative z-10 truncate"
-                style={{ fontSize: 13, fontWeight: isActive ? 600 : 500 }}
+                style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}
               >
                 {item.label}
               </span>
@@ -161,9 +162,9 @@ export default function Sidebar() {
                   style={{
                     width: 6,
                     height: 6,
-                    background: '#059669',
+                    background: '#A3E635',
                     borderRadius: '50%',
-                    boxShadow: '0 0 0 2px rgba(5,150,105,0.25)',
+                    boxShadow: '0 0 8px rgba(163,230,53,0.7)',
                   }}
                 />
               )}
@@ -175,20 +176,73 @@ export default function Sidebar() {
       {/* ── User footer ───────────────────────────────── */}
       <div
         className="px-3 pb-4 pt-3"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+        style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
       >
+        {/* Dark Mode Little Toggle Button */}
+        <button
+          type="button"
+          id="sidebar-dark-mode-toggle"
+          onClick={() => setIsDarkMode(prev => !prev)}
+          className="flex items-center justify-between w-full px-3 py-2 mb-2 rounded-xl cursor-pointer transition-colors duration-150 group"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.07)',
+            color: '#F3F4F6',
+          }}
+          aria-label={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center justify-center rounded-lg w-6 h-6 transition-colors"
+              style={{
+                background: isDarkMode ? 'rgba(163, 230, 53, 0.15)' : 'rgba(255, 255, 255, 0.10)',
+                color: isDarkMode ? '#A3E635' : '#94A3B8',
+              }}
+            >
+              {isDarkMode ? <Moon size={13} className="text-[#A3E635]" /> : <Sun size={13} className="text-amber-400" />}
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#E2E8F0' }}>
+              Dark Mode
+            </span>
+          </div>
+
+          {/* Little Toggle Switch */}
+          <div
+            className="relative flex items-center p-0.5 rounded-full transition-colors duration-200"
+            style={{
+              width: 32,
+              height: 18,
+              background: isDarkMode ? '#A3E635' : 'rgba(255, 255, 255, 0.20)',
+              boxShadow: isDarkMode ? '0 0 8px rgba(163, 230, 53, 0.4)' : 'none',
+            }}
+          >
+            <motion.div
+              className="rounded-full shadow-xs"
+              style={{
+                width: 14,
+                height: 14,
+                background: isDarkMode ? '#0A0A0A' : '#FFFFFF',
+              }}
+              animate={{ x: isDarkMode ? 14 : 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            />
+          </div>
+        </button>
+
         {/* User card */}
         <div
           className="flex items-center gap-2.5 px-3 py-3 mb-2 rounded-xl"
-          style={{ background: 'rgba(255,255,255,0.05)' }}
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
         >
           <div
-            className="flex items-center justify-center shrink-0 rounded-full font-bold text-white"
+            className="flex items-center justify-center shrink-0 rounded-full font-black text-[#0A0A0A]"
             style={{
               width: 30,
               height: 30,
-              background: '#1D4ED8',
+              background: '#A3E635',
               fontSize: 12,
+              boxShadow: '0 0 10px rgba(163,230,53,0.3)',
             }}
           >
             {userInitial}
@@ -214,13 +268,13 @@ export default function Sidebar() {
           style={{
             border: 'none',
             background: 'transparent',
-            color: '#475569',
+            color: '#64748B',
             fontSize: 13,
             fontWeight: 500,
             transition: 'background 0.15s, color 0.15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94A3B8'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#F3F4F6'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
         >
           <LogOut size={14} strokeWidth={2} />
           <span>Sign Out</span>

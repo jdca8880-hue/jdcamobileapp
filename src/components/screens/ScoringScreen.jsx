@@ -140,12 +140,12 @@ export default function ScoringScreen() {
     const unsubscribe = syncService.subscribe((state) => {
       setSyncState(state);
     });
-    
+
     const handleSyncError = (e) => {
       // Show error even if it's for a different match, because it jams the entire queue!
       setSyncError(e.detail);
     };
-    
+
     window.addEventListener('sync-permanent-failure', handleSyncError);
     return () => {
       unsubscribe();
@@ -159,13 +159,13 @@ export default function ScoringScreen() {
   const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'Unknown Team';
   const matchTournament = tournaments?.find(t => t.id === activeMatch?.tournament_id);
   const tournamentName = activeMatch?.tournament || 'JDCA District Cricket';
-  
+
   // Resolve XIs based on innings
   const teamAXI = matchSetup?.teamAXI || [];
   const teamBXI = matchSetup?.teamBXI || [];
   const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
   const electedTo = matchSetup?.electedTo;
-  
+
   let battingTeamId = matchSetup?.teamAId;
   let bowlingTeamId = matchSetup?.teamBId;
 
@@ -173,7 +173,7 @@ export default function ScoringScreen() {
   const authBowlingTeamId = currentBowlingTeamId;
 
   if (authBattingTeamId && authBowlingTeamId &&
-      (authBattingTeamId === matchSetup?.teamAId || authBattingTeamId === matchSetup?.teamBId)) {
+    (authBattingTeamId === matchSetup?.teamAId || authBattingTeamId === matchSetup?.teamBId)) {
     // Authoritative: use the innings record so the correct team bats (esp. 2nd innings).
     battingTeamId = authBattingTeamId;
     bowlingTeamId = authBowlingTeamId;
@@ -231,10 +231,10 @@ export default function ScoringScreen() {
     const isDismissed = dismissedBatterIds.has(pId) || (pName && dismissedBatterIds.has(pName));
     return pName && !isCurrentStriker && !isCurrentNonStriker && !isDismissed;
   }), [battingXI, striker, nonStriker, dismissedBatterIds]);
-  const lastBalls = (currentOverBalls || []).map((b, i) => ({ 
-    id: `temp-${i}`, 
-    runs: Number(b.runs || b.value || 0), 
-    wicket: b.type === 'wicket', 
+  const lastBalls = (currentOverBalls || []).map((b, i) => ({
+    id: `temp-${i}`,
+    runs: Number(b.runs || b.value || 0),
+    wicket: b.type === 'wicket',
     extra: b.type === 'extra',
     label: b.label || b.runs || 0
   }));
@@ -255,19 +255,19 @@ export default function ScoringScreen() {
       <div className="flex-1 flex flex-col p-4 bg-slate-50 min-h-[80vh]">
         <div className="flex flex-col items-center justify-center py-6 mb-2">
           <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4 text-primary-600 shadow-sm border border-primary-200">
-             <Trophy size={32} />
+            <Trophy size={32} />
           </div>
           <h2 className="text-2xl font-black text-gray-900 text-center">Select Match to Score</h2>
           <p className="text-sm text-gray-500 mt-2 text-center max-w-xs">
             Choose a live or upcoming match from the list below to begin scoring.
           </p>
         </div>
-        
+
         <div className="mb-6 relative">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Filter by Tournament</label>
           <div className="relative">
-            <select 
-              value={selectedTournament} 
+            <select
+              value={selectedTournament}
               onChange={(e) => setSelectedTournament(e.target.value)}
               className="w-full p-3 pl-4 pr-10 appearance-none rounded-xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 font-semibold text-gray-800 transition-all"
             >
@@ -282,13 +282,13 @@ export default function ScoringScreen() {
 
         <div className="flex-1 overflow-y-auto pb-20">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Available Matches ({filteredMatches.length})</label>
-          
+
           {filteredMatches.length === 0 ? (
-             <div className="flex flex-col items-center justify-center py-12 bg-white rounded-xl border border-gray-100 shadow-sm border-dashed">
-               <Calendar className="h-10 w-10 text-gray-300 mb-3" />
-               <p className="text-gray-500 font-medium">No matches available to score.</p>
-               <p className="text-gray-400 text-xs mt-1">Try selecting a different tournament.</p>
-             </div>
+            <div className="flex flex-col items-center justify-center py-12 bg-white rounded-xl border border-gray-100 shadow-sm border-dashed">
+              <Calendar className="h-10 w-10 text-gray-300 mb-3" />
+              <p className="text-gray-500 font-medium">No matches available to score.</p>
+              <p className="text-gray-400 text-xs mt-1">Try selecting a different tournament.</p>
+            </div>
           ) : (
             <div className="space-y-4">
               {filteredMatches.map(m => (
@@ -319,13 +319,13 @@ export default function ScoringScreen() {
         <p className="text-gray-500 dark:text-gray-400 mt-2">Error: {String(hydrationError)}</p>
         <p className="text-gray-400 text-sm mt-1">Please check your network connection and try again.</p>
         <div className="flex items-center gap-3 mt-6">
-          <button 
+          <button
             onClick={() => performHydration()}
             className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-primary-700 transition"
           >
             <RefreshCw className="h-4 w-4" /> Retry Loading
           </button>
-          <button 
+          <button
             onClick={() => {
               setActiveMatchId(null);
               navigateTo('home');
@@ -346,10 +346,10 @@ export default function ScoringScreen() {
           <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
           <h3 className="text-xl font-black text-gray-800">No Playing XI Found</h3>
           <p className="text-gray-500 text-sm mt-2 mb-6">
-            This match is marked as in-progress, but no playing XI was found in the database. 
+            This match is marked as in-progress, but no playing XI was found in the database.
             You need to set up the playing XI before you can start scoring.
           </p>
-          <button 
+          <button
             onClick={() => navigateTo('match-setup')}
             className="px-6 py-3 bg-[#2457D6] text-white rounded-[12px] font-bold shadow-md"
           >
@@ -377,7 +377,7 @@ export default function ScoringScreen() {
     // Send push notification to update score silently, but vibrate for 4s and 6s
     const isBoundary = value === 4 || value === 6;
     let title = isBoundary ? (value === 6 ? 'SIX! What a shot!' : 'FOUR!') : 'Live Score Update';
-    let bodyText = isBoundary 
+    let bodyText = isBoundary
       ? `${striker?.name} hit a ${value}! ${teamAName} is ${runs + value}/${wickets}`
       : `${teamAName} is ${runs + value}/${wickets} (Last: ${value} run${value !== 1 ? 's' : ''})`;
 
@@ -395,7 +395,7 @@ export default function ScoringScreen() {
   const submitWicket = () => {
     let finalDismissedId = striker?.id;
     let outName = striker?.name;
-    
+
     if (selectedDismissal === 'Run Out') {
       finalDismissedId = runOutPlayerId;
       outName = runOutPlayerId === striker?.id ? striker?.name : nonStriker?.name;
@@ -408,7 +408,7 @@ export default function ScoringScreen() {
 
     setReplacingBatterType(finalDismissedId === nonStriker?.id ? 'nonStriker' : 'striker');
     recordWicket(selectedDismissal, finalDismissedId, fielder, wk, runsCompleted);
-    
+
     // Trigger push notification for wicket
     supabase.functions.invoke('send-push', {
       body: {
@@ -478,7 +478,7 @@ export default function ScoringScreen() {
   return (
     <div className="bg-cloud min-h-screen">
       <div className="max-w-md mx-auto relative bg-white border-x border-slate-200 min-h-screen pb-[100px] shadow-2xl">
-        
+
         {syncError && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-sm text-sm z-50">
             <div className="flex justify-between items-start mb-1">
@@ -489,7 +489,7 @@ export default function ScoringScreen() {
             </div>
             <span className="block mb-3">{syncError.message}</span>
             <div className="flex flex-wrap gap-2">
-              <button 
+              <button
                 onClick={() => {
                   const errorDump = `Sync Error: ${syncError.message}\nAction ID: ${syncError.actionId}\nPayload: ${JSON.stringify(syncError.action?.payload, null, 2)}\nError Details: ${JSON.stringify(syncError.action?.error, null, 2)}`;
                   navigator.clipboard.writeText(errorDump);
@@ -499,7 +499,7 @@ export default function ScoringScreen() {
               >
                 <FileText size={12} /> Copy Error
               </button>
-              <button 
+              <button
                 onClick={async () => {
                   await syncService.autoHealAndResume();
                   setSyncError(null);
@@ -508,7 +508,7 @@ export default function ScoringScreen() {
               >
                 <span>⚡ Auto-Heal & Resume All</span>
               </button>
-              <button 
+              <button
                 onClick={() => {
                   syncService.retryFailedAction(syncError.actionId);
                   setSyncError(null);
@@ -517,9 +517,9 @@ export default function ScoringScreen() {
               >
                 Retry
               </button>
-              <button 
+              <button
                 onClick={() => {
-                  if(window.confirm("Are you sure you want to delete this corrupt delivery from the offline queue? Next deliveries will resume syncing.")) {
+                  if (window.confirm("Are you sure you want to delete this corrupt delivery from the offline queue? Next deliveries will resume syncing.")) {
                     syncService.deleteFailedAction(syncError.actionId);
                     setSyncError(null);
                   }
@@ -528,9 +528,9 @@ export default function ScoringScreen() {
               >
                 Delete Corrupt Ball & Resume
               </button>
-              <button 
+              <button
                 onClick={async () => {
-                  if(window.confirm("DANGER: This will delete ALL pending offline deliveries for ALL matches. Only do this if your queue is permanently corrupted!")) {
+                  if (window.confirm("DANGER: This will delete ALL pending offline deliveries for ALL matches. Only do this if your queue is permanently corrupted!")) {
                     const { db } = await import('../../lib/db.js');
                     await db.sync_queue.clear();
                     syncService.updatePendingCount();
@@ -557,37 +557,37 @@ export default function ScoringScreen() {
               {/* Sync Indicator */}
               <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-full shadow-sm">
                 {syncState.status === 'ONLINE' ? (
-                   <span className="w-2 h-2 rounded-full bg-jade" />
+                  <span className="w-2 h-2 rounded-full bg-jade" />
                 ) : syncState.status === 'SYNCING' ? (
-                   <RefreshCw size={10} className="text-cobalt animate-spin" />
+                  <RefreshCw size={10} className="text-cobalt animate-spin" />
                 ) : (
-                   <WifiOff size={10} className="text-coral" />
+                  <WifiOff size={10} className="text-coral" />
                 )}
                 {syncState.pendingCount > 0 && (
-                   <span className="text-[10px] font-bold text-slate-500">{syncState.pendingCount}</span>
+                  <span className="text-[10px] font-bold text-slate-500">{syncState.pendingCount}</span>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2">
-               <button onClick={() => setInterruptionModalOpen(true)} className="px-3 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs gap-1 hover:bg-red-100 transition-colors"><Clock size={16}/> End/Interrupt</button>
-               <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18}/></button>
-               {isPaused ? (
-                 <button 
-                   onClick={() => { haptics.medium(); resumeMatch(); }} 
-                   className="px-3.5 h-10 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold text-xs gap-1.5 shadow-sm transition-all animate-pulse" 
-                   title="Resume scoring to continue"
-                 >
-                   <Play size={15} fill="currentColor"/> Resume
-                 </button>
-               ) : (
-                 <button 
-                   onClick={() => { haptics.light(); pauseMatch(); }} 
-                   className="px-3 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs gap-1 hover:bg-slate-200 transition-colors" 
-                   title="Pause scoring"
-                 >
-                   <Pause size={16}/> Pause
-                 </button>
-               )}
+              <button onClick={() => setInterruptionModalOpen(true)} className="px-3 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs gap-1 hover:bg-red-100 transition-colors"><Clock size={16} /> End/Interrupt</button>
+              <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18} /></button>
+              {isPaused ? (
+                <button
+                  onClick={() => { haptics.medium(); resumeMatch(); }}
+                  className="px-3.5 h-10 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold text-xs gap-1.5 shadow-sm transition-all animate-pulse"
+                  title="Resume scoring to continue"
+                >
+                  <Play size={15} fill="currentColor" /> Resume
+                </button>
+              ) : (
+                <button
+                  onClick={() => { haptics.light(); pauseMatch(); }}
+                  className="px-3 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs gap-1 hover:bg-slate-200 transition-colors"
+                  title="Pause scoring"
+                >
+                  <Pause size={16} /> Pause
+                </button>
+              )}
             </div>
           </div>
 
@@ -657,7 +657,7 @@ export default function ScoringScreen() {
                 CRR <span className="text-slate-900 ml-1">{calculateCRR()}</span>
               </div>
             </div>
-            
+
             {/* Sync Divergence Warning */}
             {syncState.pendingCount > 0 && (
               <div className="mt-4 bg-amber-50 border border-amber-200 px-4 py-3 rounded-xl inline-flex flex-col items-center justify-center text-amber-700 w-full max-w-sm mx-auto">
@@ -671,7 +671,7 @@ export default function ScoringScreen() {
                     {syncState.status === 'OFFLINE' ? 'Offline' : 'Syncing'}
                   </div>
                   {syncState.status === 'SYNCING' && (
-                    <button 
+                    <button
                       onClick={() => syncService.forceSync()}
                       className="text-xs bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded-full font-bold shadow-sm transition-colors flex items-center gap-1 active:scale-95"
                     >
@@ -713,12 +713,11 @@ export default function ScoringScreen() {
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 w-12 text-center">THIS OVER</div>
             <div className="flex-1 flex items-center gap-2 overflow-x-auto px-2 no-scrollbar min-h-[32px]">
               {lastBalls.map((b, i) => (
-                <div key={i} className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black border ${
-                  b.wicket ? 'bg-coral text-white border-coral' :
-                  b.extra ? 'bg-mango text-white border-mango' :
-                  b.runs >= 4 ? 'bg-cobalt text-white border-cobalt' :
-                  'bg-white text-slate-700 border-slate-200'
-                }`}>
+                <div key={i} className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black border ${b.wicket ? 'bg-coral text-white border-coral' :
+                    b.extra ? 'bg-mango text-white border-mango' :
+                      b.runs >= 4 ? 'bg-cobalt text-white border-cobalt' :
+                        'bg-white text-slate-700 border-slate-200'
+                  }`}>
                   {b.label || b.runs || 0}
                 </div>
               ))}
@@ -732,21 +731,21 @@ export default function ScoringScreen() {
         <div className="px-4 mb-8 pb-80">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Batters</span>
-            <button 
-              onClick={() => toggleStriker?.()} 
+            <button
+              onClick={() => toggleStriker?.()}
               className="bg-slate-200 text-slate-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 active:bg-slate-300"
             >
               <RefreshCw size={10} /> Swap Ends
             </button>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <button 
+            <button
               onClick={() => {
                 if (window.confirm("Do you want to manually change the Striker? (This will not record a wicket/retirement)")) {
                   setReplacingBatterType('striker');
                   setNewBatterOpen(true);
                 }
-              }} 
+              }}
               className={`bg-white rounded-[12px] p-4 text-left border shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors ${!striker?.id ? 'border-amber-400 ring-2 ring-amber-100 bg-amber-50/20' : 'border-slate-200'}`}
             >
               <div className="absolute top-0 right-0 w-2 h-full bg-jade" />
@@ -754,14 +753,14 @@ export default function ScoringScreen() {
               <div className="text-[15px] font-black text-slate-900 truncate mb-2">{striker?.name || 'Select Striker ➕'}</div>
               <div className="text-[18px] font-black tabular-nums leading-none text-slate-900">{striker?.runs ?? 0} <span className="text-[12px] text-slate-500">({striker?.balls ?? 0})</span></div>
             </button>
-            
-            <button 
+
+            <button
               onClick={() => {
                 if (window.confirm("Do you want to manually change the Non-Striker? (This will not record a wicket/retirement)")) {
                   setReplacingBatterType('nonStriker');
                   setNewBatterOpen(true);
                 }
-              }} 
+              }}
               className={`rounded-[12px] p-4 text-left border active:bg-slate-100 transition-colors ${!nonStriker?.id ? 'border-amber-400 ring-2 ring-amber-100 bg-amber-50/20' : 'bg-slate-50 border-slate-200'}`}
             >
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Non-Striker</div>
@@ -770,7 +769,7 @@ export default function ScoringScreen() {
             </button>
           </div>
 
-          <div 
+          <div
             onClick={() => {
               if (!currentBowler?.id || window.confirm("Do you want to manually change the Bowler mid-over?")) {
                 setOverOpen(true);
@@ -778,33 +777,33 @@ export default function ScoringScreen() {
             }}
             className={`bg-white rounded-[12px] p-4 border flex items-center justify-between mb-3 shadow-sm cursor-pointer hover:bg-slate-50 ${!currentBowler?.id ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200'}`}
           >
-             <div>
-               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10}/> Bowler (Tap to Change)</div>
-               <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler ➕'}</div>
-             </div>
-             <div className="text-right">
-               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
-               <div className="text-[16px] font-black tabular-nums text-slate-900">{currentBowler ? `${currentBowler.overs || 0}-${currentBowler.maidens || 0}-${currentBowler.runs || 0}-${currentBowler.wickets || 0}` : '0-0-0-0'}</div>
-             </div>
+            <div>
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10} /> Bowler (Tap to Change)</div>
+              <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler ➕'}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
+              <div className="text-[16px] font-black tabular-nums text-slate-900">{currentBowler ? `${currentBowler.overs || 0}-${currentBowler.maidens || 0}-${currentBowler.runs || 0}-${currentBowler.wickets || 0}` : '0-0-0-0'}</div>
+            </div>
           </div>
 
           <div className="flex gap-2">
-             <button onClick={() => setOverOpen(true)} className="flex-1 bg-white rounded-[10px] py-2.5 text-xs font-bold uppercase tracking-wider border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-               <RefreshCw size={14} /> Change Bowler
-             </button>
-             <button onClick={() => setChangeWkOpen(true)} className="flex-1 bg-white rounded-[10px] py-2.5 text-xs font-bold uppercase tracking-wider border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-               <Users size={14} /> Edit WK {currentWk ? `(${(currentWk?.full_name || currentWk?.name || '').split(' ')[0]})` : ''}
-             </button>
+            <button onClick={() => setOverOpen(true)} className="flex-1 bg-white rounded-[10px] py-2.5 text-xs font-bold uppercase tracking-wider border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+              <RefreshCw size={14} /> Change Bowler
+            </button>
+            <button onClick={() => setChangeWkOpen(true)} className="flex-1 bg-white rounded-[10px] py-2.5 text-xs font-bold uppercase tracking-wider border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+              <Users size={14} /> Edit WK {currentWk ? `(${(currentWk?.full_name || currentWk?.name || '').split(' ')[0]})` : ''}
+            </button>
           </div>
         </div>
 
         {/* SCORING PAD */}
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-slate-50 border-t border-x border-slate-200 p-3 sm:p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.06)] pb-safe pt-4">
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-white dark:bg-[#262B30] border-t border-x border-slate-200 dark:border-slate-700/80 p-3 sm:p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.25)] pb-safe pt-4">
           {(!striker?.id || !nonStriker?.id || !currentBowler?.id) && (
-            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between shadow-xs">
+            <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700/50 rounded-xl flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="text-amber-600 flex-shrink-0" size={16} />
-                <span className="text-xs font-bold text-amber-900">
+                <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0" size={16} />
+                <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
                   {!striker?.id ? 'Select active striker' : !nonStriker?.id ? 'Select non-striker' : 'Select next bowler'}
                 </span>
               </div>
@@ -820,7 +819,7 @@ export default function ScoringScreen() {
                     setOverOpen(true);
                   }
                 }}
-                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                className="px-3 py-1 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
               >
                 {!striker?.id ? 'Pick Striker' : !nonStriker?.id ? 'Pick Non-Striker' : 'Pick Bowler'}
               </button>
@@ -829,30 +828,29 @@ export default function ScoringScreen() {
 
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-[16px] font-black text-slate-900">Record Ball</h3>
-              <div className="text-[12px] font-medium text-slate-500">Tap the result of the delivery</div>
+              <h3 className="text-[16px] font-black text-slate-900 dark:text-[#F3F4F6]">Record Ball</h3>
+              <div className="text-[12px] font-medium text-slate-500 dark:text-[#64748B]">Tap the result of the delivery</div>
             </div>
-            <motion.button whileTap={{ scale: 0.92 }} onClick={() => { haptics.medium(); undoLastAction(); }} disabled={!deliveryLog.length} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider shadow-sm disabled:opacity-50 hover:bg-slate-50 transition-colors">
+            <motion.button whileTap={{ scale: 0.92 }} onClick={() => { haptics.medium(); undoLastAction(); }} disabled={!deliveryLog.length} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider shadow-sm disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-[#282d33] transition-colors">
               <RotateCcw size={14} /> Undo
             </motion.button>
           </div>
 
           <div className="grid grid-cols-3 gap-2.5 mb-2.5">
             {QUICK_RUNS.map(value => (
-              <motion.button 
-                key={value} 
+              <motion.button
+                key={value}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => {
                   if (value === 0) haptics.light();
                   else if (value === 4 || value === 6) haptics.success();
                   else haptics.medium();
                   doRun(value);
-                }} 
-                className={`h-16 rounded-[12px] flex items-center justify-center text-[24px] font-black shadow-sm transition-colors border ${
-                  value === 0 ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' : 
-                  value >= 4 ? 'bg-[#E1FF01] text-slate-900 border-[#cbe500] shadow-md hover:brightness-95' : 
-                  'bg-white text-slate-900 border-slate-200 hover:bg-slate-50'
-                }`}
+                }}
+                className={`h-16 rounded-[12px] flex items-center justify-center text-[24px] font-black shadow-sm transition-colors border ${value === 0 ? 'bg-white dark:bg-[#1E2226] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-[#282d33]' :
+                    value >= 4 ? 'bg-[#F97316] text-white border-[#EA580C] shadow-md shadow-orange-500/20 hover:brightness-105 active:bg-[#EA580C]' :
+                      'bg-white dark:bg-[#1E2226] text-slate-900 dark:text-[#F3F4F6] border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-[#282d33]'
+                  }`}
               >
                 {value}
               </motion.button>
@@ -860,27 +858,27 @@ export default function ScoringScreen() {
           </div>
 
           <div className="grid grid-cols-4 gap-2 mb-4">
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('wide', 0); }} className="h-12 rounded-[10px] bg-white border border-slate-200 text-slate-700 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 shadow-sm transition-colors">WD</motion.button>
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('no_ball', 0); }} className="h-12 rounded-[10px] bg-white border border-slate-200 text-slate-700 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 shadow-sm transition-colors">NB</motion.button>
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('bye', 1); }} className="h-12 rounded-[10px] bg-white border border-slate-200 text-slate-700 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 shadow-sm transition-colors">B</motion.button>
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('leg_bye', 1); }} className="h-12 rounded-[10px] bg-white border border-slate-200 text-slate-700 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 shadow-sm transition-colors">LB</motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('wide', 0); }} className="h-12 rounded-[10px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-[#282d33] shadow-sm transition-colors">WD</motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('no_ball', 0); }} className="h-12 rounded-[10px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-[#282d33] shadow-sm transition-colors">NB</motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('bye', 1); }} className="h-12 rounded-[10px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-[#282d33] shadow-sm transition-colors">B</motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); recordExtra('leg_bye', 1); }} className="h-12 rounded-[10px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[12px] font-black uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-[#282d33] shadow-sm transition-colors">LB</motion.button>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.heavy(); setDismissalOpen(true); }} className="h-14 rounded-[12px] bg-red-600 text-white flex items-center justify-center gap-1.5 text-[13px] font-black shadow-md border border-red-700 active:bg-red-700 transition-colors">
-               <ShieldAlert size={16} /> WICKET
-             </motion.button>
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.medium(); setRetireModalOpen(true); }} className="h-14 rounded-[12px] bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 text-[13px] font-black shadow-sm active:bg-slate-50 transition-colors">
-               RETIRE
-             </motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.heavy(); setDismissalOpen(true); }} className="h-14 rounded-[12px] bg-[#EF4444] text-white flex items-center justify-center gap-1.5 text-[13px] font-black shadow-md shadow-red-500/25 border border-[#DC2626] active:bg-[#DC2626] transition-colors">
+              <ShieldAlert size={16} /> WICKET
+            </motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.medium(); setRetireModalOpen(true); }} className="h-14 rounded-[12px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 text-[13px] font-black shadow-sm active:bg-slate-50 dark:active:bg-[#282d33] transition-colors">
+              RETIRE
+            </motion.button>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); setExtrasOpen(true); }} className="h-14 rounded-[12px] bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 text-[12px] font-bold shadow-sm active:bg-slate-50 transition-colors">
-               <MoreHorizontal size={16} /> EXTRAS
-             </motion.button>
-             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); setOverthrowOpen(true); }} className="h-14 rounded-[12px] bg-white border border-slate-200 text-slate-700 flex items-center justify-center gap-1.5 text-[12px] font-bold shadow-sm active:bg-slate-50 transition-colors">
-               <CornerUpRight size={16} /> OVERTHROW
-             </motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); setExtrasOpen(true); }} className="h-14 rounded-[12px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 text-[12px] font-bold shadow-sm active:bg-slate-50 dark:active:bg-[#282d33] transition-colors">
+              <MoreHorizontal size={16} /> EXTRAS
+            </motion.button>
+            <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); setOverthrowOpen(true); }} className="h-14 rounded-[12px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 text-[12px] font-bold shadow-sm active:bg-slate-50 dark:active:bg-[#282d33] transition-colors">
+              <CornerUpRight size={16} /> OVERTHROW
+            </motion.button>
           </div>
         </div>
 
@@ -896,14 +894,13 @@ export default function ScoringScreen() {
                 const blocked = isFreeHit && !FREE_HIT_ALLOWED_DISMISSALS.includes(type);
                 const selected = selectedDismissal === type;
                 return (
-                  <button 
-                    key={type} 
-                    disabled={blocked} 
-                    className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${
-                      selected ? 'bg-slate-900 text-white border-slate-900' : 
-                      blocked ? 'opacity-40 bg-slate-50 border-slate-100 cursor-not-allowed' : 
-                      'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
+                  <button
+                    key={type}
+                    disabled={blocked}
+                    className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${selected ? 'bg-slate-900 text-white border-slate-900' :
+                        blocked ? 'opacity-40 bg-slate-50 border-slate-100 cursor-not-allowed' :
+                          'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
                     onClick={() => setSelectedDismissal(type)}
                   >
                     {type}
@@ -917,9 +914,9 @@ export default function ScoringScreen() {
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Caught by</label>
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {bowlingXI.filter(p => (p.full_name || p.name) !== striker?.name && (p.full_name || p.name) !== nonStriker?.name).map(p => (
-                    <button 
-                      key={p.id} 
-                      className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === (p.full_name || p.name) ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
+                    <button
+                      key={p.id}
+                      className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === (p.full_name || p.name) ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                       onClick={() => setFielder(p.full_name || p.name)}
                     >
                       {p.full_name || p.name} {/wicket/i.test(p.primary_role || p.role) ? '(WK)' : ''}
@@ -933,20 +930,20 @@ export default function ScoringScreen() {
               <div className="mb-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Who was run out?</label>
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  <button 
+                  <button
                     onClick={() => setRunOutPlayerId(striker?.id)}
                     className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${runOutPlayerId === striker?.id ? 'bg-coral text-white border-coral' : 'bg-white text-slate-700 border-slate-200'}`}
                   >
                     {striker?.name} (Striker)
                   </button>
-                  <button 
+                  <button
                     onClick={() => setRunOutPlayerId(nonStriker?.id)}
                     className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${runOutPlayerId === nonStriker?.id ? 'bg-coral text-white border-coral' : 'bg-white text-slate-700 border-slate-200'}`}
                   >
                     {nonStriker?.name} (Non-Striker)
                   </button>
                 </div>
-                
+
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Completed Runs before Wicket</label>
                 <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
                   {[0, 1, 2, 3].map(r => (
@@ -963,9 +960,9 @@ export default function ScoringScreen() {
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Fielder Involved</label>
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   {bowlingXI.filter(p => (p.full_name || p.name) !== striker?.name && (p.full_name || p.name) !== nonStriker?.name).map(p => (
-                    <button 
-                      key={p.id} 
-                      className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === (p.full_name || p.name) ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`} 
+                    <button
+                      key={p.id}
+                      className={`py-2 px-2 rounded-[8px] text-[12px] font-bold border transition-colors ${fielder === (p.full_name || p.name) ? 'bg-cobalt text-white border-cobalt' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                       onClick={() => setFielder(p.full_name || p.name)}
                     >
                       {p.full_name || p.name}
@@ -976,11 +973,11 @@ export default function ScoringScreen() {
             )}
 
             <div className="flex gap-2 mt-6">
-              <button className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700" onClick={() => setDismissalOpen(false)}>Cancel</button>
-              <motion.button 
+              <button className="flex-1 py-3 rounded-[10px] font-bold bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300" onClick={() => setDismissalOpen(false)}>Cancel</button>
+              <motion.button
                 whileTap={{ scale: 0.96 }}
-                className="flex-1 py-3 rounded-[10px] font-bold bg-coral text-white disabled:opacity-50 shadow-md" 
-                onClick={() => { haptics.heavy(); submitWicket(); }} 
+                className="flex-1 py-3 rounded-[10px] font-bold bg-[#EF4444] text-white disabled:opacity-50 shadow-md shadow-red-500/25"
+                onClick={() => { haptics.heavy(); submitWicket(); }}
                 disabled={((selectedDismissal === 'Caught' || selectedDismissal === 'Run Out') && !fielder) || (selectedDismissal === 'Run Out' && !runOutPlayerId)}
               >
                 Confirm Wicket
@@ -994,15 +991,15 @@ export default function ScoringScreen() {
             <div className="mb-4">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Who is retiring?</label>
               <div className="grid grid-cols-2 gap-2">
-                <button 
+                <button
                   onClick={() => setRetiringBatter('striker')}
-                  className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${retiringBatter === 'striker' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                  className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${retiringBatter === 'striker' ? 'bg-[#262B30] text-white border-slate-700' : 'bg-white dark:bg-[#1E2226] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'}`}
                 >
                   {striker?.name} (Striker)
                 </button>
-                <button 
+                <button
                   onClick={() => setRetiringBatter('nonStriker')}
-                  className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${retiringBatter === 'nonStriker' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                  className={`py-3 rounded-[10px] text-[13px] font-bold border transition-colors ${retiringBatter === 'nonStriker' ? 'bg-[#262B30] text-white border-slate-700' : 'bg-white dark:bg-[#1E2226] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'}`}
                 >
                   {nonStriker?.name} (Non-Striker)
                 </button>
@@ -1012,15 +1009,15 @@ export default function ScoringScreen() {
             <div className="mb-6">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Reason</label>
               <div className="grid grid-cols-2 gap-2">
-                <button 
+                <button
                   onClick={() => setRetireType('hurt')}
-                  className={`py-3 px-2 rounded-[10px] text-[13px] font-bold border transition-colors flex flex-col items-center justify-center gap-1 ${retireType === 'hurt' ? 'bg-mango text-white border-mango' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                  className={`py-3 px-2 rounded-[10px] text-[13px] font-bold border transition-colors flex flex-col items-center justify-center gap-1 ${retireType === 'hurt' ? 'bg-[#F97316] text-white border-[#EA580C]' : 'bg-white dark:bg-[#1E2226] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'}`}
                 >
                   <span>Retired Hurt</span><span className="text-xs font-normal opacity-90">(No Wicket)</span>
                 </button>
-                <button 
+                <button
                   onClick={() => setRetireType('out')}
-                  className={`py-3 px-2 rounded-[10px] text-[13px] font-bold border transition-colors flex flex-col items-center justify-center gap-1 ${retireType === 'out' ? 'bg-coral text-white border-coral' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                  className={`py-3 px-2 rounded-[10px] text-[13px] font-bold border transition-colors flex flex-col items-center justify-center gap-1 ${retireType === 'out' ? 'bg-[#EF4444] text-white border-[#DC2626]' : 'bg-white dark:bg-[#1E2226] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'}`}
                 >
                   <span>Retired Out</span><span className="text-xs font-normal opacity-90">(Counts as Wicket)</span>
                 </button>
@@ -1028,9 +1025,9 @@ export default function ScoringScreen() {
             </div>
 
             <div className="flex gap-2">
-              <button className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700" onClick={() => setRetireModalOpen(false)}>Cancel</button>
-              <button 
-                className="flex-1 py-3 rounded-[10px] font-bold bg-jade text-white" 
+              <button className="flex-1 py-3 rounded-[10px] font-bold bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300" onClick={() => setRetireModalOpen(false)}>Cancel</button>
+              <button
+                className="flex-1 py-3 rounded-[10px] font-black bg-[#A3E635] text-[#0A0A0A] hover:bg-[#90d325] shadow-md shadow-lime-500/20"
                 onClick={submitRetire}
               >
                 Confirm Retire
@@ -1052,8 +1049,8 @@ export default function ScoringScreen() {
                 <div className="py-6 text-center text-sm text-slate-400">No more eligible batters available in Playing XI</div>
               )}
               {batters.map(player => (
-                <button 
-                  key={player.id} 
+                <button
+                  key={player.id}
                   onClick={() => selectNewBatter(player)}
                   className="flex items-center justify-between p-3 rounded-[10px] bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors"
                 >
@@ -1063,7 +1060,7 @@ export default function ScoringScreen() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{currentBattingTeamName}</span>
-                    <ChevronRight size={16} className="text-slate-300"/>
+                    <ChevronRight size={16} className="text-slate-300" />
                   </div>
                 </button>
               ))}
@@ -1087,8 +1084,8 @@ export default function ScoringScreen() {
             </div>
             <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
               {bowlingXI.filter(p => p.id !== lastOverBowlerId).map(player => (
-                <button 
-                  key={player.id} 
+                <button
+                  key={player.id}
                   onClick={() => selectNextBowler(player)}
                   className="flex items-center justify-between p-3 rounded-[10px] bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors shrink-0 min-w-[160px]"
                 >
@@ -1096,7 +1093,7 @@ export default function ScoringScreen() {
                     <div className="text-[14px] font-bold text-slate-900 text-left">{player.full_name || player.name}</div>
                     <div className="text-xs text-slate-500 text-left">{player.primary_role || player.role || 'Bowler'}</div>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300"/>
+                  <ChevronRight size={16} className="text-slate-300" />
                 </button>
               ))}
             </div>
@@ -1110,8 +1107,8 @@ export default function ScoringScreen() {
               {bowlingXI.map(player => {
                 const isWk = /wicket/i.test(player.role || '');
                 return (
-                  <button 
-                    key={player.id} 
+                  <button
+                    key={player.id}
                     onClick={() => selectNewWk(player)}
                     className={`flex items-center justify-between p-3 rounded-[10px] border transition-colors ${isWk ? 'bg-mango-50 border-mango text-slate-900' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'}`}
                   >
@@ -1148,11 +1145,10 @@ export default function ScoringScreen() {
                     else if (item.id === 'bye' || item.id === 'leg_bye') setExtraRuns(1);
                     else if (item.id === 'penalty') setExtraRuns(5);
                   }}
-                  className={`py-3 px-2 rounded-[10px] text-xs font-black border transition-all ${
-                    extraCategory === item.id 
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm scale-[1.02]' 
+                  className={`py-3 px-2 rounded-[10px] text-xs font-black border transition-all ${extraCategory === item.id
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm scale-[1.02]'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   {item.label}
                 </button>
@@ -1161,16 +1157,16 @@ export default function ScoringScreen() {
 
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
               {extraCategory === 'wide' ? 'Runs in Addition to 1 Wide (+runs)' :
-               extraCategory === 'no_ball' ? 'Runs Scored Off No-Ball (+runs)' :
-               extraCategory === 'penalty' ? 'Penalty Runs Awarded' :
-               'Runs Scored (Byes/Leg Byes)'}
+                extraCategory === 'no_ball' ? 'Runs Scored Off No-Ball (+runs)' :
+                  extraCategory === 'penalty' ? 'Penalty Runs Awarded' :
+                    'Runs Scored (Byes/Leg Byes)'}
             </div>
 
             <div className="flex gap-2 mb-4">
               {(extraCategory === 'wide' ? [0, 1, 2, 3, 4] :
                 extraCategory === 'no_ball' ? [0, 1, 2, 3, 4, 6] :
-                extraCategory === 'penalty' ? [5] :
-                [1, 2, 3, 4]
+                  extraCategory === 'penalty' ? [5] :
+                    [1, 2, 3, 4]
               ).map(num => (
                 <button
                   key={num}
@@ -1179,11 +1175,10 @@ export default function ScoringScreen() {
                     setExtraRuns(num);
                     if (num !== 4 && num !== 6) setIsExtraBoundary(false);
                   }}
-                  className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${
-                    extraRuns === num
+                  className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${extraRuns === num
                       ? 'bg-jade text-white border-jade shadow-sm'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   {extraCategory === 'wide' || extraCategory === 'no_ball' ? `+${num}` : num}
                 </button>
@@ -1194,11 +1189,11 @@ export default function ScoringScreen() {
               <div className="mb-4">
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Award Penalty To</div>
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={() => setRecipientTeamId(battingTeamId)}
                     className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${recipientTeamId === battingTeamId ? 'bg-jade text-white border-jade shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                   >Batting Side</button>
-                  <button 
+                  <button
                     onClick={() => setRecipientTeamId(bowlingTeamId)}
                     className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${recipientTeamId === bowlingTeamId ? 'bg-jade text-white border-jade shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                   >Fielding Side</button>
@@ -1220,8 +1215,8 @@ export default function ScoringScreen() {
 
             {(extraRuns === 4 || extraRuns === 6) && (
               <div className="flex items-center gap-3 mb-5 px-1">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   id="extraBoundary"
                   checked={isExtraBoundary}
                   onChange={(e) => setIsExtraBoundary(e.target.checked)}
@@ -1234,14 +1229,14 @@ export default function ScoringScreen() {
             )}
 
             <div className="flex gap-2">
-              <button 
-                className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" 
+              <button
+                className="flex-1 py-3 rounded-[10px] font-bold bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50"
                 onClick={() => setExtrasOpen(false)}
               >
                 Cancel
               </button>
-              <button 
-                className="flex-1 py-3 rounded-[10px] font-bold bg-jade text-white shadow-sm hover:bg-emerald-600 transition-colors" 
+              <button
+                className="flex-1 py-3 rounded-[10px] font-black bg-[#A3E635] text-[#0A0A0A] shadow-md shadow-lime-500/20 hover:bg-[#90d325] transition-colors cursor-pointer"
                 onClick={() => {
                   haptics.medium();
                   if (extraCategory === 'penalty') {
@@ -1280,11 +1275,10 @@ export default function ScoringScreen() {
                   <button
                     key={num}
                     onClick={() => { haptics.light(); setRunsCompletedBeforeThrow(num); }}
-                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${
-                      runsCompletedBeforeThrow === num
+                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${runsCompletedBeforeThrow === num
                         ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {num}
                   </button>
@@ -1298,16 +1292,15 @@ export default function ScoringScreen() {
                 {[1, 2, 3, 4].map(num => (
                   <button
                     key={num}
-                    onClick={() => { 
-                      haptics.light(); 
-                      setOverthrowRuns(num); 
-                      if (num !== 4) setOverthrowIsBoundary(false); 
+                    onClick={() => {
+                      haptics.light();
+                      setOverthrowRuns(num);
+                      if (num !== 4) setOverthrowIsBoundary(false);
                     }}
-                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${
-                      overthrowRuns === num
+                    className={`flex-1 py-3 rounded-[10px] text-[14px] font-black border transition-all ${overthrowRuns === num
                         ? 'bg-jade text-white border-jade shadow-sm'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     +{num}
                   </button>
@@ -1317,8 +1310,8 @@ export default function ScoringScreen() {
 
             {overthrowRuns === 4 && (
               <div className="flex items-center gap-3 mb-5 px-1">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   id="overthrowBoundary"
                   checked={overthrowIsBoundary}
                   onChange={(e) => setOverthrowIsBoundary(e.target.checked)}
@@ -1331,14 +1324,14 @@ export default function ScoringScreen() {
             )}
 
             <div className="flex gap-2">
-              <button 
-                className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" 
+              <button
+                className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
                 onClick={() => setOverthrowOpen(false)}
               >
                 Cancel
               </button>
-              <button 
-                className="flex-1 py-3 rounded-[10px] font-bold bg-jade text-white shadow-sm hover:bg-emerald-600 transition-colors" 
+              <button
+                className="flex-1 py-3 rounded-[10px] font-bold bg-jade text-white shadow-sm hover:bg-emerald-600 transition-colors"
                 onClick={() => {
                   haptics.medium();
                   recordRuns(runsCompletedBeforeThrow, undefined, overthrowRuns, overthrowIsBoundary);
@@ -1360,7 +1353,7 @@ export default function ScoringScreen() {
               <div className="p-6 text-center">
                 <div className="text-[40px] font-black text-slate-900 leading-none mb-2">{runs}/{wickets}</div>
                 <div className="text-[14px] font-bold text-slate-500 mb-6">Target for {battingTeamId === matchSetup?.teamAId ? teamBName : teamAName}: {runs + 1}</div>
-                <button 
+                <button
                   onClick={() => innings === 3 ? startSuperOverSecondInnings(runs + 1) : startSecondInnings(runs + 1)}
                   className="w-full py-4 rounded-xl font-bold bg-jade text-white shadow-lg active:scale-95 transition-transform"
                 >
@@ -1381,19 +1374,19 @@ export default function ScoringScreen() {
               </div>
               <div className="p-6 text-center">
                 <div className="text-[32px] font-black text-slate-900 leading-none mb-2">
-                  {matchStatus === 'ABANDONED' ? 'Match Ended Early' : 
-                   matchStatus === 'CANCELLED' ? 'Match Cancelled' :
-                   runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won!` : 
-                   runs === target - 1 ? 'Match Tied!' : 
-                   `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won!`}
+                  {matchStatus === 'ABANDONED' ? 'Match Ended Early' :
+                    matchStatus === 'CANCELLED' ? 'Match Cancelled' :
+                      runs >= target ? `${battingTeamId === matchSetup?.teamAId ? teamAName : teamBName} Won!` :
+                        runs === target - 1 ? 'Match Tied!' :
+                          `${battingTeamId === matchSetup?.teamAId ? teamBName : teamAName} Won!`}
                 </div>
                 <div className="text-[14px] font-bold text-slate-500 mb-6">
                   {matchStatus === 'ABANDONED' || matchStatus === 'CANCELLED' ? '' :
-                   runs >= target ? `Chased down ${target} runs in ${Math.floor(balls / 6)}.${balls % 6} overs` : 
-                   runs === target - 1 ? `Scores are level at ${Math.floor(balls / 6)}.${balls % 6} overs` : 
-                   `Defended the total in ${Math.floor(balls / 6)}.${balls % 6} overs`}
+                    runs >= target ? `Chased down ${target} runs in ${Math.floor(balls / 6)}.${balls % 6} overs` :
+                      runs === target - 1 ? `Scores are level at ${Math.floor(balls / 6)}.${balls % 6} overs` :
+                        `Defended the total in ${Math.floor(balls / 6)}.${balls % 6} overs`}
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     haptics.medium();
                     navigateTo('match-result');
@@ -1407,7 +1400,7 @@ export default function ScoringScreen() {
                   Review Top Performers, award Player of the Match, and permanently lock official records.
                 </div>
                 {runs === target - 1 && (
-                  <button 
+                  <button
                     onClick={() => {
                       startSuperOver();
                     }}
@@ -1435,21 +1428,21 @@ export default function ScoringScreen() {
             matchSetup={matchSetup}
             totalMatchOvers={totalMatchOvers}
             onApplyRevisedOvers={async (revisedOvers, revisedTarget) => {
-               try {
-                 await applyRevisedOvers(revisedOvers, revisedTarget);
-                 alert(revisedTarget
-                   ? `Overs revised to ${revisedOvers}, target revised to ${revisedTarget}`
-                   : `Match overs revised to ${revisedOvers}`);
-               } catch (err) {
-                 alert("Failed to revise overs: " + err.message);
-               }
+              try {
+                await applyRevisedOvers(revisedOvers, revisedTarget);
+                alert(revisedTarget
+                  ? `Overs revised to ${revisedOvers}, target revised to ${revisedTarget}`
+                  : `Match overs revised to ${revisedOvers}`);
+              } catch (err) {
+                alert("Failed to revise overs: " + err.message);
+              }
             }}
             onEndMatchEarly={async (resultInfo) => {
-               try {
-                 await endMatchEarly(resultInfo);
-               } catch (err) {
-                 alert("Failed to end match: " + err.message);
-               }
+              try {
+                await endMatchEarly(resultInfo);
+              } catch (err) {
+                alert("Failed to end match: " + err.message);
+              }
             }}
           />
         )}

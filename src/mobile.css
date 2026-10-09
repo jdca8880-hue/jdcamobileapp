@@ -1,4 +1,4 @@
-﻿/* ================================================================
+/* ================================================================
    JDCA MOBILE DESIGN SYSTEM
    Purpose: intentionally different mobile experience from desktop.
    Mobile uses nested information boxes instead of desktop tables/cards.
@@ -7,19 +7,34 @@
 
 @media (max-width: 767px) {
   :root {
-    --jdca-mobile-bg: #F0F4F8;
+    --jdca-mobile-bg: #F3F4F6;
     --jdca-mobile-card: #ffffff;
-    --jdca-mobile-ink: #0F172A;
+    --jdca-mobile-ink: #0A0A0A;
     --jdca-mobile-muted: #64748B;
     --jdca-mobile-line: #E2E8F0;
-    --jdca-mobile-blue: #1D4ED8;
-    --jdca-mobile-jade: #059669;
-    --jdca-mobile-mango: #D97706;
-    --jdca-mobile-coral: #DC2626;
+    --jdca-mobile-lime: #A3E635;
+    --jdca-mobile-graphite: #262B30;
+    --jdca-mobile-slate: #64748B;
+    --jdca-mobile-red: #EF4444;
+    --jdca-mobile-orange: #F97316;
+    --jdca-mobile-blue: #A3E635;
+    --jdca-mobile-jade: #A3E635;
+    --jdca-mobile-mango: #F97316;
+    --jdca-mobile-coral: #EF4444;
+  }
+
+  :root.dark,
+  html.dark,
+  .dark {
+    --jdca-mobile-bg: #0A0A0A;
+    --jdca-mobile-card: #14171A;
+    --jdca-mobile-ink: #F3F4F6;
+    --jdca-mobile-muted: #94A3B8;
+    --jdca-mobile-line: rgba(255, 255, 255, 0.08);
   }
 
   html, body, #root { min-height: 100%; }
-  body { overflow-x: hidden; background: #F0F4F8; }
+  body { overflow-x: hidden; background: var(--jdca-mobile-bg); }
 
   /* Give the mobile app a native-app rhythm. */
   main {
@@ -37,29 +52,29 @@
     padding: 16px 14px 88px !important;
   }
 
-  /* Mobile header */
+  /* Mobile header — Black #0A0A0A */
   header.lg\:hidden {
     height: 56px !important;
     min-height: 56px;
     padding: 0 16px !important;
-    background: #0B1628 !important;
-    border-bottom: 1px solid rgba(255,255,255,0.07) !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+    background: #0A0A0A !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
   }
 
   header.lg\:hidden button {
     border-radius: 8px !important;
   }
 
-  /* Bottom navigation — dark control rail */
+  /* Bottom navigation — dark control rail #0A0A0A */
   nav.lg\:hidden {
     position: fixed !important;
     left: 0;
     right: 0;
     bottom: 0;
-    background: #0B1628 !important;
-    border-top: 1px solid rgba(255,255,255,0.08) !important;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.20) !important;
+    background: #0A0A0A !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.40) !important;
     padding-bottom: env(safe-area-inset-bottom);
   }
 
@@ -86,7 +101,7 @@
 
   .jdca-card-hover:active {
     transform: scale(.992);
-    border-color: #abc1f5 !important;
+    border-color: #A3E635 !important;
   }
 
   /* Keep forms easy to operate with one thumb. */
@@ -141,7 +156,8 @@
     gap: 12px;
     min-height: 58px;
     padding: 12px 14px;
-    background: #0B1628;
+    background: #0A0A0A;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     color: #fff;
   }
 
@@ -237,8 +253,8 @@
     display: grid;
     place-items: center;
     border-radius: 7px;
-    background: #EFF6FF;
-    color: #1D4ED8;
+    background: rgba(163, 230, 53, 0.15);
+    color: #A3E635;
   }
 
   .jdca-mobile-directory__district-meta {
@@ -291,8 +307,8 @@
     place-items: center;
     padding: 0 6px;
     border-radius: 6px;
-    background: #eef2fd;
-    color: var(--jdca-mobile-blue);
+    background: rgba(163, 230, 53, 0.15);
+    color: #A3E635;
     font-size: 10px;
     font-weight: 800;
   }
@@ -373,13 +389,69 @@
     font-weight: 850;
   }
 
-  /* Mobile filter panel: compact, vertical and thumb-friendly. */
   .jdca-mobile-filter-panel {
     border: 1px solid var(--jdca-mobile-line);
     border-radius: 12px;
     background: #fff;
     padding: 10px;
     margin-bottom: 12px;
+  }
+
+  html.dark .jdca-mobile-directory__districts,
+  .dark .jdca-mobile-directory__districts {
+    background: #0A0A0A;
+  }
+
+  html.dark .jdca-mobile-directory__district,
+  .dark .jdca-mobile-directory__district {
+    background: #14171A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html.dark .jdca-mobile-directory__district-header,
+  .dark .jdca-mobile-directory__district-header {
+    background: #14171A;
+    color: #F3F4F6;
+  }
+
+  html.dark .jdca-mobile-directory__district-header:active,
+  .dark .jdca-mobile-directory__district-header:active {
+    background: #1E2226;
+  }
+
+  html.dark .jdca-mobile-directory__age-list,
+  .dark .jdca-mobile-directory__age-list {
+    background: #0A0A0A;
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html.dark .jdca-mobile-directory__age,
+  .dark .jdca-mobile-directory__age {
+    background: #181A1D;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html.dark .jdca-mobile-directory__age-header,
+  .dark .jdca-mobile-directory__age-header {
+    background: #181A1D;
+    color: #F3F4F6;
+  }
+
+  html.dark .jdca-mobile-player,
+  .dark .jdca-mobile-player {
+    background: #14171A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html.dark .jdca-mobile-player:active,
+  .dark .jdca-mobile-player:active {
+    background: #1E2226;
+  }
+
+  html.dark .jdca-mobile-filter-panel,
+  .dark .jdca-mobile-filter-panel {
+    background: #14171A;
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .jdca-mobile-filter-panel .grid {

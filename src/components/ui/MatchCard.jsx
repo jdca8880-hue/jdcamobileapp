@@ -28,7 +28,7 @@ export const MatchCard = ({ match, onClick }) => {
         haptics.light();
         if (onClick) onClick(e);
       }}
-      className={`bg-white rounded-2xl cursor-pointer relative transition-colors border border-slate-200 mb-4 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary-300 transition-all duration-300 group overflow-hidden flex flex-col w-full`}
+      className={`bg-white dark:bg-[#262B30] rounded-2xl cursor-pointer relative border border-slate-200 dark:border-white/10 mb-4 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-[#A3E635] transition-all duration-300 group overflow-hidden flex flex-col w-full`}
     >
       {/* Dynamic Banner Header */}
       <div className="h-24 w-full relative">
@@ -42,12 +42,12 @@ export const MatchCard = ({ match, onClick }) => {
                 {match.tournament || 'JDCA Official Fixtures'}
               </span>
               {isLive ? (
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 backdrop-blur-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#A3E635]/20 text-[#A3E635] text-xs font-bold border border-[#A3E635]/40 backdrop-blur-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#A3E635] animate-pulse" />
                   LIVE
                 </span>
               ) : (
-                <span className={`text-xs font-bold uppercase tracking-widest ${isCompleted ? 'text-white/70' : 'text-blue-300'}`}>
+                <span className={`text-xs font-bold uppercase tracking-widest ${isCompleted ? 'text-white/70' : 'text-[#A3E635]'}`}>
                   {isCompleted ? 'COMPLETED' : 'UPCOMING'}
                 </span>
               )}
@@ -62,7 +62,7 @@ export const MatchCard = ({ match, onClick }) => {
       <div className="p-4 flex flex-col flex-1">
           {/* Winner on top if completed */}
           {isCompleted && (
-            <div className="mb-4 text-xs font-bold text-slate-800 bg-slate-100/80 px-3 py-2 rounded-lg border border-slate-200 flex items-center gap-2">
+            <div className="mb-4 text-xs font-bold text-slate-800 dark:text-[#F3F4F6] bg-slate-100/80 dark:bg-[#1E2226] px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700/80 flex items-center gap-2">
               <span className="text-lg leading-none">🏆</span> {match.result_text || match.result || 'Result pending'}
             </div>
           )}
@@ -74,12 +74,12 @@ export const MatchCard = ({ match, onClick }) => {
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
                   {teamAName.substring(0,3).toUpperCase()}
                 </div>
-                <div className="text-base font-bold text-slate-900">
+                <div className="text-base font-bold text-slate-900 dark:text-[#F3F4F6]">
                   {teamAName}
                 </div>
               </div>
               {(isLive || isCompleted) && (match.home_team?.score || isLive) && (
-                <div className="text-lg font-black text-slate-900">
+                <div className="text-lg font-black text-slate-900 dark:text-[#F3F4F6]">
                   {match.home_team?.score || (isLive ? 'Batting' : '')}
                 </div>
               )}
@@ -90,12 +90,12 @@ export const MatchCard = ({ match, onClick }) => {
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
                   {teamBName.substring(0,3).toUpperCase()}
                 </div>
-                <div className="text-base font-bold text-slate-900">
+                <div className="text-base font-bold text-slate-900 dark:text-[#F3F4F6]">
                   {teamBName}
                 </div>
               </div>
               {(isLive || isCompleted) && (match.away_team?.score || isLive) && (
-                <div className="text-lg font-black text-slate-900">
+                <div className="text-lg font-black text-slate-900 dark:text-[#F3F4F6]">
                   {match.away_team?.score || (isLive ? 'Yet to bat' : '')}
                 </div>
               )}
@@ -120,13 +120,13 @@ export const MatchCard = ({ match, onClick }) => {
             const crr = sc && ov && ov > 0 ? (sc.runs / ov).toFixed(2) : null;
             if (!crr && !battingSide?.overs) {
               return (
-                <div className="mt-4 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg inline-block border border-emerald-100">
+                <div className="mt-4 text-xs font-semibold text-[#A3E635] bg-[#A3E635]/10 px-2.5 py-1.5 rounded-lg inline-block border border-[#A3E635]/25">
                   Scoring in progress
                 </div>
               );
             }
             return (
-              <div className="mt-4 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg inline-block border border-emerald-100">
+              <div className="mt-4 text-xs font-semibold text-[#A3E635] bg-[#A3E635]/10 px-2.5 py-1.5 rounded-lg inline-block border border-[#A3E635]/25">
                 {crr ? `CRR: ${crr}` : 'Live'}{battingSide?.overs ? ` · ${battingSide.overs} overs` : ''}
               </div>
             );
@@ -134,17 +134,17 @@ export const MatchCard = ({ match, onClick }) => {
 
           {/* Match Performers Section */}
           {isCompleted && (
-            <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-3">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Match Performers</span>
+            <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700/60 flex flex-col gap-3">
+              <span className="text-[10px] text-slate-500 dark:text-[#64748B] font-bold uppercase tracking-widest">Match Performers</span>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Man of the Match */}
-                <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    <CloudinaryAvatar src={playerAvatar} alt={potmDisplayName} className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
+                <div className="flex items-center gap-3 bg-slate-50 dark:bg-[#1E2226] p-2.5 rounded-xl border border-slate-100 dark:border-slate-700/60">
+                    <CloudinaryAvatar src={playerAvatar} alt={potmDisplayName} className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-sm shrink-0" />
                     <div className="flex flex-col flex-1">
-                       <span className="text-[9px] text-orange-500 font-bold uppercase tracking-wider flex items-center gap-1">🏆 Player of the Match</span>
-                       <span className="text-xs font-black text-slate-800">{potmDisplayName}</span>
-                       <span className="text-[10px] font-semibold text-slate-500">Official Award</span>
+                       <span className="text-[9px] text-[#F97316] font-bold uppercase tracking-wider flex items-center gap-1">🏆 Player of the Match</span>
+                       <span className="text-xs font-black text-slate-800 dark:text-[#F3F4F6]">{potmDisplayName}</span>
+                       <span className="text-[10px] font-semibold text-slate-500 dark:text-[#64748B]">Official Award</span>
                     </div>
                 </div>
 
@@ -152,28 +152,28 @@ export const MatchCard = ({ match, onClick }) => {
                 {(match.topBatter || match.topBowler) && (
                   <div className="flex flex-col justify-center gap-2">
                     {match.topBatter && (
-                      <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div className="flex items-center justify-between bg-slate-50 dark:bg-[#1E2226] p-2 rounded-lg border border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-2">
                           <span className="text-xs">🏏</span>
                           <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Batter</span>
-                            <span className="text-xs font-bold text-slate-800">{match.topBatter.name}</span>
+                            <span className="text-[9px] text-slate-500 dark:text-[#64748B] font-bold uppercase tracking-wider">Top Batter</span>
+                            <span className="text-xs font-bold text-slate-800 dark:text-[#F3F4F6]">{match.topBatter.name}</span>
                           </div>
                         </div>
-                        <span className="text-xs font-black text-slate-700">{match.topBatter.score || '-'}</span>
+                        <span className="text-xs font-black text-slate-700 dark:text-[#F3F4F6]">{match.topBatter.score || '-'}</span>
                       </div>
                     )}
 
                     {match.topBowler && (
-                      <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div className="flex items-center justify-between bg-slate-50 dark:bg-[#1E2226] p-2 rounded-lg border border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-2">
                           <span className="text-xs">🎯</span>
                           <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Top Bowler</span>
-                            <span className="text-xs font-bold text-slate-800">{match.topBowler.name}</span>
+                            <span className="text-[9px] text-slate-500 dark:text-[#64748B] font-bold uppercase tracking-wider">Top Bowler</span>
+                            <span className="text-xs font-bold text-slate-800 dark:text-[#F3F4F6]">{match.topBowler.name}</span>
                           </div>
                         </div>
-                        <span className="text-xs font-black text-slate-700">{match.topBowler.score || '-'}</span>
+                        <span className="text-xs font-black text-slate-700 dark:text-[#F3F4F6]">{match.topBowler.score || '-'}</span>
                       </div>
                     )}
                   </div>
@@ -183,12 +183,12 @@ export const MatchCard = ({ match, onClick }) => {
           )}
           
           {/* Footer info */}
-          <div className={`mt-4 pt-4 flex items-center justify-between text-xs font-medium text-slate-500 ${(!isCompleted && !isLive) ? 'border-t border-slate-100' : ''}`}>
+          <div className={`mt-4 pt-4 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-[#64748B] ${(!isCompleted && !isLive) ? 'border-t border-slate-100 dark:border-slate-700/60' : ''}`}>
             <div className="flex items-center gap-1.5">
               <MapPin size={12} />
               {match.venue_name || match.venue || 'Unknown Venue'}
             </div>
-            <div className="flex items-center gap-1 uppercase tracking-wider font-bold text-blue-600 group-hover:translate-x-1 transition-transform">
+            <div className="flex items-center gap-1 uppercase tracking-wider font-bold text-[#A3E635] group-hover:translate-x-1 transition-transform">
               MATCH CENTER
               <ArrowRight size={14} />
             </div>

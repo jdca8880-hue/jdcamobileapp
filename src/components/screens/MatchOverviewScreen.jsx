@@ -36,57 +36,58 @@ export default function MatchOverviewScreen() {
       {/* 2. Key Metrics 4-Column Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {/* Metric 1: Score */}
-        <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-blue-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
-          <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
+        <div className="bg-white dark:bg-[#14171A] rounded-2xl p-4.5 border border-slate-200 dark:border-white/10 border-l-4 border-l-[#A3E635] shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
+          <span className="text-xs uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
             Current Score
           </span>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 font-tabular leading-none">
+          <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-[#F3F4F6] font-tabular leading-none">
             {scoring.runs}/{scoring.wickets}
           </div>
-          <div className="text-xs text-slate-500 font-semibold mt-1.5">
-            Overs: <strong className="text-blue-600">{scoring.formatOversDisplay()}</strong>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1.5">
+            Overs: <strong className="text-blue-600 dark:text-[#A3E635]">{scoring.formatOversDisplay()}</strong>
           </div>
         </div>
 
         {/* Metric 2: Current Striker */}
-        <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
-          <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
+        <div className="bg-white dark:bg-[#14171A] rounded-2xl p-4.5 border border-slate-200 dark:border-white/10 border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
+          <span className="text-xs uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
             Current Striker
           </span>
-          <div className="text-lg sm:text-xl font-black text-slate-900 leading-none truncate mb-1">
+          <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-[#F3F4F6] leading-none truncate mb-1">
             {scoring.striker?.name || 'Waiting...'}
           </div>
-          <div className="text-xs text-slate-500 font-semibold">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
             {scoring.striker?.id ? `Batting` : '-'}
           </div>
         </div>
 
         {/* Metric 3: Current Non-Striker */}
-        <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-amber-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
-          <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
+        <div className="bg-white dark:bg-[#14171A] rounded-2xl p-4.5 border border-slate-200 dark:border-white/10 border-l-4 border-l-amber-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
+          <span className="text-xs uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
             Non-Striker
           </span>
-          <div className="text-lg sm:text-xl font-black text-slate-900 leading-none truncate mb-1">
+          <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-[#F3F4F6] leading-none truncate mb-1">
             {scoring.nonStriker?.name || 'Waiting...'}
           </div>
-          <div className="text-xs text-slate-500 font-semibold">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
             {scoring.nonStriker?.id ? `Batting` : '-'}
           </div>
         </div>
 
         {/* Metric 4: Current Bowler */}
-        <div className="bg-white rounded-2xl p-4.5 border border-slate-200 border-l-4 border-l-purple-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
-          <span className="text-xs uppercase font-black tracking-wider text-slate-500 block mb-1">
+        <div className="bg-white dark:bg-[#14171A] rounded-2xl p-4.5 border border-slate-200 dark:border-white/10 border-l-4 border-l-purple-500 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all">
+          <span className="text-xs uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
             Current Bowler
           </span>
-          <div className="text-lg sm:text-xl font-black text-slate-900 leading-none truncate mb-1">
+          <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-[#F3F4F6] leading-none truncate mb-1">
             {scoring.currentBowler?.name || 'Waiting...'}
           </div>
-          <div className="text-xs text-slate-500 font-semibold">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
             {scoring.currentBowler?.id ? `Bowling` : '-'}
           </div>
         </div>
       </div>
+
       
       {/* 2.5 Recent Balls */}
       <div className="jdca-card p-4 space-y-2 mt-4">
@@ -112,11 +113,11 @@ export default function MatchOverviewScreen() {
       </div>
 
       {/* 3. Official Assignments Card */}
-      <div className="jdca-card p-5 space-y-3">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+      <div className="jdca-card bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 p-5 space-y-3">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-white/10">
           <div className="flex items-center space-x-2">
-            <ShieldCheck className="w-5 h-5 text-cobalt" />
-            <h3 className="text-base font-bold text-ink">
+            <ShieldCheck className="w-5 h-5 text-[#2457D6] dark:text-[#A3E635]" />
+            <h3 className="text-base font-bold text-slate-900 dark:text-[#F3F4F6]">
               Official Assignments & Match Observers
             </h3>
           </div>
@@ -128,21 +129,21 @@ export default function MatchOverviewScreen() {
           {officials.map((official) => (
             <div
               key={official.id}
-              className="p-3.5 rounded-xl bg-gray-50/70 border border-gray-150 flex items-center justify-between"
+              className="p-3.5 rounded-xl bg-gray-50/70 dark:bg-[#1E2226] border border-gray-150 dark:border-white/10 flex items-center justify-between"
             >
               <div className="flex items-center space-x-3">
                 <img
                   src={official.avatar}
                   alt={official.name}
-                  className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-2xs"
+                  className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-white/10 shadow-2xs"
                 />
                 <div>
-                  <h4 className="font-bold text-sm text-gray-900">{official.name}</h4>
-                  <p className="text-xs text-gray-500 font-medium">{official.role}</p>
+                  <h4 className="font-bold text-sm text-gray-900 dark:text-[#F3F4F6]">{official.name}</h4>
+                  <p className="text-xs text-gray-500 dark:text-[#94A3B8] font-medium">{official.role}</p>
                 </div>
               </div>
 
-              <span className="px-2 py-0.5 rounded-md bg-cobalt-50 text-cobalt text-xs font-bold">
+              <span className="px-2 py-0.5 rounded-md bg-cobalt-50 dark:bg-[#262B30] text-[#2457D6] dark:text-[#A3E635] text-xs font-bold">
                 {official.experience}
               </span>
             </div>
@@ -155,7 +156,7 @@ export default function MatchOverviewScreen() {
         <button
           type="button"
           onClick={() => navigateTo('scoring')}
-          className="flex-1 min-w-[180px] py-3 px-4 bg-cobalt hover:bg-cobalt-700 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-xs transition cursor-pointer"
+          className="flex-1 min-w-[180px] py-3 px-4 bg-[#2457D6] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-xs transition cursor-pointer"
         >
           <span>Return to Scoring Console</span>
           <ArrowRight className="w-4 h-4" />
@@ -164,7 +165,7 @@ export default function MatchOverviewScreen() {
         <button
           type="button"
           onClick={() => navigateTo('scorecard')}
-          className="flex-1 min-w-[180px] py-3 px-4 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center transition cursor-pointer"
+          className="flex-1 min-w-[180px] py-3 px-4 bg-white dark:bg-[#14171A] border border-gray-300 dark:border-white/10 text-gray-700 dark:text-[#F3F4F6] hover:bg-gray-50 dark:hover:bg-[#262B30] font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center transition cursor-pointer"
         >
           <span>Official Scorecard Table</span>
         </button>

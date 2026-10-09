@@ -64,8 +64,8 @@ export default function MatchResultScreen() {
   }, [matchData]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen bg-slate-50">
-      <div className="w-8 h-8 border-4 border-cobalt border-t-transparent rounded-full animate-spin"></div>
+    return <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-[#0A0A0A]">
+      <div className="w-8 h-8 border-4 border-[#A3E635] border-t-transparent rounded-full animate-spin"></div>
     </div>;
   }
 
@@ -194,8 +194,8 @@ export default function MatchResultScreen() {
     }
   };
 
-  return <div className="match-result-page matches-directory-page pb-24 relative">
-    <div className="result-hero-light relative">
+  return <div className="match-result-page matches-directory-page pb-24 relative bg-slate-50 dark:bg-[#0A0A0A] min-h-screen text-slate-900 dark:text-[#F3F4F6]">
+    <div className="result-hero-light bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 shadow-sm relative text-slate-900 dark:text-[#F3F4F6]">
       {(userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || userRole === 'SCORER') && (
         <button
           onClick={handleDelete}
@@ -206,78 +206,111 @@ export default function MatchResultScreen() {
           <Trash2 size={16} strokeWidth={2.5} />
         </button>
       )}
-      <div><span className="result-hero-light__kicker"><Trophy size={14}/> OFFICIAL MATCH RESULT</span><h1>{matchData.resultText || matchData.result || 'Match completed'}</h1><p>{matchData.tournament || 'JDCA Fixture'} • {matchData.venue || 'JDCA Ground'} • {matchData.date || 'Match Day'}</p></div>
-      <div className="result-hero-light__scores"><span>{matchData.home_team?.name}</span><strong>{matchData.home_team?.score || '-'}</strong><small>{matchData.home_team?.overs || ''}</small><i>VS</i><span>{matchData.away_team?.name}</span><strong>{matchData.away_team?.score || '-'}</strong><small>{matchData.away_team?.overs || ''}</small></div>
+      <div>
+        <span className="result-hero-light__kicker text-[#2457D6] dark:text-[#A3E635] font-black text-xs uppercase tracking-wider flex items-center gap-1.5"><Trophy size={14}/> OFFICIAL MATCH RESULT</span>
+        <h1 className="text-slate-900 dark:text-[#F3F4F6] font-black text-2xl mt-1">{matchData.resultText || matchData.result || 'Match completed'}</h1>
+        <p className="text-slate-500 dark:text-[#94A3B8] text-xs mt-1">{matchData.tournament || 'JDCA Fixture'} • {matchData.venue || 'JDCA Ground'} • {matchData.date || 'Match Day'}</p>
+      </div>
+      <div className="result-hero-light__scores bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl p-3">
+        <span className="text-slate-700 dark:text-[#CBD5E1] font-bold text-xs">{matchData.home_team?.name}</span>
+        <strong className="text-slate-900 dark:text-[#F3F4F6] font-black text-xl">{matchData.home_team?.score || '-'}</strong>
+        <small className="text-slate-500 dark:text-[#94A3B8] text-[11px]">{matchData.home_team?.overs || ''}</small>
+        <i className="text-slate-400 dark:text-slate-500 font-black not-italic text-xs">VS</i>
+        <span className="text-slate-700 dark:text-[#CBD5E1] font-bold text-xs">{matchData.away_team?.name}</span>
+        <strong className="text-slate-900 dark:text-[#F3F4F6] font-black text-xl">{matchData.away_team?.score || '-'}</strong>
+        <small className="text-slate-500 dark:text-[#94A3B8] text-[11px]">{matchData.away_team?.overs || ''}</small>
+      </div>
     </div>
 
-    <div className="result-section"><div className="section-kicker"><Trophy size={15}/> COMPLETE SCORECARD</div><MatchScorecard match={matchData}/></div>
+    <div className="result-section bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 shadow-sm rounded-2xl p-4 sm:p-5 mt-4 text-slate-900 dark:text-[#F3F4F6]">
+      <div className="section-kicker text-[#2457D6] dark:text-[#A3E635] flex items-center gap-1.5 font-black text-xs uppercase tracking-wider mb-3"><Trophy size={15}/> COMPLETE SCORECARD</div>
+      <MatchScorecard match={matchData}/>
+    </div>
 
-    <div className="result-section"><div className="section-kicker"><ShieldCheck size={15}/> MATCH HIGHLIGHTS</div><div className="result-highlight-row">
-      <div><small>TOP BATTER</small><b>{highlights.topBatter?.name || '-'}</b><span>{highlights.topBatter?.stat || 'Derived from scorecard'}</span></div>
-      <div><small>TOP BOWLER</small><b>{highlights.topBowler?.name || '-'}</b><span>{highlights.topBowler?.stat || 'Derived from scorecard'}</span></div>
-      <div><small>BEST PARTNERSHIP</small><b>{highlights.bestPartnership?.names || '-'}</b><span>{highlights.bestPartnership?.stat || 'Derived from scorecard'}</span></div>
-      <div>
-        <small>PLAYER OF THE MATCH</small>
-        {canAssignMotm ? (
-          <select 
-            value={selectedMotm} 
-            onChange={handleAssignMotm}
-            disabled={isAssigning}
-            className="mt-1 w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-cobalt"
-          >
-            <option value="">-- Select Player --</option>
-            {allMatchPlayers.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        ) : (
-          <>
-            <b>{highlights.playerOfMatch?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name || 'Not yet awarded'}</b>
-            <span>{highlights.playerOfMatch?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name ? 'Official award' : 'Pending official selection'}</span>
-          </>
-        )}
+    <div className="result-section bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 shadow-sm rounded-2xl p-4 sm:p-5 mt-4 text-slate-900 dark:text-[#F3F4F6]">
+      <div className="section-kicker text-[#2457D6] dark:text-[#A3E635] flex items-center gap-1.5 font-black text-xs uppercase tracking-wider mb-3"><ShieldCheck size={15}/> MATCH HIGHLIGHTS</div>
+      <div className="result-highlight-row grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl p-3">
+          <small className="text-slate-400 dark:text-[#94A3B8] text-[10px] font-black uppercase tracking-wider">TOP BATTER</small>
+          <b className="text-slate-900 dark:text-[#F3F4F6] font-extrabold text-sm block mt-1">{highlights.topBatter?.name || '-'}</b>
+          <span className="text-slate-500 dark:text-[#CBD5E1] text-xs font-semibold block mt-0.5">{highlights.topBatter?.stat || 'Derived from scorecard'}</span>
+        </div>
+        <div className="bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl p-3">
+          <small className="text-slate-400 dark:text-[#94A3B8] text-[10px] font-black uppercase tracking-wider">TOP BOWLER</small>
+          <b className="text-slate-900 dark:text-[#F3F4F6] font-extrabold text-sm block mt-1">{highlights.topBowler?.name || '-'}</b>
+          <span className="text-slate-500 dark:text-[#CBD5E1] text-xs font-semibold block mt-0.5">{highlights.topBowler?.stat || 'Derived from scorecard'}</span>
+        </div>
+        <div className="bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl p-3">
+          <small className="text-slate-400 dark:text-[#94A3B8] text-[10px] font-black uppercase tracking-wider">BEST PARTNERSHIP</small>
+          <b className="text-slate-900 dark:text-[#F3F4F6] font-extrabold text-sm block mt-1">{highlights.bestPartnership?.names || '-'}</b>
+          <span className="text-slate-500 dark:text-[#CBD5E1] text-xs font-semibold block mt-0.5">{highlights.bestPartnership?.stat || 'Derived from scorecard'}</span>
+        </div>
+        <div className="bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl p-3">
+          <small className="text-slate-400 dark:text-[#94A3B8] text-[10px] font-black uppercase tracking-wider">PLAYER OF THE MATCH</small>
+          {canAssignMotm ? (
+            <select 
+              value={selectedMotm} 
+              onChange={handleAssignMotm}
+              disabled={isAssigning}
+              className="mt-1 w-full text-xs font-bold bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F3F4F6] rounded-lg px-2 py-1 outline-none focus:border-[#A3E635]"
+            >
+              <option value="">-- Select Player --</option>
+              {allMatchPlayers.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <b className="text-slate-900 dark:text-[#F3F4F6] font-extrabold text-sm block mt-1">{highlights.playerOfMatch?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name || 'Not yet awarded'}</b>
+              <span className="text-slate-500 dark:text-[#CBD5E1] text-xs font-semibold block mt-0.5">{highlights.playerOfMatch?.name || matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name || matchData.manOfTheMatch?.name ? 'Official award' : 'Pending official selection'}</span>
+            </>
+          )}
+        </div>
+        <div className="bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl p-3">
+          <small className="text-slate-400 dark:text-[#94A3B8] text-[10px] font-black uppercase tracking-wider">RESULT</small>
+          {canAssignMotm ? (
+            <input 
+              type="text" 
+              value={customResultText} 
+              onChange={(e) => setCustomResultText(e.target.value)}
+              disabled={isLocking}
+              className="mt-1 w-full text-xs font-bold bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F3F4F6] rounded-lg px-2 py-1 outline-none focus:border-[#A3E635]"
+              placeholder="e.g. JBP won by 4 wickets"
+            />
+          ) : (
+            <>
+              <b className="text-slate-900 dark:text-[#F3F4F6] font-extrabold text-sm block mt-1">{matchData.resultText || matchData.result || 'Match completed'}</b>
+              <span className="text-slate-500 dark:text-[#CBD5E1] text-xs font-semibold block mt-0.5">Official Final Status</span>
+            </>
+          )}
+        </div>
       </div>
-      <div>
-        <small>RESULT</small>
-        {canAssignMotm ? (
-          <input 
-            type="text" 
-            value={customResultText} 
-            onChange={(e) => setCustomResultText(e.target.value)}
-            disabled={isLocking}
-            className="mt-1 w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-cobalt"
-            placeholder="e.g. JBP won by 4 wickets"
-          />
-        ) : (
-          <>
-            <b>{matchData.resultText || matchData.result || 'Match completed'}</b>
-            <span>Official Final Status</span>
-          </>
-        )}
-      </div>
-    </div></div>
+    </div>
 
-    <div className="result-section"><div className="section-kicker"><Newspaper size={15}/> MEDIA REPORT</div><MatchMediaReport match={matchData}/></div>
+    <div className="result-section bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 shadow-sm rounded-2xl p-4 sm:p-5 mt-4 text-slate-900 dark:text-[#F3F4F6]">
+      <div className="section-kicker text-[#2457D6] dark:text-[#A3E635] flex items-center gap-1.5 font-black text-xs uppercase tracking-wider mb-3"><Newspaper size={15}/> MEDIA REPORT</div>
+      <MatchMediaReport match={matchData}/>
+    </div>
 
     {canAssignMotm && (
-      <div className="result-section">
-        <div className="section-kicker"><Lock size={15}/> OFFICIAL MATCH CLOSURE & LOCK</div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      <div className="result-section bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 shadow-sm rounded-2xl p-4 sm:p-5 mt-4 text-slate-900 dark:text-[#F3F4F6]">
+        <div className="section-kicker text-[#2457D6] dark:text-[#A3E635] flex items-center gap-1.5 font-black text-xs uppercase tracking-wider mb-3"><Lock size={15}/> OFFICIAL MATCH CLOSURE & LOCK</div>
+        <div className="bg-white dark:bg-[#14171A] p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-white/10">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-black text-slate-900">Official Match Finalization</h3>
+                <h3 className="text-base font-black text-slate-900 dark:text-[#F3F4F6]">Official Match Finalization</h3>
                 {isMatchPermanentlyLocked ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-wider border border-emerald-200">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-black uppercase tracking-wider border border-emerald-200 dark:border-emerald-500/30">
                     <CheckCircle2 size={12} /> Permanently Locked
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[11px] font-black uppercase tracking-wider border border-amber-200">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-black uppercase tracking-wider border border-amber-200 dark:border-amber-500/30">
                     <Lock size={12} /> Ready for Final End
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1 max-w-xl">
+              <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-1 max-w-xl">
                 {isMatchPermanentlyLocked
                   ? 'This match has been officially concluded and permanently locked in the JDCA registry.'
                   : 'Review the score, winners, and assign Player of the Match above. Clicking "Final End Match" will permanently lock this fixture and refresh the scorer screen for next games.'}
@@ -313,17 +346,17 @@ export default function MatchResultScreen() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Verified Result</span>
-              <span className="font-extrabold text-slate-900">{customResultText || 'Match Completed'}</span>
+            <div className="p-3 bg-slate-50 dark:bg-[#1E2226] rounded-xl border border-slate-100 dark:border-white/10">
+              <span className="font-bold text-slate-400 dark:text-[#94A3B8] block mb-0.5 uppercase tracking-wider text-[10px]">Verified Result</span>
+              <span className="font-extrabold text-slate-900 dark:text-[#F3F4F6]">{customResultText || 'Match Completed'}</span>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Player of the Match</span>
-              <span className="font-extrabold text-slate-900">{allMatchPlayers.find(p => String(p.id) === String(selectedMotm))?.name || (highlights.playerOfMatch?.name) || (typeof matchData.man_of_the_match === 'string' ? matchData.man_of_the_match : (matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name)) || matchData.manOfTheMatch?.name || 'Not yet selected'}</span>
+            <div className="p-3 bg-slate-50 dark:bg-[#1E2226] rounded-xl border border-slate-100 dark:border-white/10">
+              <span className="font-bold text-slate-400 dark:text-[#94A3B8] block mb-0.5 uppercase tracking-wider text-[10px]">Player of the Match</span>
+              <span className="font-extrabold text-slate-900 dark:text-[#F3F4F6]">{allMatchPlayers.find(p => String(p.id) === String(selectedMotm))?.name || (highlights.playerOfMatch?.name) || (typeof matchData.man_of_the_match === 'string' ? matchData.man_of_the_match : (matchData.man_of_the_match?.full_name || matchData.man_of_the_match?.name)) || matchData.manOfTheMatch?.name || 'Not yet selected'}</span>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="font-bold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">Scorer Screen Status</span>
-              <span className={`font-extrabold ${isMatchPermanentlyLocked ? 'text-emerald-600' : 'text-amber-600'}`}>
+            <div className="p-3 bg-slate-50 dark:bg-[#1E2226] rounded-xl border border-slate-100 dark:border-white/10">
+              <span className="font-bold text-slate-400 dark:text-[#94A3B8] block mb-0.5 uppercase tracking-wider text-[10px]">Scorer Screen Status</span>
+              <span className={`font-extrabold ${isMatchPermanentlyLocked ? 'text-emerald-500' : 'text-amber-500'}`}>
                 {isMatchPermanentlyLocked ? 'Refreshed & Ready' : 'Awaiting Final Lock'}
               </span>
             </div>
@@ -332,9 +365,9 @@ export default function MatchResultScreen() {
       </div>
     )}
 
-    <div className="result-actions">
-      <button onClick={() => navigateTo('matches')} className="btn-secondary">Back to Matches Directory</button>
-      <button onClick={() => navigateTo('scorecard')} className="btn-primary">Open Official Scorecard <ArrowRight size={15}/></button>
+    <div className="result-actions mt-6 flex justify-end gap-3">
+      <button onClick={() => navigateTo('matches')} className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[#262B30] text-slate-800 dark:text-[#F3F4F6] font-bold text-xs hover:bg-slate-50 dark:hover:bg-[#2D333A] transition cursor-pointer">Back to Matches Directory</button>
+      <button onClick={() => navigateTo('scorecard')} className="px-5 py-2.5 rounded-xl bg-[#2457D6] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] font-bold text-xs hover:bg-[#1b41a8] dark:hover:bg-[#bef264] transition cursor-pointer flex items-center gap-1.5">Open Official Scorecard <ArrowRight size={15}/></button>
     </div>
   </div>;
 }

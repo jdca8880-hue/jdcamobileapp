@@ -70,8 +70,8 @@ export default function Header() {
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
       style={{
-        background: '#0B1628',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        background: '#0A0A0A',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
         height: 56,
         display: 'flex',
         alignItems: 'center',
@@ -108,8 +108,9 @@ export default function Header() {
         <div className="min-w-0">
           {isHome ? (
             <>
-              <div className="font-bold text-white truncate" style={{ fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+              <div className="font-bold text-white truncate flex items-center gap-1.5" style={{ fontSize: 15, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
                 JDCA
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#A3E635', display: 'inline-block' }} />
               </div>
               <div style={{ fontSize: 10, color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 Jabalpur District Cricket
@@ -146,9 +147,9 @@ export default function Header() {
                   right: 7,
                   width: 7,
                   height: 7,
-                  background: '#DC2626',
+                  background: '#EF4444',
                   borderRadius: '50%',
-                  border: '2px solid #0B1628',
+                  border: '2px solid #0A0A0A',
                 }}
               />
             )}
@@ -175,12 +176,12 @@ export default function Header() {
           className="flex items-center justify-center flex-shrink-0"
           style={{
             padding: '3px 8px',
-            background: 'rgba(29,78,216,0.25)',
-            border: '1px solid rgba(29,78,216,0.40)',
+            background: 'rgba(163,230,53,0.15)',
+            border: '1px solid rgba(163,230,53,0.35)',
             borderRadius: 6,
           }}
         >
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#93C5FD', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#A3E635', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             {userRole?.replace('_', ' ')}
           </span>
         </div>

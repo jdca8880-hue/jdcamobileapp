@@ -6,12 +6,16 @@ import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
 
 const MatchTabs = ({ tabs, active, onChange }) => (
-  <div className="flex bg-gray-100 p-1 rounded-xl mb-4 mx-4">
+  <div className="flex bg-gray-100 dark:bg-[#181A1D] p-1 rounded-xl mb-4 mx-4 border border-transparent dark:border-white/10">
     {tabs.map(tab => (
       <button
         key={tab.id}
         onClick={() => onChange(tab.id)}
-        className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all ${active === tab.id ? 'bg-white text-[#101827] shadow-sm' : 'text-[#8a99b0]'}`}
+        className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-all cursor-pointer ${
+          active === tab.id 
+            ? 'bg-white dark:bg-[#262B30] text-[#101827] dark:text-[#A3E635] shadow-sm' 
+            : 'text-[#8a99b0] dark:text-slate-400 hover:text-slate-700 dark:hover:text-[#F3F4F6]'
+        }`}
       >
         {tab.label}
       </button>
@@ -114,7 +118,7 @@ export default function MatchDetailScreen() {
       setIsAssigning(false);
     }
   };
-  
+
   const h = calculateMatchHighlights(displayMatch);
   const live = displayMatch.status === 'LIVE' || displayMatch.status === 'IN_PROGRESS' || displayMatch.status === 'INNINGS_BREAK';
   const isCompleted = displayMatch.status === 'COMPLETED' || displayMatch.status === 'FINISHED';
@@ -127,7 +131,7 @@ export default function MatchDetailScreen() {
   ];
 
   return (
-    <div className="pb-[100px] bg-slate-50 min-h-screen">
+    <div className="pb-[100px] bg-slate-50 dark:bg-[#0A0A0A] min-h-screen">
       {/* ── Match Hero ── */}
       <div className={`text-white pb-6 pt-[60px] px-4 relative ${live ? 'bg-emerald-600' : 'bg-slate-900'}`}>
         <button
@@ -154,9 +158,8 @@ export default function MatchDetailScreen() {
           </div>
 
           {live && (
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-4 ${
-              isPaused && activeMatchId === displayMatch.id ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' : 'bg-white/20 text-white'
-            }`}>
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-4 ${isPaused && activeMatchId === displayMatch.id ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' : 'bg-white/20 text-white'
+              }`}>
               <span className={`w-2 h-2 rounded-full ${isPaused && activeMatchId === displayMatch.id ? 'bg-amber-400' : 'bg-[#0FA968] animate-pulse'}`} />
               {isPaused && activeMatchId === displayMatch.id ? 'PAUSED' : 'LIVE MATCH'}
             </div>
@@ -174,7 +177,7 @@ export default function MatchDetailScreen() {
               <div className="text-[32px] font-black text-[#ff6100] tracking-tighter leading-none">{displayMatch.home_team?.score || (live ? 'Batting' : '')}</div>
               {displayMatch.home_team?.overs && <div className="text-[12px] font-bold text-white/80 mt-1">{displayMatch.home_team.overs}</div>}
             </div>
-            
+
             <div className="w-8 flex-shrink-0 flex flex-col items-center justify-center text-white/40">
               <div className="h-4 w-px bg-white/20 mb-2"></div>
               <div className="text-xs font-black uppercase">VS</div>
@@ -222,7 +225,7 @@ export default function MatchDetailScreen() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="pt-4 sticky top-[60px] bg-slate-50 z-20 shadow-sm border-b border-slate-200">
+      <div className="pt-4 sticky top-[60px] bg-slate-50 dark:bg-[#0A0A0A] z-20 shadow-sm border-b border-slate-200 dark:border-white/10">
         <MatchTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
       </div>
 
@@ -230,27 +233,27 @@ export default function MatchDetailScreen() {
         {/* ── TAB 1: INFO ── */}
         {activeTab === 'info' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-[16px] shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-4 border-b border-gray-50 flex items-center gap-2 text-[#596579]">
+            <div className="bg-white dark:bg-[#14171A] rounded-[16px] shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden">
+              <div className="p-4 border-b border-gray-50 dark:border-white/10 flex items-center gap-2 text-[#596579] dark:text-[#CBD5E1]">
                 <ShieldCheck size={16} />
                 <h3 className="font-bold text-[14px] uppercase tracking-wider">Match Details</h3>
               </div>
-              <div className="divide-y divide-gray-50 text-[13px]">
+              <div className="divide-y divide-gray-50 dark:divide-white/5 text-[13px]">
                 <div className="flex justify-between p-4">
-                  <span className="text-[#8a99b0] font-medium">Format</span>
-                  <span className="font-bold text-[#101827]">{match.match_format || match.format || 'Not Specified'} · {match.ballType || 'White Ball'}</span>
+                  <span className="text-[#8a99b0] dark:text-slate-400 font-medium">Format</span>
+                  <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{match.match_format || match.format || 'Not Specified'} · {match.ballType || 'White Ball'}</span>
                 </div>
                 <div className="flex justify-between p-4">
-                  <span className="text-[#8a99b0] font-medium">Category</span>
-                  <span className="font-bold text-[#101827]">{match.category || match.ageGroup || 'Senior Division'}</span>
+                  <span className="text-[#8a99b0] dark:text-slate-400 font-medium">Category</span>
+                  <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{match.category || match.ageGroup || 'Senior Division'}</span>
                 </div>
                 <div className="flex justify-between p-4">
-                  <span className="text-[#8a99b0] font-medium">Venue</span>
-                  <span className="font-bold text-[#101827]">{match.venue_name || match.venue || 'Unknown Venue'}</span>
+                  <span className="text-[#8a99b0] dark:text-slate-400 font-medium">Venue</span>
+                  <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{match.venue_name || match.venue || 'Unknown Venue'}</span>
                 </div>
                 <div className="flex justify-between p-4">
-                  <span className="text-[#8a99b0] font-medium">Toss</span>
-                  <span className="font-bold text-[#101827]">{match.tossDecision || 'Jabalpur won, elected to bat'}</span>
+                  <span className="text-[#8a99b0] dark:text-slate-400 font-medium">Toss</span>
+                  <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{match.tossDecision || 'Jabalpur won, elected to bat'}</span>
                 </div>
                 {isCompleted && (() => {
                   const potm = (h?.playerOfMatch?.name && h.playerOfMatch) ||
@@ -264,31 +267,31 @@ export default function MatchDetailScreen() {
                   const potmName = typeof potm === 'string' ? potm : (potm?.full_name || potm?.name);
                   if (!potmName) return null;
                   return (
-                    <div className="flex justify-between p-4 bg-amber-50/70">
-                      <span className="text-amber-800 font-bold flex items-center gap-1.5">
-                        <Award size={15} className="text-[#ff6100]" /> Player of the Match
+                    <div className="flex justify-between p-4 bg-amber-50/70 dark:bg-amber-950/40">
+                      <span className="text-amber-800 dark:text-amber-300 font-bold flex items-center gap-1.5">
+                        <Award size={15} className="text-[#ff6100] dark:text-[#F97316]" /> Player of the Match
                       </span>
-                      <span className="font-extrabold text-[#101827]">{potmName}</span>
+                      <span className="font-extrabold text-[#101827] dark:text-[#F3F4F6]">{potmName}</span>
                     </div>
                   );
                 })()}
               </div>
             </div>
 
-            <div className="bg-white rounded-[16px] shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-4 border-b border-gray-50 flex items-center gap-2 text-[#596579]">
+            <div className="bg-white dark:bg-[#14171A] rounded-[16px] shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden">
+              <div className="p-4 border-b border-gray-50 dark:border-white/10 flex items-center gap-2 text-[#596579] dark:text-[#CBD5E1]">
                 <Users size={16} />
                 <h3 className="font-bold text-[14px] uppercase tracking-wider">Officials</h3>
               </div>
-              <div className="p-4 text-[13px] font-bold text-[#101827]">
+              <div className="p-4 text-[13px] font-bold text-[#101827] dark:text-[#F3F4F6]">
                 <div className="mb-3">
-                  <span className="text-[#8a99b0] font-medium block mb-1">Scorer</span>
+                  <span className="text-[#8a99b0] dark:text-slate-400 font-medium block mb-1">Scorer</span>
                   {match.scorer_name || match.scorerName || 'Not Assigned'}
                 </div>
                 {['SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(userRole) && (
-                  <div className="mt-3 pt-3 border-t border-gray-50 flex gap-2">
-                    <select 
-                      className="flex-1 p-2 rounded-lg border border-gray-200 text-[13px]"
+                  <div className="mt-3 pt-3 border-t border-gray-50 dark:border-white/10 flex gap-2">
+                    <select
+                      className="flex-1 p-2 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#181A1D] text-[13px] text-slate-900 dark:text-[#F3F4F6]"
                       value={selectedScorer}
                       onChange={(e) => setSelectedScorer(e.target.value)}
                     >
@@ -297,10 +300,10 @@ export default function MatchDetailScreen() {
                         <option key={u.id} value={u.name || u.email}>{u.name || u.email}</option>
                       ))}
                     </select>
-                    <button 
+                    <button
                       onClick={handleAssignScorer}
                       disabled={isAssigning || !selectedScorer}
-                      className="bg-[#2457D6] text-white px-3 py-2 rounded-lg font-bold disabled:opacity-50"
+                      className="bg-[#2457D6] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] px-3 py-2 rounded-lg font-bold disabled:opacity-50 cursor-pointer"
                     >
                       Assign
                     </button>
@@ -308,24 +311,24 @@ export default function MatchDetailScreen() {
                 )}
               </div>
             </div>
-            
+
             {(() => {
               const isAuthorizedScorer = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
               const upcoming = match.status === 'SCHEDULED' || match.status === 'UPCOMING';
-              
+
               return (
                 <>
                   {upcoming && isAuthorizedScorer && (
-                    <button 
+                    <button
                       onClick={() => navigateTo('match-setup')}
-                      className="w-full bg-[#2457D6] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#1a41a3] transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-[#2457D6] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] rounded-[12px] py-4 font-bold text-[16px] shadow-md hover:opacity-95 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                     >
                       START SCORING
                     </button>
                   )}
                   {live && isAuthorizedScorer && (
                     isPaused && activeMatchId === match.id ? (
-                      <button 
+                      <button
                         onClick={() => {
                           resumeMatch();
                           navigateTo('scoring');
@@ -335,7 +338,7 @@ export default function MatchDetailScreen() {
                         <Play size={20} fill="currentColor" /> RESUME SCORING TO CONTINUE
                       </button>
                     ) : (
-                      <button 
+                      <button
                         onClick={() => navigateTo('scoring')}
                         className="w-full bg-[#0FA968] text-white rounded-[12px] py-4 font-bold text-[16px] shadow-md active:bg-[#0a7d4e] transition-colors flex items-center justify-center gap-2 cursor-pointer"
                       >
@@ -349,16 +352,16 @@ export default function MatchDetailScreen() {
           </div>
         )}
 
-        {/* â”€â”€ TAB 2: SCORECARD â”€â”€ */}
+        {/* ── TAB 2: SCORECARD ── */}
         {activeTab === 'scorecard' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-[16px] shadow-sm border border-gray-100 p-4">
+            <div className="bg-white dark:bg-[#14171A] rounded-[16px] shadow-sm border border-gray-100 dark:border-white/10 p-4">
               <MatchScorecard match={displayMatch} />
             </div>
             <div className="text-center pt-2">
               <button
                 onClick={() => navigateTo('scorecard')}
-                className="px-4 py-2 bg-[#2457D6] hover:bg-[#1b41a8] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                className="px-4 py-2 bg-[#2457D6] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5"
               >
                 <span>Open Full Official Scorecard (Print / Share)</span>
               </button>
@@ -378,26 +381,26 @@ export default function MatchDetailScreen() {
             (typeof match.man_of_the_match === 'string' ? { name: match.man_of_the_match } : null);
           return (
             <div className="space-y-4">
-              {[['TOP BATTER', h.topBatter, '#2457D6'], ['TOP BOWLER', h.topBowler, '#F05A47'], ['POTM', potmPlayer, '#ff6100']].map(([label, p, color], i) => (
-                <div key={label} className="bg-white rounded-[16px] p-5 border border-gray-100 shadow-sm relative overflow-hidden">
+              {[['TOP BATTER', h.topBatter, '#2457D6'], ['TOP BOWLER', h.topBowler, '#EF4444'], ['POTM', potmPlayer, '#F97316']].map(([label, p, color], i) => (
+                <div key={label} className="bg-white dark:bg-[#14171A] rounded-[16px] p-5 border border-gray-100 dark:border-white/10 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-2 h-full" style={{ backgroundColor: color }} />
-                  <div className="text-xs font-bold tracking-widest uppercase text-[#8a99b0] mb-2">{label}</div>
-                  <div className="text-[18px] font-black text-[#101827] mb-1">{p?.name || p?.full_name || (typeof p === 'string' ? p : 'Waiting for completion')}</div>
-                  <div className="text-[14px] font-bold text-[#596579]">{p?.stat || p?.batting || p?.bowling || (label === 'POTM' && (p?.name || p?.full_name) ? 'Official Award' : 'Data recorded soon')}</div>
+                  <div className="text-xs font-bold tracking-widest uppercase text-[#8a99b0] dark:text-slate-400 mb-2">{label}</div>
+                  <div className="text-[18px] font-black text-[#101827] dark:text-[#F3F4F6] mb-1">{p?.name || p?.full_name || (typeof p === 'string' ? p : 'Waiting for completion')}</div>
+                  <div className="text-[14px] font-bold text-[#596579] dark:text-[#CBD5E1]">{p?.stat || p?.batting || p?.bowling || (label === 'POTM' && (p?.name || p?.full_name) ? 'Official Award' : 'Data recorded soon')}</div>
                 </div>
               ))}
             </div>
           );
         })()}
 
-        {/* â”€â”€ TAB 4: MEDIA â”€â”€ */}
+        {/* ── TAB 4: MEDIA ── */}
         {activeTab === 'media' && (
-          <div className="bg-white rounded-[16px] shadow-sm border border-gray-100 p-4">
+          <div className="bg-white dark:bg-[#14171A] rounded-[16px] shadow-sm border border-gray-100 dark:border-white/10 p-4">
             {live ? (
               <div className="text-center py-8">
-                <FileText size={32} className="mx-auto text-[#d2d8e2] mb-3" />
-                <h3 className="text-[16px] font-bold text-[#101827] mb-1">Media Report Pending</h3>
-                <p className="text-[13px] text-[#8a99b0]">The automated match report will be generated when the match completes.</p>
+                <FileText size={32} className="mx-auto text-[#d2d8e2] dark:text-slate-600 mb-3" />
+                <h3 className="text-[16px] font-bold text-[#101827] dark:text-[#F3F4F6] mb-1">Media Report Pending</h3>
+                <p className="text-[13px] text-[#8a99b0] dark:text-slate-400">The automated match report will be generated when the match completes.</p>
               </div>
             ) : (
               <MatchMediaReport match={match} />
@@ -405,6 +408,7 @@ export default function MatchDetailScreen() {
           </div>
         )}
       </div>
+
     </div>
   );
 }

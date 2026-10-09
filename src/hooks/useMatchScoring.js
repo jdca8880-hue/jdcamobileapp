@@ -1366,7 +1366,7 @@ export function useMatchScoring({
         particleCount: 40,
         spread: 60,
         origin: { y: 0.7 },
-        colors: ['#FABB05', '#1D4ED8', '#10B981']
+        colors: ['#A3E635', '#F97316', '#FFFFFF']
       });
     }
   };

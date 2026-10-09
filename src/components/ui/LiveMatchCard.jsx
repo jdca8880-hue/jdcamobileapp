@@ -60,47 +60,47 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.99 }}
         onClick={handleCardClick}
-        className={`bg-gradient-to-br from-slate-900 via-slate-950 to-blue-950 text-white rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-xl relative overflow-hidden cursor-pointer group ${className}`}
+        className={`bg-[#0A0A0A] text-white rounded-2xl p-4 sm:p-6 border border-[#262B30] shadow-xl relative overflow-hidden cursor-pointer group ${className}`}
       >
-        <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -left-10 -bottom-10 w-60 h-60 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-[#A3E635]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-10 -bottom-10 w-60 h-60 bg-[#262B30]/40 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black shadow-xs ${
-                matchIsPaused ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white'
+                matchIsPaused ? 'bg-[#F97316] text-white' : 'bg-[#A3E635] text-[#0A0A0A]'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${matchIsPaused ? 'bg-white' : 'bg-white animate-ping'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${matchIsPaused ? 'bg-white' : 'bg-[#0A0A0A] animate-ping'}`} />
                 {matchIsPaused ? 'PAUSED' : 'LIVE'}
               </span>
               <span className="text-xs font-bold text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-md border border-white/10 uppercase tracking-wider">
                 {matchFormat}
               </span>
-              <span className="text-xs font-semibold text-blue-300 truncate max-w-[200px]">
+              <span className="text-xs font-semibold text-[#A3E635] truncate max-w-[200px]">
                 {tournamentName}
               </span>
             </div>
 
             <div className="flex items-center gap-3 text-lg sm:text-xl font-black tracking-tight text-white">
               <span className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-xs">
+                <span className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-[#A3E635] shadow-xs">
                   {teamAShort}
                 </span>
                 <span>{teamAName}</span>
               </span>
-              <span className="text-xs font-extrabold text-slate-400 px-2 py-0.5 bg-white/5 rounded">VS</span>
+              <span className="text-xs font-extrabold text-[#64748B] px-2 py-0.5 bg-white/5 rounded">VS</span>
               <span className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white shadow-xs">
+                <span className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-white shadow-xs">
                   {teamBShort}
                 </span>
                 <span>{teamBName}</span>
               </span>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-slate-400">
+            <div className="flex items-center gap-3 text-xs text-[#64748B]">
               <span className="flex items-center gap-1">
-                <MapPin size={12} className="text-slate-400 shrink-0" />
+                <MapPin size={12} className="text-[#64748B] shrink-0" />
                 <span className="truncate">{venueName}</span>
               </span>
               {match.toss_decision && (
@@ -116,7 +116,7 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
             {isAssignedScorer && (
               <button
                 onClick={handleOpenScoring}
-                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#A3E635] hover:bg-[#92d926] text-[#0A0A0A] font-black text-xs shadow-md shadow-lime-500/25 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Radio size={14} className="animate-pulse" />
                 <span>Score Match</span>
@@ -141,25 +141,25 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.985 }}
       onClick={handleCardClick}
-      className={`bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer group ${className}`}
+      className={`bg-white dark:bg-[#262B30] rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md hover:border-[#A3E635] transition-all p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer group ${className}`}
     >
       {/* Top Banner Accent */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#A3E635] via-[#F97316] to-[#EF4444]" />
 
       {/* Header: Tournament + Live Badge */}
       <div className="flex items-center justify-between mb-3 pt-1">
         <div className="flex items-center gap-1.5">
           <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-            matchIsPaused ? 'bg-amber-50 border border-amber-300 text-amber-800' : 'bg-rose-50 border border-rose-200 text-rose-700'
+            matchIsPaused ? 'bg-amber-500/15 border border-amber-500/30 text-[#F97316]' : 'bg-[#A3E635]/15 border border-[#A3E635]/35 text-[#A3E635]'
           }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${matchIsPaused ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${matchIsPaused ? 'bg-[#F97316]' : 'bg-[#A3E635] animate-pulse'}`} />
             {matchIsPaused ? 'PAUSED' : 'LIVE'}
           </span>
-          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
+          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#1E2226] px-1.5 py-0.5 rounded uppercase">
             {matchFormat}
           </span>
         </div>
-        <span className="text-xs font-semibold text-slate-500 truncate max-w-[150px] text-right">
+        <span className="text-xs font-semibold text-slate-500 dark:text-[#64748B] truncate max-w-[150px] text-right">
           {tournamentName}
         </span>
       </div>
@@ -169,14 +169,14 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
         {/* Team A */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-xs">
+            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-black text-[#A3E635] shrink-0 shadow-xs">
               {teamAShort}
             </div>
-            <span className="text-sm font-bold text-slate-900 truncate">
+            <span className="text-sm font-bold text-slate-900 dark:text-[#F3F4F6] truncate">
               {teamAName}
             </span>
           </div>
-          <span className="text-sm font-black text-slate-900 tabular-nums">
+          <span className="text-sm font-black text-slate-900 dark:text-[#F3F4F6] tabular-nums">
             {match.home_team?.score || (isLive ? 'Batting' : '0/0')}
           </span>
         </div>
@@ -184,37 +184,37 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
         {/* Team B */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-xs">
+            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-xs">
               {teamBShort}
             </div>
-            <span className="text-sm font-bold text-slate-900 truncate">
+            <span className="text-sm font-bold text-slate-900 dark:text-[#F3F4F6] truncate">
               {teamBName}
             </span>
           </div>
-          <span className="text-sm font-black text-slate-900 tabular-nums">
+          <span className="text-sm font-black text-slate-900 dark:text-[#F3F4F6] tabular-nums">
             {match.away_team?.score || (isLive ? 'Yet to bat' : '0/0')}
           </span>
         </div>
       </div>
 
       {/* Venue & Quick Status */}
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 mt-2">
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-[#64748B] mt-2">
         <span className="flex items-center gap-1 truncate max-w-[180px]">
           <MapPin size={11} className="text-slate-400 shrink-0" />
           <span className="truncate">{venueName}</span>
         </span>
         {match.home_team?.overs && (
-          <span className="font-semibold text-emerald-600 shrink-0">
+          <span className="font-semibold text-[#A3E635] shrink-0">
             {match.home_team.overs} ov
           </span>
         )}
       </div>
 
       {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-slate-100">
+      <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/60">
         <button
           onClick={handleOpenScorecard}
-          className="w-full py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+          className="w-full py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-[#1E2226] hover:bg-slate-200 dark:hover:bg-[#282d33] text-slate-700 dark:text-[#F3F4F6] font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
         >
           <Eye size={12} />
           <span>Scorecard</span>
@@ -226,17 +226,15 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
               if (matchIsPaused) resumeMatch();
               handleOpenScoring(e);
             }}
-            className={`w-full py-1.5 px-2 rounded-xl text-white font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-xs ${
-              matchIsPaused ? 'bg-emerald-600 hover:bg-emerald-500 animate-pulse' : 'bg-emerald-600 hover:bg-emerald-500'
-            }`}
+            className="w-full py-1.5 px-2 rounded-xl bg-[#A3E635] hover:bg-[#92d926] text-[#0A0A0A] font-black text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-md shadow-lime-500/20"
           >
             {matchIsPaused ? <Play size={12} fill="currentColor" /> : <Radio size={12} className="animate-pulse" />}
-            <span>{matchIsPaused ? 'Resume to Continue' : 'Score Live'}</span>
+            <span>{matchIsPaused ? 'Resume' : 'Score Live'}</span>
           </button>
         ) : (
           <button
             onClick={handleCardClick}
-            className="w-full py-1.5 px-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+            className="w-full py-1.5 px-2 rounded-xl bg-[#A3E635]/10 hover:bg-[#A3E635]/20 text-[#A3E635] font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
           >
             <span>Match Center</span>
             <ChevronRight size={12} />

@@ -2,10 +2,9 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CricketProvider, useCricket } from './context/CricketContext';
 import { AnimatePresence, motion } from 'motion/react';
-import Header   from './components/Header';
 import BottomNav from './components/BottomNav';
 import DrawerMenu from './components/DrawerMenu';
-import Sidebar  from './components/Sidebar';
+import Sidebar from './components/Sidebar';
 import ProtectedRoute, { ROLE_HOME } from './components/ProtectedRoute';
 import AnimatedPage from './components/AnimatedPage';
 import LiveMatchesShowcase from './components/ui/LiveMatchesShowcase';
@@ -13,31 +12,31 @@ import NotificationPrompt from './components/NotificationPrompt';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 // ── Screens ────────────────────────────────────────────────────
-import AuthScreen             from './components/screens/AuthScreen';
-import HomeScreen             from './components/screens/HomeScreen';
-import MatchesScreen          from './components/screens/MatchesScreen';
-import MatchSetupScreen       from './components/screens/MatchSetupScreen';
-import ScoringScreen          from './components/screens/ScoringScreen';
-import ScorecardScreen        from './components/screens/ScorecardScreen';
-import MatchOverviewScreen    from './components/screens/MatchOverviewScreen';
-import MatchDetailScreen      from './components/screens/MatchDetailScreen';
-import InningsBreakScreen     from './components/screens/InningsBreakScreen';
-import MatchResultScreen      from './components/screens/MatchResultScreen';
-import TournamentsScreen      from './components/screens/TournamentsScreen';
-import TeamsScreen            from './components/screens/TeamsScreen';
-import PlayersScreen          from './components/screens/PlayersScreen';
-import PlayerProfileScreen    from './components/screens/PlayerProfileScreen';
+import AuthScreen from './components/screens/AuthScreen';
+import HomeScreen from './components/screens/HomeScreen';
+import MatchesScreen from './components/screens/MatchesScreen';
+import MatchSetupScreen from './components/screens/MatchSetupScreen';
+import ScoringScreen from './components/screens/ScoringScreen';
+import ScorecardScreen from './components/screens/ScorecardScreen';
+import MatchOverviewScreen from './components/screens/MatchOverviewScreen';
+import MatchDetailScreen from './components/screens/MatchDetailScreen';
+import InningsBreakScreen from './components/screens/InningsBreakScreen';
+import MatchResultScreen from './components/screens/MatchResultScreen';
+import TournamentsScreen from './components/screens/TournamentsScreen';
+import TeamsScreen from './components/screens/TeamsScreen';
+import PlayersScreen from './components/screens/PlayersScreen';
+import PlayerProfileScreen from './components/screens/PlayerProfileScreen';
 import PlayerRegistrationScreen from './components/screens/PlayerRegistrationScreen';
-import SelectionScreen        from './components/selection/SelectionWorkspace';
-import AdministrationScreen   from './components/screens/AdministrationScreen';
-import MatchOfficialsScreen  from './components/screens/MatchOfficialsScreen';
-import NewsScreen             from './components/screens/NewsScreen';
-import PlayerComparisonModal  from './components/screens/PlayerComparisonModal';
+import SelectionScreen from './components/selection/SelectionWorkspace';
+import AdministrationScreen from './components/screens/AdministrationScreen';
+import MatchOfficialsScreen from './components/screens/MatchOfficialsScreen';
+import NewsScreen from './components/screens/NewsScreen';
+import PlayerComparisonModal from './components/screens/PlayerComparisonModal';
 
 // Legacy / still in use
-import ScoutingHubScreen      from './components/screens/ScoutingHubScreen';
-import SelectorsScreen        from './components/screens/SelectorsScreen';
-import AccessControlScreen    from './components/screens/AccessControlScreen';
+import ScoutingHubScreen from './components/screens/ScoutingHubScreen';
+import SelectorsScreen from './components/screens/SelectorsScreen';
+import AccessControlScreen from './components/screens/AccessControlScreen';
 
 // Auth-aware root redirect
 function RootRedirect() {
@@ -55,31 +54,31 @@ function MainApp() {
 
   if (isAppLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #0B1628 0%, #0F2044 50%, #0B1628 100%)' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #0A0A0A 0%, #181C20 50%, #0A0A0A 100%)' }}>
         {/* Background decoration */}
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/15 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[30rem] h-[30rem] bg-blue-800/20 rounded-full blur-[120px] pointer-events-none" />
-        
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#A3E635]/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[30rem] h-[30rem] bg-[#262B30]/40 rounded-full blur-[120px] pointer-events-none" />
+
         <motion.div
-          animate={{ 
+          animate={{
             scale: [1, 1.1, 1],
             rotateY: [0, 180, 360]
           }}
-          transition={{ 
-            duration: 2, 
+          transition={{
+            duration: 2,
             ease: "easeInOut",
-            repeat: Infinity 
+            repeat: Infinity
           }}
           className="mb-8 relative"
         >
-          <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-40 rounded-full animate-pulse" />
+          <div className="absolute inset-0 bg-[#A3E635] blur-2xl opacity-30 rounded-full animate-pulse" />
           <img
             src="/jdca-logo.png"
             alt="JDCA Official Emblem"
-            className="w-32 h-32 sm:w-40 sm:h-40 object-contain drop-shadow-[0_0_20px_rgba(36,87,214,0.6)] relative z-10"
+            className="w-32 h-32 sm:w-40 sm:h-40 object-contain drop-shadow-[0_0_25px_rgba(163,230,53,0.5)] relative z-10"
           />
         </motion.div>
-        
+
         <motion.h2
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -92,7 +91,7 @@ function MainApp() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.25 }}
-          className="text-blue-300 text-xs font-semibold tracking-widest uppercase mb-6"
+          className="text-[#A3E635] text-xs font-semibold tracking-widest uppercase mb-6"
         >
           Jabalpur District Cricket Association
         </motion.p>
@@ -101,12 +100,12 @@ function MainApp() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="w-56 max-w-full rounded-full h-1 mb-4 overflow-hidden"
+          className="w-56 max-w-full rounded-full h-1.5 mb-4 overflow-hidden"
           style={{ background: 'rgba(255,255,255,0.12)' }}
         >
           <motion.div
             className="h-full rounded-full"
-            style={{ background: '#1D4ED8' }}
+            style={{ background: '#A3E635' }}
             initial={{ width: 0 }}
             animate={{ width: `${loadingProgress}%` }}
             transition={{ type: "spring", stiffness: 100, damping: 20 }}
@@ -119,7 +118,7 @@ function MainApp() {
           transition={{ delay: 0.4 }}
           className="text-slate-400 text-xs font-medium flex items-center gap-2"
         >
-          <div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent border-blue-500 animate-spin" />
+          <div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent border-[#A3E635] animate-spin" />
           {loadingMessage || 'Loading...'} · {loadingProgress}%
         </motion.div>
       </div>
@@ -128,12 +127,9 @@ function MainApp() {
 
   return (
     <div
-      className="min-h-screen flex flex-col"
-      style={{ background: '#F0F4F8', fontFamily: "'Inter', system-ui, sans-serif", color: '#0F172A' }}
+      className="min-h-screen flex flex-col transition-colors duration-200"
+      style={{ background: 'var(--jdca-bg)', fontFamily: "'Inter', system-ui, sans-serif", color: 'var(--jdca-text)' }}
     >
-      {/* Mobile top bar */}
-      <Header />
-
       {/* Body: sidebar + main content */}
       <div className="flex flex-1 min-h-0 relative">
         {/* Desktop sidebar */}
@@ -144,36 +140,36 @@ function MainApp() {
           <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>
               {/* Public */}
-              <Route path="/"                    element={<AnimatedPage><RootRedirect /></AnimatedPage>} />
+              <Route path="/" element={<AnimatedPage><RootRedirect /></AnimatedPage>} />
 
               {/* Protected */}
-              <Route path="/home"                element={<ProtectedRoute path="/home"                element={<AnimatedPage><HomeScreen /></AnimatedPage>} />} />
-              <Route path="/matches"             element={<ProtectedRoute path="/matches"             element={<AnimatedPage><MatchesScreen /></AnimatedPage>} />} />
-              <Route path="/match-setup"         element={<ProtectedRoute path="/match-setup"         element={<AnimatedPage><MatchSetupScreen /></AnimatedPage>} />} />
-              <Route path="/scoring"             element={<ProtectedRoute path="/scoring"             element={<AnimatedPage><ScoringScreen /></AnimatedPage>} />} />
-              <Route path="/scorecard"           element={<ProtectedRoute path="/scorecard"           element={<AnimatedPage><ScorecardScreen /></AnimatedPage>} />} />
-              <Route path="/match-detail"        element={<ProtectedRoute path="/match-detail"        element={<AnimatedPage><MatchDetailScreen /></AnimatedPage>} />} />
-              <Route path="/match-overview"      element={<ProtectedRoute path="/match-overview"      element={<AnimatedPage><MatchOverviewScreen /></AnimatedPage>} />} />
-              <Route path="/innings-break"       element={<ProtectedRoute path="/innings-break"       element={<AnimatedPage><InningsBreakScreen /></AnimatedPage>} />} />
-              <Route path="/match-result"        element={<ProtectedRoute path="/match-result"        element={<AnimatedPage><MatchResultScreen /></AnimatedPage>} />} />
-              <Route path="/tournaments"         element={<ProtectedRoute path="/tournaments"         element={<AnimatedPage><TournamentsScreen /></AnimatedPage>} />} />
-              <Route path="/teams"               element={<ProtectedRoute path="/teams"               element={<AnimatedPage><TeamsScreen /></AnimatedPage>} />} />
-              <Route path="/players"             element={<ProtectedRoute path="/players"             element={<AnimatedPage><PlayersScreen /></AnimatedPage>} />} />
-              <Route path="/player-profile"      element={<ProtectedRoute path="/player-profile"      element={<AnimatedPage><PlayerProfileScreen /></AnimatedPage>} />} />
+              <Route path="/home" element={<ProtectedRoute path="/home" element={<AnimatedPage><HomeScreen /></AnimatedPage>} />} />
+              <Route path="/matches" element={<ProtectedRoute path="/matches" element={<AnimatedPage><MatchesScreen /></AnimatedPage>} />} />
+              <Route path="/match-setup" element={<ProtectedRoute path="/match-setup" element={<AnimatedPage><MatchSetupScreen /></AnimatedPage>} />} />
+              <Route path="/scoring" element={<ProtectedRoute path="/scoring" element={<AnimatedPage><ScoringScreen /></AnimatedPage>} />} />
+              <Route path="/scorecard" element={<ProtectedRoute path="/scorecard" element={<AnimatedPage><ScorecardScreen /></AnimatedPage>} />} />
+              <Route path="/match-detail" element={<ProtectedRoute path="/match-detail" element={<AnimatedPage><MatchDetailScreen /></AnimatedPage>} />} />
+              <Route path="/match-overview" element={<ProtectedRoute path="/match-overview" element={<AnimatedPage><MatchOverviewScreen /></AnimatedPage>} />} />
+              <Route path="/innings-break" element={<ProtectedRoute path="/innings-break" element={<AnimatedPage><InningsBreakScreen /></AnimatedPage>} />} />
+              <Route path="/match-result" element={<ProtectedRoute path="/match-result" element={<AnimatedPage><MatchResultScreen /></AnimatedPage>} />} />
+              <Route path="/tournaments" element={<ProtectedRoute path="/tournaments" element={<AnimatedPage><TournamentsScreen /></AnimatedPage>} />} />
+              <Route path="/teams" element={<ProtectedRoute path="/teams" element={<AnimatedPage><TeamsScreen /></AnimatedPage>} />} />
+              <Route path="/players" element={<ProtectedRoute path="/players" element={<AnimatedPage><PlayersScreen /></AnimatedPage>} />} />
+              <Route path="/player-profile" element={<ProtectedRoute path="/player-profile" element={<AnimatedPage><PlayerProfileScreen /></AnimatedPage>} />} />
               <Route path="/player-registration" element={<ProtectedRoute path="/player-registration" element={<AnimatedPage><PlayerRegistrationScreen /></AnimatedPage>} />} />
-              <Route path="/selection"           element={<ProtectedRoute path="/selection"           element={<AnimatedPage><SelectionScreen /></AnimatedPage>} />} />
-              <Route path="/administration"      element={<ProtectedRoute path="/administration"      element={<AnimatedPage><AdministrationScreen /></AnimatedPage>} />} />
-              <Route path="/officials"           element={<ProtectedRoute path="/officials"           element={<AnimatedPage><MatchOfficialsScreen /></AnimatedPage>} />} />
-              <Route path="/news"                element={<ProtectedRoute path="/news"                element={<AnimatedPage><NewsScreen /></AnimatedPage>} />} />
+              <Route path="/selection" element={<ProtectedRoute path="/selection" element={<AnimatedPage><SelectionScreen /></AnimatedPage>} />} />
+              <Route path="/administration" element={<ProtectedRoute path="/administration" element={<AnimatedPage><AdministrationScreen /></AnimatedPage>} />} />
+              <Route path="/officials" element={<ProtectedRoute path="/officials" element={<AnimatedPage><MatchOfficialsScreen /></AnimatedPage>} />} />
+              <Route path="/news" element={<ProtectedRoute path="/news" element={<AnimatedPage><NewsScreen /></AnimatedPage>} />} />
 
               {/* Legacy aliases */}
-              <Route path="/match-officials"     element={<Navigate to="/officials" replace />} />
-              <Route path="/scouting"            element={<Navigate to="/players" replace />} />
-              <Route path="/selectors"           element={<Navigate to="/selection" replace />} />
-              <Route path="/access-control"      element={<Navigate to="/administration" replace />} />
+              <Route path="/match-officials" element={<Navigate to="/officials" replace />} />
+              <Route path="/scouting" element={<Navigate to="/players" replace />} />
+              <Route path="/selectors" element={<Navigate to="/selection" replace />} />
+              <Route path="/access-control" element={<Navigate to="/administration" replace />} />
 
               {/* Fallback */}
-              <Route path="*"                    element={<Navigate to="/home" replace />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>
           </AnimatePresence>
         </main>

@@ -84,41 +84,41 @@ export default function InningsBreakScreen() {
       </div>
 
       {/* 2. Target Challenge Card */}
-      <div className="bg-white rounded-2xl p-6 text-center space-y-2.5 border border-slate-200 border-l-4 border-l-blue-500 shadow-sm">
-        <div className="inline-flex items-center justify-center space-x-1.5 px-3 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider border border-blue-100">
+      <div className="bg-white dark:bg-[#14171A] rounded-2xl p-6 text-center space-y-2.5 border border-slate-200 dark:border-white/10 border-l-4 border-l-[#A3E635] shadow-sm">
+        <div className="inline-flex items-center justify-center space-x-1.5 px-3 py-1 rounded bg-blue-50 dark:bg-emerald-950/40 text-blue-700 dark:text-[#A3E635] text-xs font-bold uppercase tracking-wider border border-blue-100 dark:border-emerald-500/30">
           <CricketBatIcon className="w-3.5 h-3.5" />
           <span>TARGET FOR 2ND INNINGS CHASE</span>
         </div>
-        <div className="text-4xl sm:text-5xl font-black text-slate-900 font-tabular drop-shadow-sm">
+        <div className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-[#F3F4F6] font-tabular drop-shadow-sm">
           {targetScore} <span className="text-2xl font-bold text-slate-400">Runs</span>
         </div>
-        <p className="text-xs font-semibold text-slate-500">
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
           {chaseBalls ? `Required from ${chaseBalls} legal deliveries` : 'Target set for 2nd innings'}
           {requiredRR ? ` • Required Run Rate: ${requiredRR} RPO` : ''}
         </p>
       </div>
 
       {/* 3. Top Performers */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-3.5 shadow-sm">
-        <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
+      <div className="bg-white dark:bg-[#14171A] rounded-2xl border border-slate-200/80 dark:border-white/10 p-5 space-y-3.5 shadow-sm">
+        <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
           Key 1st Innings Performers
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Top Batter - Amber */}
-          <div className="p-4 rounded-2xl bg-white border border-slate-200 border-l-4 border-l-amber-500 shadow-sm">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500 mb-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 border-l-4 border-l-amber-500 shadow-sm">
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
               <CricketBatIcon className="w-3.5 h-3.5 text-amber-500" />
               <span>Top Batter</span>
             </div>
             {topBatter ? (
               <>
-                <h4 className="font-black text-base text-slate-900">{topBatter.name}</h4>
-                <div className="text-xl font-black text-slate-900 mt-1 font-tabular">
+                <h4 className="font-black text-base text-slate-900 dark:text-[#F3F4F6]">{topBatter.name}</h4>
+                <div className="text-xl font-black text-slate-900 dark:text-[#F3F4F6] mt-1 font-tabular">
                   {topBatter.runs}{topBatter.dismissal === 'not out' ? '*' : ''}{' '}
                   <span className="text-xs font-medium text-slate-400">({topBatter.balls} balls)</span>
                 </div>
-                <p className="text-xs text-slate-500 font-semibold mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">
                   {topBatter.fours}x4, {topBatter.sixes}x6 • SR: {topBatter.strikeRate}
                 </p>
               </>
@@ -131,19 +131,19 @@ export default function InningsBreakScreen() {
           </div>
 
           {/* Top Bowler - Blue */}
-          <div className="p-4 rounded-2xl bg-white border border-slate-200 border-l-4 border-l-blue-500 shadow-sm">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500 mb-1">
-              <CricketBallIcon className="w-3.5 h-3.5 text-blue-500" />
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 border-l-4 border-l-[#A3E635] shadow-sm">
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+              <CricketBallIcon className="w-3.5 h-3.5 text-[#A3E635]" />
               <span>Top Bowler</span>
             </div>
             {topBowler ? (
               <>
-                <h4 className="font-black text-base text-slate-900">{topBowler.name}</h4>
-                <div className="text-xl font-black text-slate-900 mt-1 font-tabular">
+                <h4 className="font-black text-base text-slate-900 dark:text-[#F3F4F6]">{topBowler.name}</h4>
+                <div className="text-xl font-black text-slate-900 dark:text-[#F3F4F6] mt-1 font-tabular">
                   {topBowler.wickets}/{topBowler.runs}{' '}
                   <span className="text-xs font-medium text-slate-400">({topBowler.overs} ov)</span>
                 </div>
-                <p className="text-xs text-slate-500 font-semibold mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">
                   Econ: {topBowler.economy}
                 </p>
               </>
@@ -162,20 +162,21 @@ export default function InningsBreakScreen() {
         <button
           type="button"
           onClick={handleStartSecondInnings}
-          className="w-full py-3.5 bg-cobalt hover:bg-cobalt-700 text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-2 text-sm transition cursor-pointer"
+          className="w-full py-3.5 bg-[#2457D6] dark:bg-[#A3E635] hover:bg-[#1b41a8] dark:hover:bg-[#bef264] text-white dark:text-[#0A0A0A] font-bold rounded-xl shadow-xs flex items-center justify-center space-x-2 text-sm transition cursor-pointer"
         >
-          <CricketBatIcon className="w-4 h-4 text-white" />
+          <CricketBatIcon className="w-4 h-4 text-white dark:text-[#0A0A0A]" />
           <span>Commence 2nd Innings (Run Chase)</span>
         </button>
 
         <button
           type="button"
           onClick={() => navigateTo('scorecard')}
-          className="w-full py-3 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold rounded-xl text-xs sm:text-sm flex items-center justify-center transition cursor-pointer"
+          className="w-full py-3 bg-white dark:bg-[#181A1D] border border-gray-200 dark:border-white/10 text-gray-700 dark:text-[#F3F4F6] hover:bg-gray-50 dark:hover:bg-[#262B30] font-semibold rounded-xl text-xs sm:text-sm flex items-center justify-center transition cursor-pointer"
         >
           <span>Review 1st Innings Full Scorecard</span>
         </button>
       </div>
+
 
     </div>
   );

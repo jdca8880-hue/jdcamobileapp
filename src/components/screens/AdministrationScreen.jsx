@@ -16,13 +16,13 @@ import JdcaManagementTab from './JdcaManagementTab';
 import TeamRegistrationTab from './TeamRegistrationTab';
 
 const TABS = [
-  { id: 'staff',      label: 'Staff & Users' },
-  { id: 'seasons',    label: 'Season Management' },
+  { id: 'staff', label: 'Staff & Users' },
+  { id: 'seasons', label: 'Season Management' },
   { id: 'management', label: 'JDCA Management' },
-  { id: 'teams',      label: 'Team Registration' },
-  { id: 'migration',  label: 'Player Rollover' },
-  { id: 'system',     label: 'System & Settings' },
-  { id: 'recycle',    label: 'Recycle Bin' }
+  { id: 'teams', label: 'Team Registration' },
+  { id: 'migration', label: 'Player Rollover' },
+  { id: 'system', label: 'System & Settings' },
+  { id: 'recycle', label: 'Recycle Bin' }
 ];
 
 const ROLES = [
@@ -37,7 +37,7 @@ const ROLES = [
 
 export default function AdministrationScreen() {
   const { registeredUsers, setRegisteredUsers, userRole, userId, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
-  
+
   const filteredTabs = TABS.filter(tab => {
     if (userRole === 'SCORER') return tab.id === 'teams' || tab.id === 'recycle';
     return true;
@@ -45,7 +45,7 @@ export default function AdministrationScreen() {
 
   const [activeTab, setActiveTab] = useState(userRole === 'SCORER' ? 'teams' : 'staff');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  
+
   // Add User State
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -74,7 +74,7 @@ export default function AdministrationScreen() {
         import.meta.env.VITE_SUPABASE_ANON_KEY,
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
-      
+
       const { data, error } = await tempSupabase.auth.signUp({
         email: newEmail,
         password: newPassword,
@@ -84,13 +84,13 @@ export default function AdministrationScreen() {
           }
         }
       });
-      
+
       if (error) throw error;
-      
+
       if (data.user) {
         // The trigger creates the profile. Update the role instantly with the main client's auth session.
         try { await api.updateUserRole(data.user.id, newRole); } catch (updateError) { console.warn("Failed to instantly set role, possibly missing Postgres trigger", updateError); }
-        
+
         // Refresh registered users locally
         const profiles = await api.getProfiles();
         const mapped = profiles.map(p => ({
@@ -102,7 +102,7 @@ export default function AdministrationScreen() {
           district: p.district?.name || 'All Districts'
         }));
         setRegisteredUsers(mapped);
-        
+
         setShowAddUserModal(false);
         setNewEmail('');
         setNewPassword('');
@@ -117,7 +117,7 @@ export default function AdministrationScreen() {
     }
   };
 
-  
+
   const handlePermissionChange = async (userId, field, newValue) => {
     try {
       const user = registeredUsers.find(u => u.id === userId);
@@ -166,7 +166,7 @@ export default function AdministrationScreen() {
   const revokeUserAccess = async (userId, currentStatus) => {
     const newStatus = !currentStatus;
     const action = newStatus ? 'activate' : 'revoke access for';
-    if(window.confirm(`Are you sure you want to ${action} this user?`)) {
+    if (window.confirm(`Are you sure you want to ${action} this user?`)) {
       try {
         await api.updateUserStatus(userId, newStatus);
         setRegisteredUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: newStatus } : u));
@@ -178,7 +178,7 @@ export default function AdministrationScreen() {
   };
 
   const deleteUserRecord = async (userId, name) => {
-    if(window.confirm(`Are you absolutely sure you want to delete ${name}? This will permanently remove them from the database.`)) {
+    if (window.confirm(`Are you absolutely sure you want to delete ${name}? This will permanently remove them from the database.`)) {
       try {
         await api.deleteUser(userId);
         setRegisteredUsers(prev => prev.filter(u => u.id !== userId));
@@ -203,7 +203,7 @@ export default function AdministrationScreen() {
       setResetError('Password must be at least 6 characters long.');
       return;
     }
-    
+
     setIsResetting(true);
     try {
       await api.resetUserPassword(resetTargetUser.id, resetPassword);
@@ -254,7 +254,7 @@ export default function AdministrationScreen() {
             <div>
               <h4 className="font-bold text-slate-900 text-sm">Official Access Control</h4>
               <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                JDCA uses plain-language permissions: <strong>Can view</strong>, <strong>Can add</strong>, <strong>Can edit</strong>, and <strong>Can delete</strong>. 
+                JDCA uses plain-language permissions: <strong>Can view</strong>, <strong>Can add</strong>, <strong>Can edit</strong>, and <strong>Can delete</strong>.
                 Officials have tailored capabilities based on their administrative cricket responsibilities.
               </p>
             </div>
@@ -302,8 +302,8 @@ export default function AdministrationScreen() {
                         <td>
                           <div className="flex items-center gap-2">
                             {userRole === 'SUPER_ADMIN' ? (
-                              <select 
-                                value={usr.role} 
+                              <select
+                                value={usr.role}
                                 onChange={(e) => handleRoleChange(usr.id, e.target.value)}
                                 className="text-xs border border-slate-200 rounded p-1"
                               >
@@ -318,7 +318,7 @@ export default function AdministrationScreen() {
                               <RoleBadge role={usr.role} />
                             )}
                             {usr.role === 'SELECTOR' && userRole === 'SUPER_ADMIN' && (
-                              <button 
+                              <button
                                 onClick={() => setSelectorUserToAssign(usr)}
                                 className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold hover:bg-indigo-100"
                               >
@@ -327,7 +327,7 @@ export default function AdministrationScreen() {
                             )}
                           </div>
                         </td>
-                        
+
                         <td>
                           {userRole === 'SUPER_ADMIN' ? (
                             <input type="checkbox" checked={usr.can_view} onChange={(e) => handlePermissionChange(usr.id, 'can_view', e.target.checked)} />
@@ -364,7 +364,7 @@ export default function AdministrationScreen() {
                             </span>
                           )}
                         </td>
-        <td style={{ textAlign: 'right' }}>
+                        <td style={{ textAlign: 'right' }}>
                           {usr.is_active === false ? (
                             <span className="badge bg-red-100 text-red-700 border-red-200 text-xs">Revoked</span>
                           ) : (
@@ -373,15 +373,15 @@ export default function AdministrationScreen() {
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div className="flex items-center justify-center gap-2">
-                            <button 
+                            <button
                               onClick={() => {
                                 setResetTargetUser({ id: usr.id, name: usr.name });
                                 setShowResetPasswordModal(true);
                                 setResetError('');
                                 setResetSuccess(false);
                                 setResetPassword('');
-                              }} 
-                              className="text-[10px] bg-slate-100 text-slate-700 px-2 py-1 rounded font-bold hover:bg-slate-200 flex items-center gap-1 transition" 
+                              }}
+                              className="text-[10px] bg-slate-100 text-slate-700 px-2 py-1 rounded font-bold hover:bg-slate-200 flex items-center gap-1 transition"
                               title="Reset Password"
                             >
                               <Lock size={12} />
@@ -656,9 +656,9 @@ export default function AdministrationScreen() {
       )}
 
       {selectorUserToAssign && (
-        <SelectorAssignmentModal 
-          user={selectorUserToAssign} 
-          onClose={() => setSelectorUserToAssign(null)} 
+        <SelectorAssignmentModal
+          user={selectorUserToAssign}
+          onClose={() => setSelectorUserToAssign(null)}
         />
       )}
     </div>

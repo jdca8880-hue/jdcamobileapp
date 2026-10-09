@@ -83,7 +83,7 @@ export default function BottomNav() {
         isVisible ? 'translate-y-0' : 'translate-y-full'
       }`}
       style={{
-        background: '#0B1628',
+        background: '#0A0A0A',
         borderTop: '1px solid rgba(255,255,255,0.08)',
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         height: 'calc(64px + max(0px, env(safe-area-inset-bottom)))',
@@ -117,11 +117,12 @@ export default function BottomNav() {
                   layoutId="bottom-nav-top-bar"
                   className="absolute top-0 left-1/2"
                   style={{
-                    height: 2,
+                    height: 2.5,
                     width: 28,
-                    background: '#3B82F6',
+                    background: '#A3E635',
                     borderRadius: '0 0 4px 4px',
                     transform: 'translateX(-50%)',
+                    boxShadow: '0 0 10px rgba(163,230,53,0.8)',
                   }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
@@ -134,7 +135,7 @@ export default function BottomNav() {
                   width: 40,
                   height: 30,
                   borderRadius: 8,
-                  background: (isActive && !isMore) ? 'rgba(29,78,216,0.20)' : 'transparent',
+                  background: (isActive && !isMore) ? 'rgba(163,230,53,0.15)' : 'transparent',
                   transition: 'background 0.2s ease',
                 }}
               >
@@ -142,9 +143,9 @@ export default function BottomNav() {
                   size={isActive ? 21 : 20}
                   strokeWidth={isActive ? 2.5 : 2}
                   color={
-                    (isActive && !isMore) ? '#60A5FA' :
-                    isMoreOpen ? '#E2E8F0' :
-                    '#475569'
+                    (isActive && !isMore) ? '#A3E635' :
+                    isMoreOpen ? '#F3F4F6' :
+                    '#64748B'
                   }
                   style={{ transition: 'all 0.2s ease' }}
                 />
@@ -156,9 +157,10 @@ export default function BottomNav() {
                       right: 4,
                       width: 6,
                       height: 6,
-                      background: '#059669',
+                      background: '#A3E635',
                       borderRadius: '50%',
-                      border: '1.5px solid #0B1628',
+                      border: '1.5px solid #0A0A0A',
+                      boxShadow: '0 0 6px rgba(163,230,53,0.8)',
                     }}
                   />
                 )}
@@ -169,7 +171,7 @@ export default function BottomNav() {
                 style={{
                   fontSize: 10,
                   fontWeight: (isActive && !isMore) ? 700 : 500,
-                  color: (isActive && !isMore) ? '#60A5FA' : isMoreOpen ? '#E2E8F0' : '#475569',
+                  color: (isActive && !isMore) ? '#A3E635' : isMoreOpen ? '#F3F4F6' : '#64748B',
                   letterSpacing: '0.01em',
                   transition: 'color 0.2s ease',
                   lineHeight: 1,

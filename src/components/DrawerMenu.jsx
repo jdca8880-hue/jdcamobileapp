@@ -1,22 +1,22 @@
 import React from 'react';
 import {
-  X, Home, Calendar, Trophy, Users, Clipboard, Radio, Settings, LogOut, Shield, Megaphone, Award
+  X, Home, Calendar, Trophy, Users, Clipboard, Radio, Settings, LogOut, Shield, Megaphone, Award, Sun, Moon
 } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 import { RoleBadge } from './ui/Badge';
 import { motion, AnimatePresence } from 'motion/react';
 
 const ALL_NAV = [
-  { id: 'home',           label: 'Home',              icon: Home,      route: 'home' },
-  { id: 'teams',          label: 'Teams',              icon: Shield,    route: 'teams' },
-  { id: 'selection',      label: 'Player Selection',   icon: Clipboard, route: 'selection' },
-  { id: 'matches',        label: 'Matches',            icon: Calendar,  route: 'matches' },
-  { id: 'tournaments',    label: 'Tournaments',        icon: Trophy,    route: 'tournaments' },
-  { id: 'scoring',        label: 'Live Score',         icon: Radio,     route: 'scoring', liveIndicator: true },
-  { id: 'players',        label: 'Players',            icon: Users,     route: 'players' },
-  { id: 'officials',      label: 'Scorers & Umpires',  icon: Award,     route: 'officials', adminOnly: true },
-  { id: 'news',           label: 'News',               icon: Megaphone, route: 'news' },
-  { id: 'administration', label: 'Administration',      icon: Settings,  route: 'administration', adminOnly: true },
+  { id: 'home', label: 'Home', icon: Home, route: 'home' },
+  { id: 'teams', label: 'Teams', icon: Shield, route: 'teams' },
+  { id: 'selection', label: 'Player Selection', icon: Clipboard, route: 'selection' },
+  { id: 'matches', label: 'Matches', icon: Calendar, route: 'matches' },
+  { id: 'tournaments', label: 'Tournaments', icon: Trophy, route: 'tournaments' },
+  { id: 'scoring', label: 'Live Score', icon: Radio, route: 'scoring', liveIndicator: true },
+  { id: 'players', label: 'Players', icon: Users, route: 'players' },
+  { id: 'officials', label: 'Scorers & Umpires', icon: Award, route: 'officials', adminOnly: true },
+  { id: 'news', label: 'News', icon: Megaphone, route: 'news' },
+  { id: 'administration', label: 'Administration', icon: Settings, route: 'administration', adminOnly: true },
 ];
 
 const ACTIVE_MAP = {
@@ -33,7 +33,7 @@ const ACTIVE_MAP = {
 };
 
 export default function DrawerMenu() {
-  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userEmail, logout } = useCricket();
+  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userEmail, logout, isDarkMode, setIsDarkMode } = useCricket();
 
   const activeId = ACTIVE_MAP[currentScreen] || currentScreen;
 
@@ -45,9 +45,9 @@ export default function DrawerMenu() {
   }).filter(item => {
     if (item.adminOnly && !['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole)) return false;
     if (userRole === 'SUPER_ADMIN' && item.id === 'scoring') return false;
-    if (userRole === 'SCORER')   return ['matches','scoring','teams','tournaments','administration'].includes(item.id);
-    if (userRole === 'SELECTOR') return ['home','players','selection','teams','tournaments','news'].includes(item.id);
-    if (userRole === 'VIEWER')   return ['home','matches','players','teams','tournaments','news'].includes(item.id);
+    if (userRole === 'SCORER') return ['matches', 'scoring', 'teams', 'tournaments', 'administration'].includes(item.id);
+    if (userRole === 'SELECTOR') return ['home', 'players', 'selection', 'teams', 'tournaments', 'news'].includes(item.id);
+    if (userRole === 'VIEWER') return ['home', 'matches', 'players', 'teams', 'tournaments', 'news'].includes(item.id);
     return true;
   });
 
@@ -89,8 +89,8 @@ export default function DrawerMenu() {
             className="relative flex flex-col h-full z-10 overflow-hidden"
             style={{
               width: 288,
-              background: '#0B1628',
-              borderRight: '1px solid rgba(255,255,255,0.07)',
+              background: '#0A0A0A',
+              borderRight: '1px solid rgba(255,255,255,0.08)',
             }}
           >
             {/* Header */}
@@ -105,10 +105,11 @@ export default function DrawerMenu() {
                   style={{ width: 38, height: 38, objectFit: 'contain', flexShrink: 0 }}
                 />
                 <div>
-                  <div className="font-bold text-white" style={{ fontSize: 14, letterSpacing: '-0.01em' }}>
+                  <div className="font-bold text-white flex items-center gap-1.5" style={{ fontSize: 14, letterSpacing: '-0.01em' }}>
                     JDCA
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#A3E635', display: 'inline-block' }} />
                   </div>
-                  <div style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  <div style={{ fontSize: 9, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                     Jabalpur District Cricket
                   </div>
                 </div>
@@ -134,7 +135,7 @@ export default function DrawerMenu() {
             <nav className="flex-1 px-3 py-4 overflow-y-auto no-scrollbar space-y-0.5">
               <div
                 className="px-3 mb-3"
-                style={{ fontSize: 9, color: '#334155', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+                style={{ fontSize: 9, color: '#64748B', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}
               >
                 Menu
               </div>
@@ -152,8 +153,8 @@ export default function DrawerMenu() {
                       padding: '10px 13px',
                       borderRadius: 10,
                       border: 'none',
-                      background: isActive ? 'rgba(29,78,216,0.20)' : 'transparent',
-                      color: isActive ? '#BFDBFE' : '#475569',
+                      background: isActive ? 'rgba(163,230,53,0.15)' : 'transparent',
+                      color: isActive ? '#A3E635' : '#64748B',
                       textAlign: 'left',
                       minHeight: 44,
                       transition: 'background 0.15s, color 0.15s',
@@ -162,7 +163,7 @@ export default function DrawerMenu() {
                     {isActive && (
                       <div
                         className="absolute left-0 top-2 bottom-2"
-                        style={{ width: 3, background: '#3B82F6', borderRadius: '0 3px 3px 0' }}
+                        style={{ width: 3, background: '#A3E635', borderRadius: '0 3px 3px 0', boxShadow: '0 0 8px rgba(163,230,53,0.6)' }}
                       />
                     )}
                     <Icon
@@ -172,7 +173,7 @@ export default function DrawerMenu() {
                     />
                     <span
                       className="flex-1"
-                      style={{ fontSize: 15, fontWeight: isActive ? 600 : 500 }}
+                      style={{ fontSize: 15, fontWeight: isActive ? 700 : 500 }}
                     >
                       {item.label}
                     </span>
@@ -182,9 +183,9 @@ export default function DrawerMenu() {
                         style={{
                           width: 7,
                           height: 7,
-                          background: '#059669',
+                          background: '#A3E635',
                           borderRadius: '50%',
-                          boxShadow: '0 0 0 2px rgba(5,150,105,0.25)',
+                          boxShadow: '0 0 8px rgba(163,230,53,0.7)',
                         }}
                       />
                     )}
@@ -198,14 +199,66 @@ export default function DrawerMenu() {
               className="px-3 pb-6 pt-3"
               style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
             >
+              {/* Dark Mode Little Toggle Button */}
+              <button
+                type="button"
+                id="drawer-dark-mode-toggle"
+                onClick={() => setIsDarkMode(prev => !prev)}
+                className="flex items-center justify-between w-full px-3 py-2 mb-2 rounded-xl cursor-pointer transition-colors duration-150 group"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.07)',
+                  color: '#F3F4F6',
+                }}
+                aria-label={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="flex items-center justify-center rounded-lg w-6 h-6 transition-colors"
+                    style={{
+                      background: isDarkMode ? 'rgba(163, 230, 53, 0.15)' : 'rgba(255, 255, 255, 0.10)',
+                      color: isDarkMode ? '#A3E635' : '#94A3B8',
+                    }}
+                  >
+                    {isDarkMode ? <Moon size={13} className="text-[#A3E635]" /> : <Sun size={13} className="text-amber-400" />}
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#E2E8F0' }}>
+                    Dark Mode
+                  </span>
+                </div>
+
+                {/* Little Toggle Switch */}
+                <div
+                  className="relative flex items-center p-0.5 rounded-full transition-colors duration-200"
+                  style={{
+                    width: 32,
+                    height: 18,
+                    background: isDarkMode ? '#A3E635' : 'rgba(255, 255, 255, 0.20)',
+                    boxShadow: isDarkMode ? '0 0 8px rgba(163, 230, 53, 0.4)' : 'none',
+                  }}
+                >
+                  <motion.div
+                    className="rounded-full shadow-xs"
+                    style={{
+                      width: 14,
+                      height: 14,
+                      background: isDarkMode ? '#0A0A0A' : '#FFFFFF',
+                    }}
+                    animate={{ x: isDarkMode ? 14 : 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                </div>
+              </button>
+
               {/* User info */}
               <div
                 className="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.06)' }}
               >
                 <div
-                  className="flex items-center justify-center shrink-0 rounded-full font-bold text-white"
-                  style={{ width: 32, height: 32, background: '#1D4ED8', fontSize: 13 }}
+                  className="flex items-center justify-center shrink-0 rounded-full font-black text-[#0A0A0A]"
+                  style={{ width: 32, height: 32, background: '#A3E635', fontSize: 13, boxShadow: '0 0 10px rgba(163,230,53,0.3)' }}
                 >
                   {userInitial}
                 </div>
@@ -230,7 +283,7 @@ export default function DrawerMenu() {
                 style={{
                   border: 'none',
                   background: 'transparent',
-                  color: '#475569',
+                  color: '#64748B',
                   fontSize: 14,
                   fontWeight: 500,
                   transition: 'background 0.15s, color 0.15s',

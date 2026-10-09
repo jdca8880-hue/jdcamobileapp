@@ -108,7 +108,7 @@ export default function PlayerRegistrationScreen() {
         </button>
         <div className="text-center mt-6">
           <div className="w-12 h-12 bg-[#eef2fd] text-[#2457D6] rounded-full flex items-center justify-center mx-auto mb-3">
-             <UserPlus size={24} />
+            <UserPlus size={24} />
           </div>
           <h1 className="text-[24px] font-black text-[#101827] leading-tight mb-1">New Player</h1>
           <p className="text-[13px] text-[#8a99b0] max-w-[250px] mx-auto">Register a cricketer into the JDCA Central Registry</p>
@@ -125,11 +125,11 @@ export default function PlayerRegistrationScreen() {
 
       {!registeredSuccess && (
         <form onSubmit={handleSubmit} className="p-4 space-y-6">
-          
+
           {/* Photo & Basics */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
-            <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><Camera size={14}/> Identity</h2>
-            
+            <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><Camera size={14} /> Identity</h2>
+
             <div className="flex flex-col items-center mb-6">
               <label className="relative mb-3 cursor-pointer group block">
                 <CloudinaryAvatar src={avatar_url} alt="Preview" className={`w-24 h-24 rounded-full object-cover border-[3px] border-white shadow-md transition ${isUploading ? 'opacity-50' : 'group-hover:opacity-80'}`} />
@@ -154,7 +154,7 @@ export default function PlayerRegistrationScreen() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Full Name *</label>
-                <input 
+                <input
                   type="text" required value={full_name} onChange={e => setFullName(e.target.value)} placeholder="e.g. Rahul Sharma"
                   className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.full_name ? 'border-[#F05A47]' : 'border-transparent'}`}
                 />
@@ -162,7 +162,7 @@ export default function PlayerRegistrationScreen() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Date of Birth *</label>
-                  <input 
+                  <input
                     type="date" required value={date_of_birth} onChange={e => setDob(e.target.value)}
                     className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.date_of_birth ? 'border-[#F05A47]' : 'border-transparent'}`}
                   />
@@ -180,7 +180,7 @@ export default function PlayerRegistrationScreen() {
 
           {/* Affiliation */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
-            <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><MapPin size={14}/> Affiliation</h2>
+            <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><MapPin size={14} /> Affiliation</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">District Unit</label>
@@ -199,7 +199,7 @@ export default function PlayerRegistrationScreen() {
 
           {/* Specialisation */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
-            <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><Activity size={14}/> Specialisation</h2>
+            <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><Activity size={14} /> Specialisation</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Primary Role</label>

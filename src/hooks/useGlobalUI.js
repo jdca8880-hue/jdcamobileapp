@@ -42,12 +42,14 @@ export function useGlobalUI() {
   // Drawer State
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Dark Mode Theme State
+  // Dark Mode Theme State (Black + Neon Sports Theme)
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
-      return localStorage.getItem('jdca-dark-mode') === 'true';
+      const stored = localStorage.getItem('jdca-dark-mode');
+      if (stored !== null) return stored === 'true';
+      return true;
     } catch {
-      return false;
+      return true;
     }
   });
 

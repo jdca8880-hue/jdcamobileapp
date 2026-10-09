@@ -69,21 +69,21 @@ import { useStandings } from '../../lib/standings';
 
 // Points Table Component
 const PointsTableUI = ({ pointsTable }) => {
-  if (!pointsTable || pointsTable.length === 0) return <div className="p-4 text-center text-[#8a99b0] text-[13px] font-medium">No standings available yet.</div>;
+  if (!pointsTable || pointsTable.length === 0) return <div className="p-4 text-center text-[#8a99b0] dark:text-[#94A3B8] text-[13px] font-medium">No standings available yet.</div>;
 
   return (
     <div className="overflow-x-auto w-full no-scrollbar">
       <table className="w-full text-left border-collapse min-w-[500px]">
         <thead>
-          <tr className="border-b border-gray-200">
-            <th className="py-3 px-4 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-left w-6">#</th>
-            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-left">Team</th>
-            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-center w-8">M</th>
-            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-center w-8">W</th>
-            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-center w-8">L</th>
-            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-center w-12">PTS</th>
-            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-center w-16">NRR</th>
-            <th className="py-3 px-4 text-xs font-bold text-[#8a99b0] uppercase tracking-widest text-right w-24">Form</th>
+          <tr className="border-b border-gray-200 dark:border-white/10">
+            <th className="py-3 px-4 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-left w-6">#</th>
+            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-left">Team</th>
+            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-center w-8">M</th>
+            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-center w-8">W</th>
+            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-center w-8">L</th>
+            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-center w-12">PTS</th>
+            <th className="py-3 px-2 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-center w-16">NRR</th>
+            <th className="py-3 px-4 text-xs font-bold text-[#8a99b0] dark:text-[#94A3B8] uppercase tracking-widest text-right w-24">Form</th>
           </tr>
         </thead>
         <tbody>
@@ -92,13 +92,13 @@ const PointsTableUI = ({ pointsTable }) => {
             const nrrColor = parseFloat(team.nrr) >= 0 ? 'text-[#0FA968]' : 'text-[#F05A47]';
             
             return (
-              <tr key={team.short} className="border-b border-gray-100 last:border-0 relative">
+              <tr key={team.short} className="border-b border-gray-100 dark:border-white/5 last:border-0 relative hover:bg-slate-50/50 dark:hover:bg-white/5">
                 {/* Qualification indicator line */}
                 {isQualified && (
                   <td className="absolute left-0 top-0 bottom-0 w-1 bg-[#0FA968]" style={{ height: '100%' }} />
                 )}
                 
-                <td className="py-3 px-4 text-[12px] font-bold text-[#8a99b0] text-left">{idx + 1}</td>
+                <td className="py-3 px-4 text-[12px] font-bold text-[#8a99b0] dark:text-[#94A3B8] text-left">{idx + 1}</td>
                 <td className="py-3 px-2 text-left">
                   <div className="flex items-center gap-2">
                     <div 
@@ -107,13 +107,13 @@ const PointsTableUI = ({ pointsTable }) => {
                     >
                       {team.short}
                     </div>
-                    <span className="text-[13px] font-bold text-[#101827] whitespace-nowrap">{team.team}</span>
+                    <span className="text-[13px] font-bold text-[#101827] dark:text-[#F3F4F6] whitespace-nowrap">{team.team}</span>
                   </div>
                 </td>
-                <td className="py-3 px-2 text-[13px] text-[#596579] font-medium text-center">{team.m}</td>
-                <td className="py-3 px-2 text-[13px] text-[#101827] font-bold text-center">{team.w}</td>
-                <td className="py-3 px-2 text-[13px] text-[#596579] font-medium text-center">{team.l}</td>
-                <td className="py-3 px-2 text-[14px] text-[#2457D6] font-black text-center">{team.pts}</td>
+                <td className="py-3 px-2 text-[13px] text-[#596579] dark:text-[#CBD5E1] font-medium text-center">{team.m}</td>
+                <td className="py-3 px-2 text-[13px] text-[#101827] dark:text-[#F3F4F6] font-bold text-center">{team.w}</td>
+                <td className="py-3 px-2 text-[13px] text-[#596579] dark:text-[#CBD5E1] font-medium text-center">{team.l}</td>
+                <td className="py-3 px-2 text-[14px] text-[#2457D6] dark:text-[#A3E635] font-black text-center">{team.pts}</td>
                 <td className={`py-3 px-2 text-[12px] font-bold text-center ${nrrColor}`}>{team.nrr}</td>
                 <td className="py-3 px-4 text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -134,7 +134,7 @@ const PointsTableUI = ({ pointsTable }) => {
           })}
         </tbody>
       </table>
-      <div className="p-3 bg-gray-50 text-xs font-medium text-[#8a99b0] flex items-center gap-4 border-t border-gray-100">
+      <div className="p-3 bg-gray-50 dark:bg-[#181A1D] text-xs font-medium text-[#8a99b0] dark:text-[#94A3B8] flex items-center gap-4 border-t border-gray-100 dark:border-white/10">
          <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-[#0FA968] rounded-full"/> Top 4 qualify for Semi-Finals</div>
          <div>NRR = Net Run Rate</div>
       </div>
@@ -152,7 +152,7 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
         <div className="absolute -left-2 top-0 bottom-0 w-1 bg-blue-500 rounded-r-md z-10" />
         <MatchCard match={match} onClick={onOpenDetail} />
         {isCompleted && (
-          <div className="mt-2 ml-4 mr-2 bg-slate-50 p-3 rounded-xl border border-gray-100 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
+          <div className="mt-2 ml-4 mr-2 bg-slate-50 dark:bg-[#1E2226] p-3 rounded-xl border border-gray-100 dark:border-white/10 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
             {(() => {
               const rawPotm = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch;
               const potm = Array.isArray(rawPotm) ? rawPotm[0] : rawPotm;
@@ -161,25 +161,25 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
               if (!potmName) return null;
               return (
                 <div>
-                  <span className="text-[#8a99b0] uppercase font-bold tracking-wider text-[10px] block">Man of the Match</span>
-                  <span className="font-bold text-[#101827]">{potmName}</span>
+                  <span className="text-[#8a99b0] dark:text-[#94A3B8] uppercase font-bold tracking-wider text-[10px] block">Man of the Match</span>
+                  <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{potmName}</span>
                 </div>
               );
             })()}
             {match.topBatter && (
-              <div><span className="text-[#8a99b0] uppercase font-bold tracking-wider text-[10px] block">Top Batter</span> <span className="font-bold text-[#101827]">{match.topBatter.name || match.topBatter}</span></div>
+              <div><span className="text-[#8a99b0] dark:text-[#94A3B8] uppercase font-bold tracking-wider text-[10px] block">Top Batter</span> <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{match.topBatter.name || match.topBatter}</span></div>
             )}
             {match.topBowler && (
-              <div><span className="text-[#8a99b0] uppercase font-bold tracking-wider text-[10px] block">Top Bowler</span> <span className="font-bold text-[#101827]">{match.topBowler.name || match.topBowler}</span></div>
+              <div><span className="text-[#8a99b0] dark:text-[#94A3B8] uppercase font-bold tracking-wider text-[10px] block">Top Bowler</span> <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{match.topBowler.name || match.topBowler}</span></div>
             )}
             {match.tossDecision && (
-              <div className="w-full mt-1 border-t border-gray-200 pt-1 text-gray-500 italic">Toss: {match.tossDecision}</div>
+              <div className="w-full mt-1 border-t border-gray-200 dark:border-white/10 pt-1 text-gray-500 dark:text-gray-400 italic">Toss: {match.tossDecision}</div>
             )}
           </div>
         )}
         <button 
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="absolute -top-3 -right-2 bg-white border border-slate-200 text-slate-500 rounded-full p-1 shadow-sm hover:text-slate-900 hover:bg-slate-50 z-10"
+          className="absolute -top-3 -right-2 bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-300 rounded-full p-1 shadow-sm hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-[#262B30] z-10 cursor-pointer"
         >
           <ChevronUp size={16} />
         </button>
@@ -190,19 +190,19 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
   return (
     <div 
       onClick={onToggle}
-      className="flex items-center justify-between py-3 px-1 border-b border-gray-100 cursor-pointer hover:bg-gray-50/50 transition-colors"
+      className="flex items-center justify-between py-3 px-1 border-b border-gray-100 dark:border-white/5 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
     >
       <div className="flex items-center gap-3">
-        <span className="text-[12px] font-bold text-[#8a99b0] w-5">{String(index + 1).padStart(2, '0')}</span>
+        <span className="text-[12px] font-bold text-[#8a99b0] dark:text-[#94A3B8] w-5">{String(index + 1).padStart(2, '0')}</span>
         <div>
-          <div className="text-[14px] font-bold text-[#101827]">
-            {match.home_team?.name || 'Home Team'} <span className="text-[#8a99b0] font-medium mx-1">vs</span> {match.away_team?.name || 'Away Team'}
+          <div className="text-[14px] font-bold text-[#101827] dark:text-[#F3F4F6]">
+            {match.home_team?.name || 'Home Team'} <span className="text-[#8a99b0] dark:text-[#94A3B8] font-medium mx-1">vs</span> {match.away_team?.name || 'Away Team'}
           </div>
-          <div className="text-[12px] text-[#596579] mt-0.5">
+          <div className="text-[12px] text-[#596579] dark:text-[#CBD5E1] mt-0.5">
             {isLive ? (
               <span className="text-[#0FA968] font-bold">LIVE • {match.home_team?.score || 'Batting'}</span>
             ) : isCompleted ? (
-              <span className="text-[#2457D6] font-bold">{match.result_text || match.result || 'Match Completed'}</span>
+              <span className="text-[#2457D6] dark:text-[#A3E635] font-bold">{match.result_text || match.result || 'Match Completed'}</span>
             ) : (
               <span>{match.date || match.scheduled_at?.split('T')[0] || 'Tomorrow'}</span>
             )}
@@ -214,28 +214,28 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
           <>
             <button 
               onClick={(e) => { e.stopPropagation(); onEditMatch(match, 'edit'); }}
-              className="p-1.5 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+              className="p-1.5 rounded-full text-blue-500 dark:text-[#A3E635] hover:bg-blue-100 dark:hover:bg-white/10 transition-colors"
               title="Edit Match Details"
             >
               <Edit2 size={14} />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onEditMatch(match, 'setup'); }}
-              className="p-1.5 rounded-full text-amber-500 hover:bg-amber-100 hover:text-amber-700 transition-colors"
+              className="p-1.5 rounded-full text-amber-500 hover:bg-amber-100 dark:hover:bg-white/10 transition-colors"
               title="Setup / Score Match"
             >
               <Trophy size={14} />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDeleteMatch?.(match); }}
-              className="p-1.5 rounded-full text-rose-500 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+              className="p-1.5 rounded-full text-rose-500 hover:bg-rose-100 dark:hover:bg-white/10 transition-colors"
               title="Delete this match only"
             >
               <Trash2 size={14} />
             </button>
           </>
         )}
-        <ChevronDown size={16} className="text-[#d2d8e2] group-hover:text-blue-500" />
+        <ChevronDown size={16} className="text-[#d2d8e2] dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-[#A3E635]" />
       </div>
     </div>
   );
@@ -337,10 +337,10 @@ export default function TournamentsScreen() {
   };
 
   return (
-    <div className="pb-[100px] bg-slate-50 min-h-screen">
-      <div className="pt-6 px-4 pb-4 bg-white/95 backdrop-blur-md sticky top-0 z-30 border-b border-gray-200 shadow-2xs">
+    <div className="pb-[100px] bg-slate-50 dark:bg-[#0A0A0A] min-h-screen text-slate-900 dark:text-[#F3F4F6]">
+      <div className="pt-6 px-4 pb-4 bg-white/95 dark:bg-[#0A0A0A]/95 backdrop-blur-md sticky top-0 z-30 border-b border-gray-200 dark:border-white/10 shadow-2xs">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[28px] font-black text-[#101827] tracking-tight leading-none">Tournaments</h1>
+          <h1 className="text-[28px] font-black text-[#101827] dark:text-[#F3F4F6] tracking-tight leading-none">Tournaments</h1>
           {isAdmin && (
             <button 
               onClick={() => {
@@ -357,7 +357,7 @@ export default function TournamentsScreen() {
           <button 
             onClick={() => setActiveTab('Participating Teams')}
             className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-bold transition-colors cursor-pointer ${
-              activeTab === 'Participating Teams' ? 'bg-[#101827] text-white shadow-sm' : 'bg-white border border-gray-200 text-[#596579] hover:bg-gray-50'
+              activeTab === 'Participating Teams' ? 'bg-[#101827] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] shadow-sm' : 'bg-white dark:bg-[#181A1D] border border-gray-200 dark:border-white/10 text-[#596579] dark:text-[#94A3B8] hover:bg-gray-50 dark:hover:bg-[#262B30]'
             }`}
           >
             Participating Teams
@@ -365,7 +365,7 @@ export default function TournamentsScreen() {
           <button 
             onClick={() => setActiveTab('Matches')}
             className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-bold transition-colors cursor-pointer ${
-              activeTab === 'Matches' ? 'bg-[#101827] text-white shadow-sm' : 'bg-white border border-gray-200 text-[#596579] hover:bg-gray-50'
+              activeTab === 'Matches' ? 'bg-[#101827] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] shadow-sm' : 'bg-white dark:bg-[#181A1D] border border-gray-200 dark:border-white/10 text-[#596579] dark:text-[#94A3B8] hover:bg-gray-50 dark:hover:bg-[#262B30]'
             }`}
           >
             Matches
@@ -373,20 +373,20 @@ export default function TournamentsScreen() {
           <button 
             onClick={() => setActiveTab('Standings')}
             className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'Standings' ? 'bg-[#101827] text-white shadow-sm' : 'bg-white border border-gray-200 text-[#596579] hover:bg-gray-50'
+              activeTab === 'Standings' ? 'bg-[#101827] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] shadow-sm' : 'bg-white dark:bg-[#181A1D] border border-gray-200 dark:border-white/10 text-[#596579] dark:text-[#94A3B8] hover:bg-gray-50 dark:hover:bg-[#262B30]'
             }`}
           >
-            <Trophy size={14} className={activeTab === 'Standings' ? 'text-white' : 'text-[#ff6100]'} /> Points Table
+            <Trophy size={14} className={activeTab === 'Standings' ? 'text-white dark:text-[#0A0A0A]' : 'text-[#ff6100] dark:text-[#F97316]'} /> Points Table
           </button>
         </div>
       </div>
 
       <div className="px-4 pt-6 space-y-6">
         {tournaments.length === 0 && (
-          <div className="text-center p-8 bg-white rounded-2xl shadow-sm">
-             <Trophy size={48} className="mx-auto text-slate-300 mb-4" />
-             <h3 className="text-lg font-bold text-slate-900">No Tournaments Found</h3>
-             <p className="text-slate-500 text-sm mt-1">Check back later or create a new tournament.</p>
+          <div className="text-center p-8 bg-white dark:bg-[#14171A] rounded-2xl shadow-sm border border-slate-200 dark:border-white/10">
+             <Trophy size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+             <h3 className="text-lg font-bold text-slate-900 dark:text-[#F3F4F6]">No Tournaments Found</h3>
+             <p className="text-slate-500 dark:text-[#94A3B8] text-sm mt-1">Check back later or create a new tournament.</p>
           </div>
         )}
         
@@ -398,10 +398,10 @@ export default function TournamentsScreen() {
           const isExpanded = expandedTournament === tournament.id;
 
           return (
-            <div key={tournament.id} className={`bg-white rounded-[22px] shadow-sm border ${theme.cardBorder} overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-blue-500/10' : 'hover:shadow-md'}`}>
+            <div key={tournament.id} className={`bg-white dark:bg-[#14171A] rounded-[22px] shadow-sm border ${theme.cardBorder} dark:border-white/10 overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-blue-500/10' : 'hover:shadow-md'}`}>
               <div 
                 onClick={() => toggleTournament(tournament.id)}
-                className={`${theme.header} p-5 sm:p-6 relative overflow-hidden cursor-pointer hover:bg-slate-50/50 transition-colors group`}
+                className={`${theme.header} dark:bg-[#14171A] p-5 sm:p-6 relative overflow-hidden cursor-pointer hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group`}
               >
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-3">
@@ -411,29 +411,29 @@ export default function TournamentsScreen() {
                     <div className="flex items-center gap-3">
                       {isAdmin && (
                         <div className="flex items-center gap-1 mr-2">
-                           <button onClick={(e) => handleEditTournament(e, tournament)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Edit2 size={16}/></button>
-                           <button onClick={(e) => handleDeleteTournament(e, tournament.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={16}/></button>
+                           <button onClick={(e) => handleEditTournament(e, tournament)} className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-[#A3E635] hover:bg-blue-50 dark:hover:bg-white/10 rounded transition-colors"><Edit2 size={16}/></button>
+                           <button onClick={(e) => handleDeleteTournament(e, tournament.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-white/10 rounded transition-colors"><Trash2 size={16}/></button>
                         </div>
                       )}
                       {isExpanded ? <ChevronUp className="text-slate-400" size={18} /> : <ChevronDown className="text-slate-400" size={18} />}
                     </div>
                   </div>
                   
-                  <h2 className={`text-[20px] sm:text-[22px] font-black leading-tight mb-4 tracking-tight ${theme.textMain} pr-6`}>{tournament.name}</h2>
+                  <h2 className={`text-[20px] sm:text-[22px] font-black leading-tight mb-4 tracking-tight ${theme.textMain} dark:text-[#F3F4F6] pr-6`}>{tournament.name}</h2>
                   
                   <div className="flex items-center gap-4 text-[12px] font-medium">
-                    <div className={`${theme.statBg} px-3 py-2 rounded-xl border flex-1`}>
-                      <div className={`text-[18px] font-black leading-none ${theme.statText}`}>{ms.length}</div>
-                      <div className={`text-[10px] uppercase font-bold tracking-wider ${theme.statLabel} mt-1`}>Total Matches</div>
+                    <div className={`${theme.statBg} dark:bg-[#1E2226] px-3 py-2 rounded-xl border dark:border-white/10 flex-1`}>
+                      <div className={`text-[18px] font-black leading-none ${theme.statText} dark:text-[#F3F4F6]`}>{ms.length}</div>
+                      <div className={`text-[10px] uppercase font-bold tracking-wider ${theme.statLabel} dark:text-[#94A3B8] mt-1`}>Total Matches</div>
                     </div>
-                    <div className={`${theme.statBg} px-3 py-2 rounded-xl border flex-1`}>
-                      <div className={`text-[18px] font-black leading-none ${theme.statText}`}>{completed}</div>
-                      <div className={`text-[10px] uppercase font-bold tracking-wider ${theme.statLabel} mt-1`}>Completed</div>
+                    <div className={`${theme.statBg} dark:bg-[#1E2226] px-3 py-2 rounded-xl border dark:border-white/10 flex-1`}>
+                      <div className={`text-[18px] font-black leading-none ${theme.statText} dark:text-[#F3F4F6]`}>{completed}</div>
+                      <div className={`text-[10px] uppercase font-bold tracking-wider ${theme.statLabel} dark:text-[#94A3B8] mt-1`}>Completed</div>
                     </div>
                   </div>
 
                   {/* Progress bar */}
-                  <div className="mt-5 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                  <div className="mt-5 w-full bg-slate-100 dark:bg-[#262B30] rounded-full h-1.5 overflow-hidden">
                     <div className={`${theme.progress} h-full rounded-full transition-all duration-500`} style={{ width: `${progress}%` }} />
                   </div>
                 </div>
@@ -441,24 +441,24 @@ export default function TournamentsScreen() {
 
               {/* Dynamic Content: Matches OR Standings (Expanded State) */}
               {isExpanded && (
-                <div className="bg-white animate-in slide-in-from-top-2 duration-300">
+                <div className="bg-white dark:bg-[#14171A] animate-in slide-in-from-top-2 duration-300">
                   {activeTab === 'Standings' ? (
                     <PointsTableUI pointsTable={activeTournamentPointsTable} />
                   ) : activeTab === 'Participating Teams' ? (
                     <div className="p-4 sm:p-5">
-                      <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4">Participating District Teams</h3>
+                      <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] dark:text-[#94A3B8] mb-4">Participating District Teams</h3>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {tournament.tournament_teams?.length > 0 ? (
                           tournament.tournament_teams.map(tt => {
                             const teamData = teams.find(t => t.id === tt.team_id);
                             return teamData ? (
-                              <div key={tt.team_id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-800">
+                              <div key={tt.team_id} className="p-3 bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl font-bold text-sm text-slate-800 dark:text-[#F3F4F6]">
                                 {teamData.name}
                               </div>
                             ) : null;
                           })
                         ) : (
-                          <div className="col-span-full p-4 bg-slate-50 rounded-xl text-center text-sm text-slate-500">
+                          <div className="col-span-full p-4 bg-slate-50 dark:bg-[#1E2226] rounded-xl text-center text-sm text-slate-500 dark:text-[#94A3B8]">
                             No teams registered. Edit tournament to add participating teams.
                           </div>
                         )}
@@ -467,12 +467,12 @@ export default function TournamentsScreen() {
                   ) : (
                     <div className="p-4 sm:p-5">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579]">League Stage</h3>
+                        <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] dark:text-[#94A3B8]">League Stage</h3>
                         <div className="flex gap-2 items-center">
                            {isAdmin && (
                              <button 
                                onClick={(e) => { e.stopPropagation(); setActiveTournamentForMatch(tournament); }} 
-                               className="text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition-colors cursor-pointer flex items-center gap-1"
+                               className="text-[11px] font-bold text-blue-600 dark:text-[#A3E635] bg-blue-50 dark:bg-white/10 hover:bg-blue-100 dark:hover:bg-white/15 px-3 py-1.5 rounded transition-colors cursor-pointer flex items-center gap-1"
                              >
                                <Plus size={12}/> Create Match
                              </button>
