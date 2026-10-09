@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Users, Trophy, MapPin, Radio, Calendar, Plus,
   TrendingUp, Megaphone, ChevronRight, Activity,
@@ -9,6 +9,7 @@ import { useStandings } from '../../lib/standings';
 import { useCricket } from '../../context/CricketContext';
 import { motion } from 'motion/react';
 import { useLiveMatchesSync } from '../../hooks/useLiveMatchesSync';
+import { useLiveSubscription } from '../../hooks/useLiveSubscription';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -50,6 +51,7 @@ export default function HomeScreen() {
   useLiveMatchesSync();
   const {
     matches = [],
+    setMatches,
     players = [],
     shortlistedIds = [],
     tournaments = [],
@@ -100,6 +102,24 @@ export default function HomeScreen() {
     const s = String(m.status || '').toUpperCase();
     return s === 'LIVE' || s === 'IN_PROGRESS' || s === 'INNINGS_BREAK';
   });
+
+  const liveMatchIds = useMemo(() => liveMatches.map(m => m.id), [liveMatches]);
+
+  const handleLiveUpdate = useCallback((matchId, card) => {
+    if (!card) return;
+    setMatches(prev => prev.map(m => {
+      if (m.id !== matchId) return m;
+      return {
+        ...m,
+        status: card.status || m.status,
+        home_team: { ...(m.home_team || {}), score: card.home_team?.score ?? m.home_team?.score, overs: card.home_team?.overs ?? m.home_team?.overs },
+        away_team: { ...(m.away_team || {}), score: card.away_team?.score ?? m.away_team?.score, overs: card.away_team?.overs ?? m.away_team?.overs }
+      };
+    }));
+  }, [setMatches]);
+
+  useLiveSubscription(liveMatchIds, handleLiveUpdate, activeTab === 'live' || activeTab === 'overview');
+
   const upcomingMatches = filteredMatches.filter(m => m.status === 'UPCOMING' || m.status === 'SCHEDULED');
 
   // Filtered districts
@@ -419,7 +439,7 @@ export default function HomeScreen() {
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-2">
                         <MapPin size={13} className="text-slate-400" />
-                        <span>{liveMatches[0].venue || 'JDCA Ground'}</span>
+                        <span>{liveMatches[0].venue_name || liveMatches[0].venue || 'JDCA Ground'}</span>
                         <span>•</span>
                         <span>Toss: {liveMatches[0].toss_decision ? `${liveMatches[0].toss_decision.toUpperCase()}` : 'In Progress'}</span>
                       </div>
@@ -429,27 +449,30 @@ export default function HomeScreen() {
                     <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 flex items-center justify-around sm:justify-start gap-6">
                       <div>
                         <div className="text-xs text-slate-300 uppercase tracking-wider font-semibold">
-                          {liveMatches[0].home_team?.name || liveMatches[0].teamA?.name || 'Live'} Score
+                          {liveMatches[0].home_team?.name || 'Home'} Score
                         </div>
                         <div className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">
-                          {liveMatches[0].home_team?.score || (runs > 0 || wickets > 0 ? `${runs}/${wickets}` : '0/0')}
+                          {liveMatches[0].home_team?.score || '0/0'}
                         </div>
                         <div className="text-xs text-emerald-300 font-medium mt-0.5">
-                          Overs: {liveMatches[0].home_team?.overs || formatOvers(balls)}
+                          Overs: {liveMatches[0].home_team?.overs || '0.0'}
                         </div>
                       </div>
 
                       <div className="h-10 w-px bg-white/15" />
 
-                      <div className="text-xs space-y-1">
-                        <div className="text-slate-300">
-                          <span className="text-slate-400">Striker: </span>
-                          <span className="font-semibold text-white">{striker?.name || 'Batter'}</span> ({striker?.runs || 0}*)
+                      <div>
+                        <div className="text-xs text-slate-300 uppercase tracking-wider font-semibold">
+                          {liveMatches[0].away_team?.name || 'Away'} Score
                         </div>
-                        <div className="text-slate-300">
-                          <span className="text-slate-400">Bowler: </span>
-                          <span className="font-semibold text-white">{currentBowler?.name || 'Bowler'}</span> ({currentBowler?.wickets || 0}/{currentBowler?.runs || 0})
+                        <div className="text-xl font-extrabold text-white mt-0.5 tabular-nums">
+                          {liveMatches[0].away_team?.score || 'Yet to bat'}
                         </div>
+                        {liveMatches[0].away_team?.overs && (
+                          <div className="text-xs text-emerald-300 font-medium mt-0.5">
+                            Overs: {liveMatches[0].away_team.overs}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -690,35 +713,37 @@ export default function HomeScreen() {
                       <span className="text-xs text-slate-300 font-medium">{match.category || match.format}</span>
                     </div>
 
-                    {/* Team A vs Team B */}
+                    {/* Home vs Away */}
                     <div className="space-y-2.5">
                       <div className="flex items-center justify-between p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
                         <div className="font-bold text-sm text-white flex items-center gap-2">
-                          <span>{match.teamA?.logo || '🏏'}</span>
-                          <span>{match.teamA?.name}</span>
+                          <span>🏏</span>
+                          <span>{match.home_team?.name || 'Home Team'}</span>
                         </div>
                         <div className="text-base font-extrabold text-amber-300 tabular-nums">
-                          {match.id === 'match-live-1' ? `${runs}/${wickets}` : match.teamA?.score}
-                          <span className="text-xs font-medium text-slate-300 ml-1.5">
-                            ({match.id === 'match-live-1' ? formatOvers(balls) : match.teamA?.overs})
-                          </span>
+                          {match.home_team?.score || '0/0'}
+                          {match.home_team?.overs && (
+                            <span className="text-xs font-medium text-slate-300 ml-1.5">
+                              {match.home_team.overs}
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
                         <div className="font-bold text-sm text-white flex items-center gap-2">
-                          <span>{match.teamB?.logo || '⚡'}</span>
-                          <span>{match.teamB?.name}</span>
+                          <span>⚡</span>
+                          <span>{match.away_team?.name || 'Away Team'}</span>
                         </div>
                         <div className="text-sm font-semibold text-slate-300">
-                          {match.teamB?.score || 'Yet to bat'}
+                          {match.away_team?.score || 'Yet to bat'}
                         </div>
                       </div>
                     </div>
 
                     <div className="text-xs text-slate-300 flex items-center gap-2">
                       <MapPin size={13} className="text-slate-400" />
-                      <span>{match.venue}</span>
+                      <span>{match.venue_name || match.venue || 'Cricket Ground'}</span>
                     </div>
 
                     {/* Action buttons */}
