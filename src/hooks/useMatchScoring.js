@@ -36,6 +36,7 @@ export function useMatchScoring({
   activeMatchId,
   setActiveMatchId,
   matches,
+  setMatches,
   navigateTo,
   refreshAdminData
 }) {
@@ -865,6 +866,71 @@ export function useMatchScoring({
     };
   };
 
+  // Broadcast Live Score Updates across all tabs and devices
+  const broadcastLiveScore = (overrides = {}) => {
+    if (!activeMatchId) return;
+    const currentRuns = overrides.runs !== undefined ? overrides.runs : runs;
+    const currentWickets = overrides.wickets !== undefined ? overrides.wickets : wickets;
+    const currentBalls = overrides.balls !== undefined ? overrides.balls : balls;
+    const currentInn = overrides.innings !== undefined ? overrides.innings : innings;
+    const currentBatId = overrides.battingTeamId || currentBattingTeamId;
+
+    const oversStr = `${Math.floor(currentBalls / 6)}.${currentBalls % 6}`;
+    const scoreStr = `${currentRuns}/${currentWickets}`;
+
+    if (setMatches) {
+      setMatches(prev => prev.map(m => {
+        if (m.id !== activeMatchId) return m;
+        const isHomeBatting = currentBatId ? currentBatId === m.home_team_id : currentInn === 1;
+        return {
+          ...m,
+          status: 'IN_PROGRESS',
+          home_team: {
+            ...(m.home_team || {}),
+            ...(isHomeBatting ? { score: scoreStr, overs: oversStr } : {})
+          },
+          away_team: {
+            ...(m.away_team || {}),
+            ...(!isHomeBatting ? { score: scoreStr, overs: oversStr } : {})
+          }
+        };
+      }));
+    }
+
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('jdca_match_sync');
+        bc.postMessage({
+          type: 'MATCH_LIVE_UPDATE',
+          matchId: activeMatchId,
+          status: 'IN_PROGRESS',
+          scoreData: {
+            home_team: { score: scoreStr, overs: oversStr },
+            away_team: { score: scoreStr, overs: oversStr }
+          }
+        });
+        bc.close();
+      }
+    } catch (e) {}
+
+    try {
+      if (supabase) {
+        supabase.channel('jdca_broadcast_feed').send({
+          type: 'broadcast',
+          event: 'score_update',
+          payload: {
+            matchId: activeMatchId,
+            status: 'IN_PROGRESS',
+            scoreData: {
+              home_team: { score: scoreStr, overs: oversStr },
+              away_team: { score: scoreStr, overs: oversStr }
+            }
+          }
+        });
+      }
+    } catch (e) {}
+  };
+
   // Apply State Machine Result
   const applyStateResult = (result) => {
     if (!result.success) {
@@ -888,6 +954,9 @@ export function useMatchScoring({
     setMatchStatus(newState.matchStatus);
     if (newState.lastOverBowlerId !== undefined) setLastOverBowlerId(newState.lastOverBowlerId);
     setValidationError(null);
+
+    // Immediately broadcast updated live score to all screens & devices
+    broadcastLiveScore(newState);
 
     if (activeMatchId) {
       try {
@@ -1131,6 +1200,7 @@ export function useMatchScoring({
       label: 'Start'
     });
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
+    broadcastLiveScore({ runs: 0, wickets: 0, balls: 0, status: 'IN_PROGRESS' });
 
     // Eagerly resolve & cache innings in Supabase and Dexie
     if (activeMatchId) {

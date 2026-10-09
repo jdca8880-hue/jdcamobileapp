@@ -68,6 +68,7 @@ export function CricketProvider({ children }) {
     activeMatchId,
     setActiveMatchId,
     matches,
+    setMatches,
     navigateTo,
     refreshAdminData
   });

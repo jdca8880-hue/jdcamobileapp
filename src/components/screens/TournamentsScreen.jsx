@@ -200,7 +200,10 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
           </div>
           <div className="text-[12px] text-[#596579] dark:text-[#CBD5E1] mt-0.5">
             {isLive ? (
-              <span className="text-[#0FA968] font-bold">LIVE • {match.home_team?.score || 'Batting'}</span>
+              <span className="text-[#0FA968] font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#0FA968] animate-pulse" />
+                LIVE • {match.home_team?.score ? `${match.home_team.score} (${match.home_team.overs || '0.0'} ov)` : (match.away_team?.score ? `${match.away_team.score} (${match.away_team.overs || '0.0'} ov)` : 'In Progress')}
+              </span>
             ) : isCompleted ? (
               <span className="text-[#2457D6] dark:text-[#A3E635] font-bold">{match.result_text || match.result || 'Match Completed'}</span>
             ) : (
@@ -382,6 +385,28 @@ export default function TournamentsScreen() {
       </div>
 
       <div className="px-4 pt-6 space-y-6">
+        {/* Featured Live Match Banner if any match is currently in progress */}
+        {(() => {
+          const liveList = matches.filter(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
+          if (liveList.length === 0) return null;
+          return (
+            <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-[#181A1D] rounded-[22px] p-4 sm:p-5 border border-emerald-500/40 shadow-xl relative overflow-hidden">
+              <div className="flex items-center justify-between mb-3.5">
+                <span className="text-xs font-black uppercase tracking-wider text-[#A3E635] flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#A3E635] animate-ping" />
+                  Live Match Center ({liveList.length})
+                </span>
+                <span className="text-[11px] font-bold text-slate-400">Live ball-by-ball</span>
+              </div>
+              <div className="space-y-3">
+                {liveList.map(lm => (
+                  <MatchCard key={lm.id} match={lm} onClick={() => openMatch(lm)} />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {tournaments.length === 0 && (
           <div className="text-center p-8 bg-white dark:bg-[#14171A] rounded-2xl shadow-sm border border-slate-200 dark:border-white/10">
              <Trophy size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
@@ -393,20 +418,29 @@ export default function TournamentsScreen() {
         {tournaments.map((tournament, i) => {
           const ms = getTournamentMatches(tournament.id);
           const completed = ms.filter(m => ['COMPLETED', 'FINISHED'].includes(m.status)).length;
+          const hasLive = ms.some(m => m.status === 'LIVE' || m.status === 'IN_PROGRESS');
           const progress = ms.length > 0 ? Math.round((completed / ms.length) * 100) : 0;
           const theme = TOURNAMENT_THEMES[i % TOURNAMENT_THEMES.length];
           const isExpanded = expandedTournament === tournament.id;
 
           return (
-            <div key={tournament.id} className={`bg-white dark:bg-[#14171A] rounded-[22px] shadow-sm border ${theme.cardBorder} dark:border-white/10 overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-blue-500/10' : 'hover:shadow-md'}`}>
+            <div key={tournament.id} className={`bg-white dark:bg-[#14171A] rounded-[22px] shadow-sm border ${hasLive ? 'border-emerald-500/50 dark:border-emerald-500/50' : theme.cardBorder} dark:border-white/10 overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-blue-500/10' : 'hover:shadow-md'}`}>
               <div 
                 onClick={() => toggleTournament(tournament.id)}
                 className={`${theme.header} dark:bg-[#14171A] p-5 sm:p-6 relative overflow-hidden cursor-pointer hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group`}
               >
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-3">
-                    <div className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black tracking-widest uppercase border ${theme.badge}`}>
-                      Season {tournament.season} • Official JDCA
+                    <div className="flex items-center gap-2">
+                      <div className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black tracking-widest uppercase border ${theme.badge}`}>
+                        Season {tournament.season} • Official JDCA
+                      </div>
+                      {hasLive && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-slate-950 shadow-sm animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />
+                          LIVE NOW
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       {isAdmin && (

@@ -169,7 +169,7 @@ function PlayerSelect({ icon: Icon, label, sublabel, value, onChange, players, d
 export default function MatchSetupScreen() {
   const {
     matchSetup, setMatchSetup, navigateTo, goBack, players,
-    activeMatchId, matches = [], registeredUsers = [],
+    activeMatchId, matches = [], setMatches, registeredUsers = [],
     replaceStriker, replaceBatter, replaceBowler, startInnings,
     setTotalMatchOvers
   } = useCricket();
@@ -417,6 +417,45 @@ export default function MatchSetupScreen() {
         try {
           localStorage.setItem(`jdca-match-setup-${activeMatchId}`, JSON.stringify(finalSetup));
           localStorage.setItem(`jdca_match_setup_${activeMatchId}`, JSON.stringify(finalSetup));
+        } catch (e) {}
+
+        if (setMatches) {
+          setMatches(prev => prev.map(m => {
+            if (m.id !== activeMatchId) return m;
+            return {
+              ...m,
+              status: 'IN_PROGRESS',
+              toss_winner_id: tossWinnerTeamId,
+              toss_decision: tossDecision,
+              home_team: {
+                ...(m.home_team || {}),
+                score: '0/0',
+                overs: '0.0'
+              },
+              away_team: {
+                ...(m.away_team || {}),
+                score: 'Yet to bat',
+                overs: '0.0'
+              }
+            };
+          }));
+        }
+
+        try {
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('jdca_match_sync');
+            bc.postMessage({
+              type: 'MATCH_LIVE_UPDATE',
+              matchId: activeMatchId,
+              status: 'IN_PROGRESS',
+              scoreData: {
+                status: 'IN_PROGRESS',
+                home_team: { score: '0/0', overs: '0.0' },
+                away_team: { score: 'Yet to bat', overs: '0.0' }
+              }
+            });
+            bc.close();
+          }
         } catch (e) {}
 
         replaceStriker({ ...s, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });

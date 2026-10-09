@@ -413,15 +413,15 @@ export default function HomeScreen() {
                         </span>
                       </div>
                       <div className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-3">
-                        <span>{liveMatches[0].teamA?.name || 'Unknown Team'}</span>
+                        <span>{liveMatches[0].home_team?.name || liveMatches[0].teamA?.name || 'Home Team'}</span>
                         <span className="text-xs font-semibold px-2 py-0.5 bg-white/10 rounded-md text-slate-300">VS</span>
-                        <span>{liveMatches[0].teamB?.name || 'Unknown Team'}</span>
+                        <span>{liveMatches[0].away_team?.name || liveMatches[0].teamB?.name || 'Away Team'}</span>
                       </div>
                       <div className="text-xs text-slate-400 flex items-center gap-2">
                         <MapPin size={13} className="text-slate-400" />
-                        <span>{liveMatches[0].venue || 'Unknown Team'}</span>
+                        <span>{liveMatches[0].venue || 'JDCA Ground'}</span>
                         <span>•</span>
-                        <span>Toss: {liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.id === liveMatches[0].toss_winner_id ? (liveMatches[0].teamA?.name || 'Unknown Team') : (liveMatches[0].teamB?.name || 'Unknown Team')) : 'Unknown Team'} elected to {liveMatches[0].toss_decision?.toLowerCase() || 'bat'}</span>
+                        <span>Toss: {liveMatches[0].toss_decision ? `${liveMatches[0].toss_decision.toUpperCase()}` : 'In Progress'}</span>
                       </div>
                     </div>
 
@@ -429,13 +429,13 @@ export default function HomeScreen() {
                     <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10 flex items-center justify-around sm:justify-start gap-6">
                       <div>
                         <div className="text-xs text-slate-300 uppercase tracking-wider font-semibold">
-                          {liveMatches[0].teamA?.name || 'Jabalpur'} Score
+                          {liveMatches[0].home_team?.name || liveMatches[0].teamA?.name || 'Live'} Score
                         </div>
                         <div className="text-3xl font-extrabold text-white mt-0.5 tabular-nums">
-                          {runs}/{wickets}
+                          {liveMatches[0].home_team?.score || (runs > 0 || wickets > 0 ? `${runs}/${wickets}` : '0/0')}
                         </div>
                         <div className="text-xs text-emerald-300 font-medium mt-0.5">
-                          Overs: {formatOvers(balls)} (CRR: {((runs / (balls || 1)) * 6).toFixed(2)})
+                          Overs: {liveMatches[0].home_team?.overs || formatOvers(balls)}
                         </div>
                       </div>
 
