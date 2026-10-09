@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Radio, Users, ShieldCheck, ChevronRight, Share2, Award, Printer, ArrowLeft } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
+import { supabase } from '../../lib/supabase';
 import { PageHeader, TabBar } from '../ui/PageHeader';
 import { MatchStatusBadge } from '../ui/Badge';
 
@@ -12,9 +13,12 @@ export default function ScorecardScreen() {
 
   React.useEffect(() => {
     let isMounted = true;
+    let channel = null;
+
+    const targetId = activeMatchId || matches?.find(m => ['COMPLETED','FINISHED','LIVE','IN_PROGRESS'].includes(m.status))?.id || matches?.[0]?.id;
+
     const loadScorecard = async () => {
       try {
-        const targetId = activeMatchId || matches?.find(m => ['COMPLETED','FINISHED','LIVE','IN_PROGRESS'].includes(m.status))?.id || matches?.[0]?.id;
         if (!targetId) {
           setIsLoading(false);
           return;
@@ -28,8 +32,34 @@ export default function ScorecardScreen() {
         if (isMounted) setIsLoading(false);
       }
     };
+
     loadScorecard();
-    return () => { isMounted = false; };
+
+    const targetMatch = matches?.find(m => m.id === targetId);
+    const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(targetMatch?.status || '').toUpperCase());
+
+    // Subscribe ONLY while user is viewing the live scorecard
+    if (isLive && targetId && supabase) {
+      const topic = `jdca:scorecard_detail:${targetId}`;
+      channel = supabase.channel(topic);
+      channel.on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'deliveries',
+        filter: `match_id=eq.${targetId}`
+      }, () => {
+        if (isMounted) loadScorecard();
+      });
+      channel.subscribe();
+    }
+
+    // Unsubscribe immediately when user clicks back or leaves screen
+    return () => {
+      isMounted = false;
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, [activeMatchId, matches]);
 
   const targetId = activeMatchId || matches?.find(m => ['COMPLETED','FINISHED','LIVE','IN_PROGRESS'].includes(m.status))?.id || matches?.[0]?.id;

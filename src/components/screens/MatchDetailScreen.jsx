@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, CalendarDays, MapPin, Radio, ShieldCheck, Trophy, Users, FileText, Trash2, Play, Pause, Award } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
+import { supabase } from '../../lib/supabase';
 import MatchScorecard from '../ui/MatchScorecard';
 import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
@@ -24,7 +25,7 @@ const MatchTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function MatchDetailScreen() {
-  const { matches = [], activeMatchId, navigateTo, goBack, userRole, registeredUsers = [], isPaused, resumeMatch } = useCricket();
+  const { matches = [], setMatches, activeMatchId, navigateTo, goBack, userRole, registeredUsers = [], isPaused, resumeMatch } = useCricket();
   const [activeTab, setActiveTab] = useState('info');
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedScorer, setSelectedScorer] = useState('');
@@ -35,30 +36,91 @@ export default function MatchDetailScreen() {
 
   React.useEffect(() => {
     let isMounted = true;
+    let channel = null;
+    let bc = null;
+    const targetId = activeMatchId || match?.id;
+
     const loadScorecard = async () => {
-      const targetId = activeMatchId || match?.id;
       if (!targetId) return;
       try {
         const { api } = await import('../../lib/api');
         const data = await api.getMatchScorecard(targetId);
         if (isMounted && data) {
           setScorecardData(data);
+          if (setMatches) {
+            setMatches(prev => prev.map(m => m.id === targetId ? {
+              ...m,
+              status: data.status || m.status,
+              home_team: {
+                ...(m.home_team || {}),
+                score: data.home_team?.score ?? m.home_team?.score,
+                overs: data.home_team?.overs ?? m.home_team?.overs,
+              },
+              away_team: {
+                ...(m.away_team || {}),
+                score: data.away_team?.score ?? m.away_team?.score,
+                overs: data.away_team?.overs ?? m.away_team?.overs,
+              }
+            } : m));
+          }
         }
       } catch (err) {
         console.error('[MatchDetailScreen] Failed to load scorecard:', err);
       }
     };
+
+    // Load initial scorecard
     loadScorecard();
 
     const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(match?.status || '').toUpperCase());
-    let interval = null;
-    if (isLive) {
-      interval = setInterval(loadScorecard, 8000);
+
+    // On-demand Realtime DB subscription: Subscribes ONLY while user is on this match panel
+    if (isLive && targetId && supabase) {
+      const topic = `jdca:match_detail:deliveries:${targetId}`;
+      channel = supabase.channel(topic);
+      channel.on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'deliveries',
+        filter: `match_id=eq.${targetId}`
+      }, () => {
+        if (isMounted) {
+          loadScorecard();
+        }
+      });
+      channel.subscribe();
     }
 
+    // Local tab broadcast listener
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('jdca_match_sync');
+        bc.onmessage = (event) => {
+          if (!isMounted) return;
+          if (event.data?.matchId === targetId) {
+            loadScorecard();
+          }
+        };
+      }
+    } catch (e) {}
+
+    const handleCustomUpdate = (e) => {
+      if (e.detail?.matchId === targetId && isMounted) {
+        loadScorecard();
+      }
+    };
+    window.addEventListener('live-scorecard-updated', handleCustomUpdate);
+
+    // As soon as the user presses BACK or leaves, cleanly UNSUBSCRIBE
     return () => {
       isMounted = false;
-      if (interval) clearInterval(interval);
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+      if (bc) {
+        bc.close();
+      }
+      window.removeEventListener('live-scorecard-updated', handleCustomUpdate);
     };
   }, [activeMatchId, match?.id, match?.status]);
 
