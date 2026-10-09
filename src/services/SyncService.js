@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { getPendingActions, clearAction, updateAction } from '../lib/db';
 import { normalizeDelivery } from '../engine/deliveryContract.js';
 import { captureException, captureMessage } from '../lib/sentry';
@@ -378,19 +379,36 @@ class SyncService {
     const isUUID = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     
     let inningsId = isUUID(payload.inningsId) ? payload.inningsId : null;
-    
+    const inningsNum = Number(payload.innings) || 1;
+    const cacheKey = `${payload.matchId}_${inningsNum}`;
+
     // Ensure inningsId exists and is a valid UUID
-    if (!inningsId) {
-      const cacheKey = `${payload.matchId}_${payload.innings}`;
-      if (context?.inningsCache?.has(cacheKey)) {
-        inningsId = context.inningsCache.get(cacheKey);
-        payload.inningsId = inningsId;
+    if (!inningsId && context?.inningsCache?.has(cacheKey)) {
+      inningsId = context.inningsCache.get(cacheKey);
+      payload.inningsId = inningsId;
+    }
+
+    // A ball recorded while offline is queued with inningsId=null (the innings
+    // row could not be created without a connection). On sync we resolve/create
+    // it here instead of failing permanently and blocking the whole match.
+    if (!inningsId && payload.matchId) {
+      try {
+        const inn = await api.getOrCreateInnings(payload.matchId, inningsNum);
+        if (inn?.id) {
+          inningsId = inn.id;
+          payload.inningsId = inningsId;
+          context?.inningsCache?.set(cacheKey, inningsId);
+        }
+      } catch (resolveErr) {
+        console.warn('[SyncService] Could not resolve innings during sync:', resolveErr);
       }
     }
 
     if (!inningsId) {
-      const missingErr = new Error(`[SyncService] Missing valid inningsId for match ${payload.matchId}.`);
-      missingErr.code = 'P0001';
+      // Innings genuinely can't be resolved yet. Treat as TRANSIENT so it is
+      // retried on the next drain rather than branded a permanent failure.
+      const missingErr = new Error(`Innings not yet resolved for match ${payload.matchId}; will retry.`);
+      missingErr.code = 'NETWORK_ERROR';
       throw missingErr;
     }
 

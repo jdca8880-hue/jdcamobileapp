@@ -51,6 +51,16 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
     navigateTo('match-detail');
   };
 
+  // "View Live" → opens the Live Center (MatchDetailScreen), which attaches the
+  // on-demand realtime deliveries subscription (LiveSubscriptionManager) so the
+  // viewer sees ball-by-ball updates as the scorer records them.
+  const handleViewLive = (e) => {
+    e.stopPropagation();
+    haptics.medium();
+    setActiveMatchId(match.id);
+    navigateTo('match-detail');
+  };
+
   const handleOpenScoring = (e) => {
     e.stopPropagation();
     haptics.medium();
@@ -138,11 +148,11 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
               </button>
             )}
             <button
-              onClick={handleOpenScorecard}
+              onClick={handleViewLive}
               className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <Eye size={14} />
-              <span>Live Center</span>
+              {isLive ? <Radio size={14} className="animate-pulse" /> : <Eye size={14} />}
+              <span>{isLive ? 'View Live' : 'Live Center'}</span>
             </button>
           </div>
         </div>
@@ -248,11 +258,11 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
           </button>
         ) : (
           <button
-            onClick={handleCardClick}
+            onClick={handleViewLive}
             className="w-full py-1.5 px-2 rounded-xl bg-[#A3E635]/10 hover:bg-[#A3E635]/20 text-[#A3E635] font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
           >
-            <span>Match Center</span>
-            <ChevronRight size={12} />
+            {isLive ? <Radio size={12} className="animate-pulse" /> : <ChevronRight size={12} />}
+            <span>{isLive ? 'View Live' : 'Match Center'}</span>
           </button>
         )}
       </div>

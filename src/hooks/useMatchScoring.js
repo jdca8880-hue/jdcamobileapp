@@ -287,6 +287,50 @@ export function useMatchScoring({
           console.error('[useMatchScoring] Failed to merge offline deliveries during hydration:', err);
         }
 
+        // Guard: if NOTHING came back (remote + Dexie + queue all empty) yet a
+        // richer local snapshot exists, the deliveries fetch almost certainly
+        // timed out. Restore the snapshot instead of zeroing the live score —
+        // and crucially skip the post-hydration snapshot save below, which would
+        // otherwise overwrite the good snapshot with those zeros.
+        if (mergedDeliveries.length === 0) {
+          try {
+            const { db } = await import('../lib/db.js');
+            const snapshot = await db.match_state.get(matchId);
+            const snapHasData = snapshot && (
+              (snapshot.runs ?? 0) > 0 ||
+              (snapshot.balls ?? 0) > 0 ||
+              (Array.isArray(snapshot.deliveryLog) && snapshot.deliveryLog.length > 0)
+            );
+            if (snapHasData) {
+              console.warn('[useMatchScoring] Hydration returned 0 deliveries but snapshot has data. Restoring snapshot to avoid score reset.');
+              setInnings(snapshot.innings ?? currentInning.innings_number);
+              setCurrentInningsId(snapshot.currentInningsId ?? currentInning.id);
+              if (snapshot.currentBattingTeamId) setCurrentBattingTeamId(snapshot.currentBattingTeamId);
+              if (snapshot.currentBowlingTeamId) setCurrentBowlingTeamId(snapshot.currentBowlingTeamId);
+              setRuns(snapshot.runs ?? 0);
+              setWickets(snapshot.wickets ?? 0);
+              setBalls(snapshot.balls ?? 0);
+              if (snapshot.target !== undefined) setTarget(snapshot.target);
+              setStriker(snapshot.striker ?? null);
+              setNonStriker(snapshot.nonStriker ?? null);
+              setCurrentBowler(snapshot.currentBowler ?? null);
+              setDeliveryLog(snapshot.deliveryLog ?? []);
+              setCurrentOverBalls(snapshot.currentOverBalls ?? []);
+              setExtras(snapshot.extras ?? { wides: 0, noBalls: 0, legByes: 0, byes: 0, penalty: 0 });
+              setIsFreeHit(snapshot.isFreeHit ?? false);
+              if (snapshot.matchStatus) setMatchStatus(snapshot.matchStatus);
+              if (snapshot.lastOverBowlerId !== undefined) setLastOverBowlerId(snapshot.lastOverBowlerId);
+              if (snapshot.scorecard) setScorecard(snapshot.scorecard);
+              if (snapshot.inningsSeqCounters) {
+                Object.assign(inningsSeqRef.current, snapshot.inningsSeqCounters);
+              }
+              return { success: true, restoredFromSnapshot: true };
+            }
+          } catch (snapErr) {
+            console.warn('[useMatchScoring] Snapshot guard during hydration failed:', snapErr);
+          }
+        }
+
         // Seed the monotonic sequence counter so freshly recorded balls continue
         // AFTER the highest sequence already persisted (server) or queued (offline).
         let seqMax = 0;
@@ -700,34 +744,12 @@ export function useMatchScoring({
     latestDeliveryLogRef.current = deliveryLog;
   }, [deliveryLog]);
 
-  useEffect(() => {
-    if (!activeMatchId) return;
-
-    const handleRealtimeDelivery = async (e) => {
-      const payload = e.detail;
-      if (payload.type === 'RECONNECT') {
-        console.log('[useMatchScoring] Realtime reconnect, hydrating...');
-        await hydrateMatchState(activeMatchId);
-        return;
-      }
-      
-      if (payload.eventType === 'INSERT') {
-        const isLocal = latestDeliveryLogRef.current.some(d => (d.id || d.idempotency_key) === payload.new?.idempotency_key);
-        if (!isLocal) {
-          console.log('[useMatchScoring] Remote delivery detected, hydrating state...');
-          await hydrateMatchState(activeMatchId);
-        }
-      } else if (payload.eventType === 'DELETE') {
-        console.log('[useMatchScoring] Remote delivery delete/undo detected, hydrating state...');
-        await hydrateMatchState(activeMatchId);
-      }
-    };
-
-    window.addEventListener('jdca-realtime-delivery', handleRealtimeDelivery);
-    return () => {
-      window.removeEventListener('jdca-realtime-delivery', handleRealtimeDelivery);
-    };
-  }, [activeMatchId]);
+  // (Removed) A listener for a `jdca-realtime-delivery` window event used to live
+  // here, but nothing ever dispatched that event, so it was dead code. Cross-user
+  // live VIEWING is handled by LiveSubscriptionManager + getMatchScorecard in the
+  // viewer screens (HomeScreen / MatchDetailScreen). Auto-rehydrating the active
+  // SCORER'S screen on every remote change is intentionally avoided, since it can
+  // clobber in-progress local entry.
 
   useEffect(() => {
     if (activeMatchId) {
@@ -991,22 +1013,12 @@ export function useMatchScoring({
       }
     } catch (e) {}
 
-    try {
-      if (supabase) {
-        supabase.channel('jdca_broadcast_feed').send({
-          type: 'broadcast',
-          event: 'score_update',
-          payload: {
-            matchId: activeMatchId,
-            status: 'IN_PROGRESS',
-            scoreData: {
-              home_team: { score: scoreStr, overs: oversStr },
-              away_team: { score: scoreStr, overs: oversStr }
-            }
-          }
-        });
-      }
-    } catch (e) {}
+    // NOTE: We deliberately do NOT push a Supabase broadcast of the score here.
+    // Cross-device live updates are driven by the authoritative `deliveries`
+    // postgres_changes subscription (LiveSubscriptionManager → getMatchScorecard),
+    // which other viewers attach on-demand in HomeScreen / MatchDetailScreen.
+    // The previous broadcast was never subscribed to and also mislabeled the
+    // batting score as BOTH teams' scores, so it could only corrupt listeners.
   };
 
   // Apply State Machine Result
@@ -1248,14 +1260,36 @@ export function useMatchScoring({
     setDeliveryLog((prev) => [...prev, payload]);
 
     try {
-      // 1. Save to local Dexie cache
+      // 1. Save to local Dexie cache.
+      // Persist the FLAT snake_case columns (not just the blob) so the offline
+      // rebuilders — hydrateMatchState's merge loop and api.getMatchScorecard's
+      // aggregator — read real numbers. Storing only payload_blob made every
+      // d.runs_total undefined on an offline/timeout rebuild → NaN scores.
       const { db } = await import('../lib/db.js');
       await db.deliveries.put({
         id: payload.id,
+        idempotency_key: payload.id,
         match_id: payload.matchId,
         innings_id: payload.inningsId,
+        innings_number: payload.innings ?? null,
+        delivery_sequence: payload.deliverySequence ?? null,
         over_number: Math.floor((payload.balls || 0) / 6),
         ball_number: ((payload.balls || 0) % 6) + 1,
+        striker_id: payload.strikerId ?? null,
+        non_striker_id: payload.nonStrikerId ?? null,
+        bowler_id: payload.bowlerId ?? null,
+        runs_off_bat: payload.runsBatter ?? 0,
+        runs_extras: payload.runsExtras ?? 0,
+        runs_total: payload.runsTotal ?? 0,
+        extra_type: payload.extraType ?? 'NONE',
+        wicket_type: payload.wicketType ?? 'NONE',
+        dismissed_player_id: payload.dismissedPlayerId ?? null,
+        fielder_id: payload.fielderId ?? null,
+        wicketkeeper_id: payload.wicketkeeperId ?? null,
+        is_legal_delivery: payload.isLegalDelivery ?? true,
+        event_type: payload.eventType === 'PENALTY'
+          ? 'PENALTY'
+          : (['RETIRED_HURT', 'RETIRED_OUT'].includes(payload.wicketType) ? 'RETIREMENT' : 'DELIVERY'),
         payload_blob: payload // Stash full payload for UI viewing if needed offline
       });
 

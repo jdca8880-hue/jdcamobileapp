@@ -213,7 +213,7 @@ export function useDataSync({ auth, ui }) {
                 };
               });
               await db.matches.clear();
-              await db.matches.bulkAdd(freshMatches);
+              await db.matches.bulkPut(freshMatches);
               setMatches(freshMatches);
             }
 
@@ -221,7 +221,7 @@ export function useDataSync({ auth, ui }) {
             if (teamsRes.status === 'fulfilled' && !teamsRes.value.error && teamsRes.value.data) {
               const freshTeams = teamsRes.value.data;
               await db.teams.clear();
-              await db.teams.bulkAdd(freshTeams);
+              await db.teams.bulkPut(freshTeams);
               setTeams(freshTeams);
             }
 
@@ -230,7 +230,7 @@ export function useDataSync({ auth, ui }) {
               const freshTournaments = tournamentsRes.value.data;
               try {
                 await db.tournaments.clear();
-                await db.tournaments.bulkAdd(freshTournaments);
+                await db.tournaments.bulkPut(freshTournaments);
               } catch (e) {}
               setTournaments(freshTournaments);
             }
@@ -283,7 +283,7 @@ export function useDataSync({ auth, ui }) {
                 };
               });
               await db.players.clear();
-              await db.players.bulkAdd(freshPlayers);
+              await db.players.bulkPut(freshPlayers);
               setPlayers(freshPlayers);
               if (freshPlayers.length > 0 && localPlayers.length === 0) {
                  setSelectedPlayer(freshPlayers[0]);
@@ -355,11 +355,14 @@ export function useDataSync({ auth, ui }) {
       const { data: tData, error: tErr } = await supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null);
       if (!tErr && tData) {
         await db.tournaments.clear();
-        await db.tournaments.bulkAdd(tData);
+        await db.tournaments.bulkPut(tData);
         setTournaments(tData);
       }
 
-      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments!inner(id), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)').is('deleted_at', null);
+      // LEFT join tournaments (not !inner) so matches not attached to a tournament
+      // are still returned; an inner join silently dropped standalone matches from
+      // the list on every admin refresh.
+      const { data: mData, error: mErr } = await supabase.from('matches').select('*, tournaments(id), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)').is('deleted_at', null);
       if (!mErr && mData) {
         let curPlayers = [];
         let curMatches = [];
@@ -394,7 +397,7 @@ export function useDataSync({ auth, ui }) {
           };
         });
         await db.matches.clear();
-        await db.matches.bulkAdd(enrichedMatches);
+        await db.matches.bulkPut(enrichedMatches);
         setMatches(enrichedMatches);
       }
     } catch (err) {
