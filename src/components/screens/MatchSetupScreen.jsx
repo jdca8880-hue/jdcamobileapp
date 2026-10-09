@@ -203,6 +203,7 @@ export default function MatchSetupScreen() {
         }
 
         if (
+          prev.matchId === activeMatchId &&
           prev.teamA === nextTeamA &&
           prev.teamAId === nextTeamAId &&
           prev.teamB === nextTeamB &&
@@ -217,6 +218,7 @@ export default function MatchSetupScreen() {
 
         return {
           ...prev,
+          matchId: activeMatchId,
           teamA: nextTeamA,
           teamAId: nextTeamAId,
           teamB: nextTeamB,
@@ -379,11 +381,18 @@ export default function MatchSetupScreen() {
 
       const setupPayload = {
         ...matchSetup,
+        matchId: activeMatchId,
         tossWinnerTeamId,
         tossDecision,
+        teamAXI: battingXI,
+        teamBXI: bowlingXI,
       };
 
-      await api.persistMatchSetup(activeMatchId, setupPayload);
+      try {
+        await api.persistMatchSetup(activeMatchId, setupPayload);
+      } catch (persistErr) {
+        console.warn("Could not persist setup to server, continuing offline:", persistErr);
+      }
 
       // Set up openers in cricket context before navigating
       const s = battingXI.find(p => String(p.id) === String(selectedStriker));
@@ -394,11 +403,21 @@ export default function MatchSetupScreen() {
         if (setTotalMatchOvers) {
           setTotalMatchOvers(matchSetup.totalOvers || 20);
         }
-        // Also update matchSetup with resolved toss winner for the scoring screen
-        setMatchSetup(prev => ({
-          ...prev,
+        // Also update matchSetup with resolved toss winner and matchId for the scoring screen
+        const finalSetup = {
+          ...matchSetup,
+          matchId: activeMatchId,
           tossWinnerTeamId,
-        }));
+          tossDecision,
+          teamAXI: battingXI,
+          teamBXI: bowlingXI,
+        };
+        setMatchSetup(finalSetup);
+
+        try {
+          localStorage.setItem(`jdca-match-setup-${activeMatchId}`, JSON.stringify(finalSetup));
+          localStorage.setItem(`jdca_match_setup_${activeMatchId}`, JSON.stringify(finalSetup));
+        } catch (e) {}
 
         replaceStriker({ ...s, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
         replaceBatter(false, { ...ns, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });

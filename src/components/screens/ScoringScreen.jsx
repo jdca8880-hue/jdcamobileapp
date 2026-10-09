@@ -90,25 +90,70 @@ export default function ScoringScreen() {
     if (!activeMatchId) return;
     setIsHydrating(true);
     setHydrationError(null);
-    const result = await hydrateMatchState(activeMatchId);
-    setIsHydrating(false);
-    if (!result?.success) {
-      setHydrationError(result?.error || 'Unknown error');
+    try {
+      const timeoutPromise = new Promise(resolve => 
+        setTimeout(() => resolve({ success: false, timeout: true, error: 'Hydration timed out' }), 4500)
+      );
+      const result = await Promise.race([hydrateMatchState(activeMatchId), timeoutPromise]);
+      setIsHydrating(false);
+      if (!result?.success && !result?.timeout) {
+        setHydrationError(result?.error || 'Unknown error');
+      }
+    } catch (err) {
+      setIsHydrating(false);
+      setHydrationError(err?.message || 'Hydration failed');
     }
   }, [activeMatchId, hydrateMatchState]);
 
   useEffect(() => {
     let isMounted = true;
     const checkHydration = async () => {
-      // If we have an active match but no Team A Playing XI in state, or mismatching match, we must hydrate.
-      if (activeMatchId && (!matchSetup?.teamAXI || matchSetup.teamAXI.length === 0 || matchSetup?.matchId !== activeMatchId)) {
+      if (!activeMatchId) return;
+
+      // 1. If matchSetup is already loaded for this match with Playing XI, no need to re-hydrate from database
+      if (matchSetup?.matchId === activeMatchId && matchSetup?.teamAXI?.length > 0) {
+        if (isMounted) setIsHydrating(false);
+        return;
+      }
+
+      // 2. Fast local recovery from localStorage
+      try {
+        const cached = JSON.parse(
+          localStorage.getItem(`jdca-match-setup-${activeMatchId}`) ||
+          localStorage.getItem(`jdca_match_setup_${activeMatchId}`) ||
+          'null'
+        );
+        if (cached && Array.isArray(cached.teamAXI) && cached.teamAXI.length > 0) {
+          setMatchSetup(prev => ({
+            ...prev,
+            ...cached,
+            matchId: activeMatchId
+          }));
+          if (isMounted) setIsHydrating(false);
+          return;
+        }
+      } catch (e) {}
+
+      // 3. If no setup exists locally, hydrate with a strict timeout so the screen never freezes
+      if (!matchSetup?.teamAXI || matchSetup.teamAXI.length === 0 || matchSetup?.matchId !== activeMatchId) {
         setIsHydrating(true);
         setHydrationError(null);
-        const result = await hydrateMatchState(activeMatchId);
-        if (isMounted) {
-          setIsHydrating(false);
-          if (!result?.success) {
-            setHydrationError(result?.error || 'Unknown error');
+
+        const timeoutPromise = new Promise(resolve => 
+          setTimeout(() => resolve({ success: false, timeout: true, error: 'Hydration timed out' }), 4500)
+        );
+
+        try {
+          const result = await Promise.race([hydrateMatchState(activeMatchId), timeoutPromise]);
+          if (isMounted) {
+            setIsHydrating(false);
+            if (!result?.success && !result?.timeout) {
+              setHydrationError(result?.error || 'Unknown error');
+            }
+          }
+        } catch (err) {
+          if (isMounted) {
+            setIsHydrating(false);
           }
         }
       }
@@ -303,10 +348,17 @@ export default function ScoringScreen() {
 
   if (isHydrating) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
         <RefreshCw className="h-10 w-10 text-primary-600 animate-spin mb-4" />
         <h3 className="text-xl font-bold text-gray-800 dark:text-white">Hydrating Match State...</h3>
-        <p className="text-gray-500 dark:text-gray-400 mt-2">Reconstructing scoring state from database.</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm text-sm">Reconstructing scoring state from database.</p>
+        <button
+          type="button"
+          onClick={() => setIsHydrating(false)}
+          className="mt-6 px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-zinc-700 rounded-lg text-xs font-semibold transition-colors"
+        >
+          Skip & Continue to Scoring
+        </button>
       </div>
     );
   }

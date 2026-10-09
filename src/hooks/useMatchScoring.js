@@ -98,7 +98,11 @@ export function useMatchScoring({
         // Recover rosters from cached match setup or existing state
         let cachedSetup = null;
         try {
-          cachedSetup = JSON.parse(localStorage.getItem(`jdca-match-setup-${matchId}`) || 'null');
+          cachedSetup = JSON.parse(
+            localStorage.getItem(`jdca-match-setup-${matchId}`) ||
+            localStorage.getItem(`jdca_match_setup_${matchId}`) ||
+            'null'
+          );
         } catch (e) {}
 
         if (cachedSetup && Array.isArray(cachedSetup.teamAXI) && cachedSetup.teamAXI.length > 0) {
@@ -121,7 +125,11 @@ export function useMatchScoring({
       // Fallback: If rosters are empty from API, recover from cached setup in localStorage
       if (!home_team_roster || home_team_roster.length === 0 || !away_team_roster || away_team_roster.length === 0) {
         try {
-          const cachedSetup = JSON.parse(localStorage.getItem(`jdca-match-setup-${matchId}`) || 'null');
+          const cachedSetup = JSON.parse(
+            localStorage.getItem(`jdca-match-setup-${matchId}`) ||
+            localStorage.getItem(`jdca_match_setup_${matchId}`) ||
+            'null'
+          );
           if (cachedSetup) {
             if ((!home_team_roster || home_team_roster.length === 0) && cachedSetup.teamAXI?.length > 0) {
               home_team_roster = cachedSetup.teamAXI;
