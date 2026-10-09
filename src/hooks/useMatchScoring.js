@@ -109,15 +109,28 @@ export function useMatchScoring({
         if (cachedSetup && Array.isArray(cachedSetup.teamAXI) && cachedSetup.teamAXI.length > 0) {
           home_team_roster = cachedSetup.teamAXI;
           away_team_roster = cachedSetup.teamBXI || [];
-          currentInning = null;
-          deliveries = [];
         } else if (matchSetup && (matchSetup.matchId === matchId || matchSetup.teamAId === match?.home_team_id) && matchSetup.teamAXI?.length > 0) {
           home_team_roster = matchSetup.teamAXI;
           away_team_roster = matchSetup.teamBXI;
-          currentInning = null;
-          deliveries = [];
         } else {
           return { success: false, error: 'Network or database fetch failed while loading match. ' + (err?.message || '') };
+        }
+
+        // Recover innings + deliveries from Dexie so we resume where we left off offline
+        try {
+          const { db } = await import('../lib/db.js');
+          const localInnings = await db.innings.where('match_id').equals(matchId).toArray();
+          if (localInnings.length > 0) {
+            currentInning = localInnings.sort((a, b) => b.innings_number - a.innings_number)[0];
+            deliveries = await db.deliveries.where('innings_id').equals(currentInning.id).toArray();
+          } else {
+            currentInning = null;
+            deliveries = [];
+          }
+        } catch (dexieErr) {
+          console.warn('[useMatchScoring] Dexie innings/delivery recovery failed:', dexieErr);
+          currentInning = null;
+          deliveries = [];
         }
       }
 
@@ -196,6 +209,23 @@ export function useMatchScoring({
       } catch (e) {}
 
       if (currentInning) {
+        // Cache innings to Dexie for offline recovery on next app open
+        try {
+          const { db } = await import('../lib/db.js');
+          if (db.innings) {
+            await db.innings.put({
+              id: currentInning.id,
+              match_id: matchId,
+              innings_number: currentInning.innings_number,
+              batting_team_id: currentInning.batting_team_id,
+              bowling_team_id: currentInning.bowling_team_id,
+              overs_limit: currentInning.overs_limit,
+              target_runs: currentInning.target_runs,
+              status: currentInning.status
+            });
+          }
+        } catch (e) {}
+
         if (currentInning.overs_limit) {
           setTotalMatchOvers(currentInning.overs_limit);
         }
