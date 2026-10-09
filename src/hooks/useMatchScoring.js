@@ -87,7 +87,45 @@ export function useMatchScoring({
         currentInning = result.currentInning;
         deliveries = result.deliveries;
       } catch (err) {
-        console.warn('[useMatchScoring] hydrateLiveMatch from API failed, attempting fallback to local state:', err);
+        console.warn('[useMatchScoring] hydrateLiveMatch from API failed, attempting fallback to local snapshot:', err);
+
+        // Try to restore from the atomic match snapshot saved after every scoring action
+        try {
+          const { db } = await import('../lib/db.js');
+          const snapshot = await db.match_state.get(matchId);
+          if (snapshot && snapshot.matchSetup) {
+            console.log('[useMatchScoring] Restoring from local match snapshot, updatedAt:', snapshot.updatedAt);
+            setMatchSetup(snapshot.matchSetup);
+            setInnings(snapshot.innings ?? 1);
+            setCurrentInningsId(snapshot.currentInningsId);
+            if (snapshot.currentBattingTeamId) setCurrentBattingTeamId(snapshot.currentBattingTeamId);
+            if (snapshot.currentBowlingTeamId) setCurrentBowlingTeamId(snapshot.currentBowlingTeamId);
+            setRuns(snapshot.runs ?? 0);
+            setWickets(snapshot.wickets ?? 0);
+            setBalls(snapshot.balls ?? 0);
+            setTarget(snapshot.target);
+            setStriker(snapshot.striker);
+            setNonStriker(snapshot.nonStriker);
+            setCurrentBowler(snapshot.currentBowler);
+            setDeliveryLog(snapshot.deliveryLog ?? []);
+            setCurrentOverBalls(snapshot.currentOverBalls ?? []);
+            setExtras(snapshot.extras ?? { wides: 0, noBalls: 0, legByes: 0, byes: 0, penalty: 0 });
+            setIsFreeHit(snapshot.isFreeHit ?? false);
+            setMatchStatus(snapshot.matchStatus ?? 'IN_PROGRESS');
+            setIsPaused(snapshot.isPaused ?? false);
+            if (snapshot.scorecard) setScorecard(snapshot.scorecard);
+            if (snapshot.lastOverBowlerId !== undefined) setLastOverBowlerId(snapshot.lastOverBowlerId);
+            if (snapshot.totalMatchOvers) setTotalMatchOvers(snapshot.totalMatchOvers);
+            if (snapshot.inningsSeqCounters) {
+              Object.assign(inningsSeqRef.current, snapshot.inningsSeqCounters);
+            }
+            return { success: true };
+          }
+        } catch (snapErr) {
+          console.warn('[useMatchScoring] Snapshot recovery failed:', snapErr);
+        }
+
+        // Final fallback: recover what we can from localStorage (match setup only — no scoring state)
         match = matches?.find(m => m.id === matchId);
         if (!match) {
           try {
@@ -95,8 +133,7 @@ export function useMatchScoring({
             match = await db.matches.get(matchId);
           } catch (e) {}
         }
-        
-        // Recover rosters from cached match setup or existing state
+
         let cachedSetup = null;
         try {
           cachedSetup = JSON.parse(
@@ -109,28 +146,15 @@ export function useMatchScoring({
         if (cachedSetup && Array.isArray(cachedSetup.teamAXI) && cachedSetup.teamAXI.length > 0) {
           home_team_roster = cachedSetup.teamAXI;
           away_team_roster = cachedSetup.teamBXI || [];
+          currentInning = null;
+          deliveries = [];
         } else if (matchSetup && (matchSetup.matchId === matchId || matchSetup.teamAId === match?.home_team_id) && matchSetup.teamAXI?.length > 0) {
           home_team_roster = matchSetup.teamAXI;
           away_team_roster = matchSetup.teamBXI;
-        } else {
-          return { success: false, error: 'Network or database fetch failed while loading match. ' + (err?.message || '') };
-        }
-
-        // Recover innings + deliveries from Dexie so we resume where we left off offline
-        try {
-          const { db } = await import('../lib/db.js');
-          const localInnings = await db.innings.where('match_id').equals(matchId).toArray();
-          if (localInnings.length > 0) {
-            currentInning = localInnings.sort((a, b) => b.innings_number - a.innings_number)[0];
-            deliveries = await db.deliveries.where('innings_id').equals(currentInning.id).toArray();
-          } else {
-            currentInning = null;
-            deliveries = [];
-          }
-        } catch (dexieErr) {
-          console.warn('[useMatchScoring] Dexie innings/delivery recovery failed:', dexieErr);
           currentInning = null;
           deliveries = [];
+        } else {
+          return { success: false, error: 'Network or database fetch failed while loading match. ' + (err?.message || '') };
         }
       }
 
@@ -209,23 +233,6 @@ export function useMatchScoring({
       } catch (e) {}
 
       if (currentInning) {
-        // Cache innings to Dexie for offline recovery on next app open
-        try {
-          const { db } = await import('../lib/db.js');
-          if (db.innings) {
-            await db.innings.put({
-              id: currentInning.id,
-              match_id: matchId,
-              innings_number: currentInning.innings_number,
-              batting_team_id: currentInning.batting_team_id,
-              bowling_team_id: currentInning.bowling_team_id,
-              overs_limit: currentInning.overs_limit,
-              target_runs: currentInning.target_runs,
-              status: currentInning.status
-            });
-          }
-        } catch (e) {}
-
         if (currentInning.overs_limit) {
           setTotalMatchOvers(currentInning.overs_limit);
         }
@@ -533,6 +540,11 @@ export function useMatchScoring({
           }
         }
       }
+
+      // Save snapshot after successful API hydration so future offline opens can restore instantly.
+      // Deferred so React state setters have committed before we read them.
+      setTimeout(() => saveMatchSnapshot(), 0);
+
       return { success: true };
     } catch (e) {
       console.error('Failed to hydrate match state', e);
@@ -896,6 +908,42 @@ export function useMatchScoring({
     };
   };
 
+  const saveMatchSnapshot = async (stateOverrides = {}) => {
+    if (!activeMatchId) return;
+    try {
+      const { db } = await import('../lib/db.js');
+      const s = stateOverrides;
+      await db.match_state.put({
+        id: activeMatchId,
+        matchSetup: matchSetup ? JSON.parse(JSON.stringify(matchSetup)) : null,
+        innings: s.innings ?? innings,
+        currentInningsId: s.currentInningsId ?? currentInningsId,
+        currentBattingTeamId: s.currentBattingTeamId ?? currentBattingTeamId,
+        currentBowlingTeamId: s.currentBowlingTeamId ?? currentBowlingTeamId,
+        runs: s.runs ?? runs,
+        wickets: s.wickets ?? wickets,
+        balls: s.balls ?? balls,
+        target: s.target ?? target,
+        striker: s.striker !== undefined ? s.striker : (striker ? { ...striker } : null),
+        nonStriker: s.nonStriker !== undefined ? s.nonStriker : (nonStriker ? { ...nonStriker } : null),
+        currentBowler: s.currentBowler !== undefined ? s.currentBowler : (currentBowler ? { ...currentBowler } : null),
+        deliveryLog: s.deliveryLog ?? (deliveryLog ? [...deliveryLog] : []),
+        currentOverBalls: s.currentOverBalls ?? (currentOverBalls ? [...currentOverBalls] : []),
+        extras: s.extras ?? { ...extras },
+        isFreeHit: s.isFreeHit ?? isFreeHit,
+        matchStatus: s.matchStatus ?? matchStatus,
+        isPaused: s.isPaused ?? isPaused,
+        scorecard: s.scorecard ?? (scorecard ? JSON.parse(JSON.stringify(scorecard)) : null),
+        lastOverBowlerId: s.lastOverBowlerId !== undefined ? s.lastOverBowlerId : lastOverBowlerId,
+        totalMatchOvers: s.totalMatchOvers ?? totalMatchOvers,
+        inningsSeqCounters: { ...inningsSeqRef.current },
+        updatedAt: Date.now()
+      });
+    } catch (e) {
+      console.warn('[useMatchScoring] Failed to save match snapshot:', e);
+    }
+  };
+
   // Broadcast Live Score Updates across all tabs and devices
   const broadcastLiveScore = (overrides = {}) => {
     if (!activeMatchId) return;
@@ -1006,6 +1054,8 @@ export function useMatchScoring({
       } catch (e) {}
     }
 
+    saveMatchSnapshot(newState);
+
     // Check innings or match termination
     if (newState.matchStatus === MATCH_STATES.INNINGS_BREAK) {
       setTimeout(() => navigateTo('innings-break'), 600);
@@ -1100,6 +1150,11 @@ export function useMatchScoring({
         console.error('[useMatchScoring] Match finalization error:', e);
       }
       setTimeout(() => navigateTo('match-result'), 600);
+
+      // Match is done — clean up the offline snapshot so it doesn't resurrect a finished match
+      if (activeMatchId) {
+        import('../lib/db.js').then(({ db }) => db.match_state.delete(activeMatchId)).catch(() => {});
+      }
     }
 
     return true;
@@ -1303,7 +1358,19 @@ export function useMatchScoring({
         localStorage.removeItem(`jdca-bowler-${activeMatchId}`);
       } catch {}
     }
-    // startInnings() will be called by InningsInitScreen once the user selects players
+
+    saveMatchSnapshot({
+      innings: nextInningsNum,
+      currentInningsId: null,
+      currentBattingTeamId: null,
+      currentBowlingTeamId: null,
+      runs: 0, wickets: 0, balls: 0,
+      target: targetRuns,
+      striker: null, nonStriker: null, currentBowler: null,
+      lastOverBowlerId: null,
+      currentOverBalls: [],
+      deliveryLog: [],
+    });
   };
 
   const startSecondInnings = (targetRuns) => startNextInnings(targetRuns, 2);
@@ -1323,6 +1390,7 @@ export function useMatchScoring({
         strikeRate: player.strikeRate || '0.0',
       };
       if (activeMatchId) localStorage.setItem(`jdca-striker-${activeMatchId}`, JSON.stringify(newState));
+      saveMatchSnapshot({ striker: newState });
       return newState;
     });
   };
@@ -1341,9 +1409,11 @@ export function useMatchScoring({
     if (isStriker) {
       setStriker(newBatter);
       if (activeMatchId) localStorage.setItem(`jdca-striker-${activeMatchId}`, JSON.stringify(newBatter));
+      saveMatchSnapshot({ striker: newBatter });
     } else {
       setNonStriker(newBatter);
       if (activeMatchId) localStorage.setItem(`jdca-nonstriker-${activeMatchId}`, JSON.stringify(newBatter));
+      saveMatchSnapshot({ nonStriker: newBatter });
     }
   };
 
@@ -1362,6 +1432,7 @@ export function useMatchScoring({
     };
     setCurrentBowler(newState);
     if (activeMatchId) localStorage.setItem(`jdca-bowler-${activeMatchId}`, JSON.stringify(newState));
+    saveMatchSnapshot({ currentBowler: newState });
   };
 
   const handleRetireBatter = (isStriker, isRetiredOut) => {
@@ -1725,6 +1796,8 @@ export function useMatchScoring({
     } catch (err) {
       console.error('[useMatchScoring] Failed to persist undo:', err);
     }
+
+    saveMatchSnapshot(previousState);
   };
 
   const applyRevisedOvers = async (revisedOvers, revisedTarget = null) => {
