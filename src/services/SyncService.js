@@ -433,8 +433,12 @@ class SyncService {
       // Ensure active match status in DB is IN_PROGRESS so other users see it LIVE
       if (matchStatus && !['IN_PROGRESS', 'INNINGS_BREAK', 'COMPLETED', 'FINISHED', 'CANCELLED', 'ABANDONED'].includes(matchStatus)) {
         try {
-          await supabase.from('matches').update({ status: 'IN_PROGRESS' }).eq('id', payload.matchId);
-          context?.matchStatusCache?.set(payload.matchId, 'IN_PROGRESS');
+          const { error: statusErr } = await supabase.from('matches').update({ status: 'IN_PROGRESS' }).eq('id', payload.matchId);
+          if (statusErr) {
+            console.warn('[SyncService] Failed to update match status to IN_PROGRESS:', statusErr.message);
+          } else {
+            context?.matchStatusCache?.set(payload.matchId, 'IN_PROGRESS');
+          }
         } catch (statusUpdateErr) {
           console.warn('[SyncService] Failed to update match status to IN_PROGRESS:', statusUpdateErr);
         }

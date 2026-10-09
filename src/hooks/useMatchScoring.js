@@ -1211,11 +1211,23 @@ export function useMatchScoring({
 
     // Update match status in database so all other viewers see the match LIVE
     if (activeMatchId && supabase) {
-      supabase.from('matches').update({ status: 'IN_PROGRESS' }).eq('id', activeMatchId).then(() => {
+      (async () => {
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const { error } = await supabase.from('matches').update({ status: 'IN_PROGRESS' }).eq('id', activeMatchId);
+            if (!error) {
+              setMatches(prev => prev.map(m => m.id === activeMatchId ? { ...m, status: 'IN_PROGRESS' } : m));
+              return;
+            }
+            console.warn(`[useMatchScoring] Match status update attempt ${attempt}/${maxAttempts} failed:`, error.message);
+          } catch (err) {
+            console.warn(`[useMatchScoring] Match status update attempt ${attempt}/${maxAttempts} error:`, err);
+          }
+          if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 1000 * attempt));
+        }
         setMatches(prev => prev.map(m => m.id === activeMatchId ? { ...m, status: 'IN_PROGRESS' } : m));
-      }).catch(err => {
-        console.warn('[useMatchScoring] Failed to update match status to IN_PROGRESS:', err);
-      });
+      })();
     }
   };
 

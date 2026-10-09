@@ -49,8 +49,14 @@ export function useLiveMatchesSync() {
           setMatchesRef.current(prev => {
             const existingIndex = prev.findIndex(m => m.id === matchData.id);
             if (existingIndex >= 0) {
+              const existing = prev[existingIndex];
               const newArr = [...prev];
-              newArr[existingIndex] = { ...newArr[existingIndex], ...enriched };
+              newArr[existingIndex] = {
+                ...existing,
+                ...enriched,
+                home_team: { ...(existing.home_team || {}), ...(enriched.home_team || {}) },
+                away_team: { ...(existing.away_team || {}), ...(enriched.away_team || {}) }
+              };
               return newArr;
             }
             return [enriched, ...prev];
@@ -134,7 +140,18 @@ export function useLiveMatchesSync() {
             }
           }));
 
-          setMatchesRef.current(enriched);
+          setMatchesRef.current(prev => {
+            const prevMap = new Map(prev.map(m => [m.id, m]));
+            return enriched.map(m => {
+              const existing = prevMap.get(m.id);
+              if (!existing) return m;
+              return {
+                ...m,
+                home_team: { ...(m.home_team || {}), score: existing.home_team?.score, overs: existing.home_team?.overs },
+                away_team: { ...(m.away_team || {}), score: existing.away_team?.score, overs: existing.away_team?.overs }
+              };
+            });
+          });
           try {
             await db.matches.bulkPut(enriched);
           } catch (e) {}

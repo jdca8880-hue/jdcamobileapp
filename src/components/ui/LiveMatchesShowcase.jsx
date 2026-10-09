@@ -8,7 +8,10 @@ export default function LiveMatchesShowcase() {
   const { matches = [], navigateTo, setActiveMatchId } = useCricket();
   const navigate = useNavigate();
 
-  const liveMatches = matches.filter(m => m.status === 'LIVE');
+  const liveMatches = matches.filter(m => {
+    const s = String(m.status || '').toUpperCase();
+    return s === 'LIVE' || s === 'IN_PROGRESS' || s === 'INNINGS_BREAK';
+  });
 
   if (liveMatches.length === 0) return null;
 
@@ -35,10 +38,10 @@ export default function LiveMatchesShowcase() {
       <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
         <AnimatePresence>
           {liveMatches.map((match, i) => {
-            const t1 = match.team1?.short_name || match.team1?.name?.substring(0,3).toUpperCase() || 'T1';
-            const t2 = match.team2?.short_name || match.team2?.name?.substring(0,3).toUpperCase() || 'T2';
-            const t1Name = match.team1?.name || 'Team 1';
-            const t2Name = match.team2?.name || 'Team 2';
+            const t1 = match.home_team?.short_name || match.home_team?.name?.substring(0,3).toUpperCase() || 'T1';
+            const t2 = match.away_team?.short_name || match.away_team?.name?.substring(0,3).toUpperCase() || 'T2';
+            const t1Name = match.home_team?.name || 'Home Team';
+            const t2Name = match.away_team?.name || 'Away Team';
             
             // Random gradient for visual flair
             const gradients = [
@@ -67,7 +70,7 @@ export default function LiveMatchesShowcase() {
                 <div className="bg-black/20 backdrop-blur-md rounded-xl p-4 h-full border border-white/10 flex flex-col justify-between relative z-10">
                   <div className="flex justify-between items-start mb-4">
                     <span className="text-[10px] font-bold text-white/80 uppercase tracking-widest bg-black/30 px-2 py-1 rounded">
-                      {match.format || 'T20'} • {match.tournament?.name || 'Match'}
+                      {match.format || 'T20'} ï¿½ {match.tournament?.name || 'Match'}
                     </span>
                     <Radio size={14} className="text-rose-400 animate-pulse" />
                   </div>
