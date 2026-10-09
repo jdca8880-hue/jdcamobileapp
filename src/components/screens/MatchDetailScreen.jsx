@@ -33,7 +33,9 @@ export default function MatchDetailScreen() {
   const [isAssigning, setIsAssigning] = useState(false);
   const [scorecardData, setScorecardData] = useState(null);
 
-  const match = matches.find(m => m.id === activeMatchId) || matches[0];
+  const [offlineMatch, setOfflineMatch] = useState(null);
+
+  const match = matches.find(m => m.id === activeMatchId) || matches[0] || offlineMatch || scorecardData;
   const targetId = activeMatchId || match?.id;
   const isLive = ['LIVE', 'IN_PROGRESS', 'INNINGS_BREAK'].includes(String(match?.status || '').toUpperCase());
 
@@ -67,14 +69,26 @@ export default function MatchDetailScreen() {
     let bc = null;
 
     const loadScorecard = async () => {
-      if (!targetId) return;
+      let currentTargetId = targetId;
+      if (!currentTargetId) {
+        try {
+          const { db } = await import('../../lib/db');
+          const localMatches = await db.matches.toArray();
+          if (localMatches && localMatches.length > 0) {
+            currentTargetId = localMatches[0].id;
+            setOfflineMatch(localMatches[0]);
+          }
+        } catch (e) {}
+      }
+      if (!currentTargetId) return;
       try {
         const { api } = await import('../../lib/api');
-        const data = await api.getMatchScorecard(targetId);
+        const data = await api.getMatchScorecard(currentTargetId);
         if (isMounted && data) {
           setScorecardData(data);
+          if (!offlineMatch) setOfflineMatch(data);
           if (setMatches) {
-            setMatches(prev => prev.map(m => m.id === targetId ? {
+            setMatches(prev => prev.map(m => m.id === currentTargetId ? {
               ...m,
               status: data.status || m.status,
               home_team: { ...(m.home_team || {}), score: data.home_team?.score ?? m.home_team?.score, overs: data.home_team?.overs ?? m.home_team?.overs },
@@ -111,7 +125,14 @@ export default function MatchDetailScreen() {
     };
   }, [targetId, match?.status]);
 
-  if (!match) return null;
+  if (!match) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+        <div className="w-8 h-8 border-4 border-[#A3E635] border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p className="text-xs text-slate-500">Loading match details from local database...</p>
+      </div>
+    );
+  }
 
   const displayMatch = {
     ...match,

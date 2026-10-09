@@ -160,6 +160,16 @@ class SyncService {
                success = await this.pushDelivery(action.payload, context, action);
              } else if (action.action === 'UNDO_DELIVERY') {
                success = await this.deleteDelivery(action.payload);
+             } else if (action.action === 'FINALIZE_MATCH') {
+               success = await this.syncFinalizeMatch(action.payload);
+             } else if (action.action === 'UPDATE_MATCH_DETAILS') {
+               success = await this.syncUpdateMatchDetails(action.payload);
+             } else if (action.action === 'ASSIGN_MOTM') {
+               success = await this.syncAssignMotm(action.payload);
+             } else if (action.action === 'END_MATCH_EARLY') {
+               success = await this.syncEndMatchEarly(action.payload);
+             } else if (action.action === 'ABANDON_MATCH') {
+               success = await this.syncAbandonMatch(action.payload);
              } else {
                success = true; // Unknown action type
              }
@@ -626,6 +636,72 @@ class SyncService {
         throw err;
       }
     }
+    return true;
+  }
+
+  async syncFinalizeMatch(payload) {
+    if (!payload?.matchId) return true;
+    const updatePayload = {
+      status: 'COMPLETED',
+      winner_team_id: payload.winnerId || null,
+      result_margin: payload.resultMargin || null,
+      result_text: payload.resultText || 'Match Completed'
+    };
+    if (payload.manOfTheMatchId) {
+      updatePayload.man_of_the_match_id = payload.manOfTheMatchId;
+    }
+    const { error } = await supabase
+      .from('matches')
+      .update(updatePayload)
+      .eq('id', payload.matchId);
+    if (error) throw error;
+    return true;
+  }
+
+  async syncUpdateMatchDetails(payload) {
+    if (!payload?.matchId) return true;
+    const { matchId, ...details } = payload;
+    const { error } = await supabase
+      .from('matches')
+      .update(details)
+      .eq('id', matchId);
+    if (error) throw error;
+    return true;
+  }
+
+  async syncAssignMotm(payload) {
+    if (!payload?.matchId) return true;
+    const { error } = await supabase
+      .from('matches')
+      .update({ man_of_the_match_id: payload.playerId || null })
+      .eq('id', payload.matchId);
+    if (error) throw error;
+    return true;
+  }
+
+  async syncEndMatchEarly(payload) {
+    if (!payload?.matchId) return true;
+    const updatePayload = {
+      status: 'COMPLETED',
+      result_text: payload.resultText || 'Match Ended Early'
+    };
+    if (payload.winnerId) updatePayload.winner_team_id = payload.winnerId;
+    if (payload.resultMargin) updatePayload.result_margin = payload.resultMargin;
+    const { error } = await supabase
+      .from('matches')
+      .update(updatePayload)
+      .eq('id', payload.matchId);
+    if (error) throw error;
+    return true;
+  }
+
+  async syncAbandonMatch(payload) {
+    if (!payload?.matchId) return true;
+    const { error } = await supabase
+      .from('matches')
+      .update({ status: 'ABANDONED', result_text: 'Match Ended Early / Abandoned' })
+      .eq('id', payload.matchId);
+    if (error) throw error;
     return true;
   }
 

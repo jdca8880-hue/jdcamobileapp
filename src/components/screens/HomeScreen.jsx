@@ -3,7 +3,8 @@ import {
   Users, Trophy, MapPin, Radio, Calendar, Plus,
   TrendingUp, Megaphone, ChevronRight, Activity,
   Award, Clipboard, Flame, Shield, Eye, Star,
-  Zap, BarChart3, UserCheck, Sparkles, Play
+  Zap, BarChart3, UserCheck, Sparkles, Play,
+  Bell, BellOff
 } from 'lucide-react';
 import { useStandings } from '../../lib/standings';
 import { useCricket } from '../../context/CricketContext';
@@ -68,7 +69,9 @@ export default function HomeScreen() {
     striker,
     currentBowler,
     isPaused,
-    resumeMatch
+    resumeMatch,
+    notificationsEnabled,
+    toggleNotifications
   } = useCricket();
 
   const [activeTab, setActiveTab] = useState('overview'); // overview, live, districts, standings
@@ -176,10 +179,38 @@ export default function HomeScreen() {
               </div>
             </div>
 
-            {/* Top Right Quick Status */}
-            <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-white/10 self-start md:self-center">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-semibold text-slate-200">9 Districts Connected</span>
+            {/* Top Right Quick Actions & Status */}
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+              {/* Notification Off / On Toggle Button */}
+              <button
+                id="notification-off-btn"
+                type="button"
+                onClick={toggleNotifications}
+                className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border backdrop-blur-md font-bold text-xs transition-all cursor-pointer shadow-xs ${
+                  notificationsEnabled
+                    ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25'
+                    : 'bg-rose-500/20 border-rose-400/30 text-rose-300 hover:bg-rose-500/30'
+                }`}
+                title={notificationsEnabled ? "Notifications are ON (Click to turn OFF)" : "Notifications are OFF (Click to turn ON)"}
+                aria-label={notificationsEnabled ? "Turn notifications off" : "Turn notifications on"}
+              >
+                {notificationsEnabled ? (
+                  <>
+                    <Bell size={14} className="text-emerald-400 shrink-0" />
+                    <span>Notifications On</span>
+                  </>
+                ) : (
+                  <>
+                    <BellOff size={14} className="text-rose-400 shrink-0 animate-pulse" />
+                    <span>Notifications Off</span>
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-white/10">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs font-semibold text-slate-200">9 Districts Connected</span>
+              </div>
             </div>
           </div>
 
@@ -308,6 +339,31 @@ export default function HomeScreen() {
           </div>
           
           <div className="flex items-center gap-2">
+            <button
+              id="home-menu-alerts-btn"
+              type="button"
+              onClick={toggleNotifications}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition cursor-pointer shadow-xs ${
+                notificationsEnabled
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100'
+              }`}
+              title={notificationsEnabled ? "Click to turn notifications OFF" : "Click to turn notifications ON"}
+              aria-label={notificationsEnabled ? "Turn notifications off" : "Turn notifications on"}
+            >
+              {notificationsEnabled ? (
+                <>
+                  <Bell size={13} className="text-slate-500" />
+                  <span>Alerts: On</span>
+                </>
+              ) : (
+                <>
+                  <BellOff size={13} className="text-rose-600 animate-pulse" />
+                  <span>Alerts: Off</span>
+                </>
+              )}
+            </button>
+
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}

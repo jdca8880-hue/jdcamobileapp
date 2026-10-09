@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Home, Calendar, Trophy, Users, Clipboard, Radio, Settings,
-  LogOut, Shield, Megaphone, Award, Sun, Moon
+  LogOut, Shield, Megaphone, Award, Sun, Moon, Bell, BellOff
 } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 import { RoleBadge } from './ui/Badge';
@@ -21,7 +21,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const { currentScreen, navigateTo, userRole, userEmail, logout, isDarkMode, setIsDarkMode } = useCricket();
+  const { currentScreen, navigateTo, userRole, userEmail, logout, isDarkMode, setIsDarkMode, notificationsEnabled, toggleNotifications } = useCricket();
 
   const visible = NAV_ITEMS.map(item => {
     if (userRole === 'SCORER' && item.id === 'administration') {
@@ -178,6 +178,57 @@ export default function Sidebar() {
         className="px-3 pb-4 pt-3"
         style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
       >
+        {/* Notification Off / On Toggle Button */}
+        <button
+          type="button"
+          id="sidebar-notification-off-btn"
+          onClick={toggleNotifications}
+          className="flex items-center justify-between w-full px-3 py-2 mb-2 rounded-xl cursor-pointer transition-colors duration-150 group"
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.07)',
+            color: '#F3F4F6',
+          }}
+          aria-label={notificationsEnabled ? 'Turn Notifications Off' : 'Turn Notifications On'}
+          title={notificationsEnabled ? 'Notifications are ON (Click to turn OFF)' : 'Notifications are OFF (Click to turn ON)'}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center justify-center rounded-lg w-6 h-6 transition-colors"
+              style={{
+                background: notificationsEnabled ? 'rgba(163, 230, 53, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: notificationsEnabled ? '#A3E635' : '#EF4444',
+              }}
+            >
+              {notificationsEnabled ? <Bell size={13} className="text-[#A3E635]" /> : <BellOff size={13} className="text-rose-400" />}
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#E2E8F0' }}>
+              {notificationsEnabled ? 'Notifications: On' : 'Notifications: Off'}
+            </span>
+          </div>
+
+          <div
+            className="relative flex items-center p-0.5 rounded-full transition-colors duration-200"
+            style={{
+              width: 32,
+              height: 18,
+              background: notificationsEnabled ? '#A3E635' : 'rgba(255, 255, 255, 0.20)',
+              boxShadow: notificationsEnabled ? '0 0 8px rgba(163, 230, 53, 0.4)' : 'none',
+            }}
+          >
+            <motion.div
+              className="rounded-full shadow-xs"
+              style={{
+                width: 14,
+                height: 14,
+                background: notificationsEnabled ? '#0A0A0A' : '#FFFFFF',
+              }}
+              animate={{ x: notificationsEnabled ? 14 : 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            />
+          </div>
+        </button>
+
         {/* Dark Mode Little Toggle Button */}
         <button
           type="button"

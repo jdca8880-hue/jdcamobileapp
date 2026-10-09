@@ -893,55 +893,102 @@ export const api = {
   async getMatchScorecard(matchId) {
     if (!matchId) return null;
 
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
     // 1. Fetch match and teams (with Dexie offline fallback)
     let matchData = null;
-    try {
-      const res = await withTimeout(
-        supabase
-          .from('matches')
-          .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)')
-          .eq('id', matchId)
-          .single(),
-        3000
-      );
-      matchData = res.data;
-    } catch (e) {}
+    if (isOnline) {
+      try {
+        const res = await withTimeout(
+          supabase
+            .from('matches')
+            .select('*, home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)')
+            .eq('id', matchId)
+            .single(),
+          3000
+        );
+        matchData = res.data;
+      } catch (e) {}
+    }
 
     if (!matchData) {
       try {
         const { db } = await import('./db');
         matchData = await db.matches.get(matchId);
+        if (!matchData) {
+          const allLocal = await db.matches.toArray();
+          matchData = allLocal.find(m => String(m.id) === String(matchId));
+        }
       } catch (e) {}
     }
 
     if (!matchData) throw new Error("Match not found");
 
+    // Enrich matchData if loaded from local Dexie
+    try {
+      const { db } = await import('./db');
+      const hId = matchData.home_team_id || matchData.team_a_id || matchData.team_a;
+      if ((!matchData.home_team || !matchData.home_team.name) && hId) {
+        const t = await db.teams.get(hId);
+        if (t) {
+          matchData.home_team = {
+            id: t.id,
+            name: t.name,
+            short_name: t.short_name || t.name?.slice(0, 3).toUpperCase(),
+            score: matchData.home_team?.score || matchData.scorecard?.home_team?.score || '',
+            overs: matchData.home_team?.overs || matchData.scorecard?.home_team?.overs || ''
+          };
+        }
+      }
+      const aId = matchData.away_team_id || matchData.team_b_id || matchData.team_b;
+      if ((!matchData.away_team || !matchData.away_team.name) && aId) {
+        const t = await db.teams.get(aId);
+        if (t) {
+          matchData.away_team = {
+            id: t.id,
+            name: t.name,
+            short_name: t.short_name || t.name?.slice(0, 3).toUpperCase(),
+            score: matchData.away_team?.score || matchData.scorecard?.away_team?.score || '',
+            overs: matchData.away_team?.overs || matchData.scorecard?.away_team?.overs || ''
+          };
+        }
+      }
+      if (!matchData.tournament && matchData.tournament_id) {
+        const tourn = await db.tournaments.get(matchData.tournament_id);
+        if (tourn) matchData.tournament = tourn.name;
+      }
+    } catch (e) {}
+
     // 2. Fetch innings
     let inningsData = null;
-    try {
-      const res = await withTimeout(
-        supabase
-          .from('innings')
-          .select('*')
-          .eq('match_id', matchId)
-          .order('innings_number', { ascending: true }),
-        3000
-      );
-      inningsData = res.data;
-    } catch (e) {}
+    if (isOnline) {
+      try {
+        const res = await withTimeout(
+          supabase
+            .from('innings')
+            .select('*')
+            .eq('match_id', matchId)
+            .order('innings_number', { ascending: true }),
+          3000
+        );
+        inningsData = res.data;
+      } catch (e) {}
+    }
 
     // 3. Fetch deliveries with players
     let deliveriesData = null;
-    try {
-      const res = await withTimeout(
-        supabase
-          .from('deliveries')
-          .select('*, striker:striker_id(full_name), bowler:bowler_id(full_name)')
-          .eq('match_id', matchId),
-        3000
-      );
-      deliveriesData = res.data;
-    } catch (e) {}
+    if (isOnline) {
+      try {
+        const res = await withTimeout(
+          supabase
+            .from('deliveries')
+            .select('*, striker:striker_id(full_name), bowler:bowler_id(full_name)')
+            .eq('match_id', matchId),
+          3000
+        );
+        deliveriesData = res.data;
+      } catch (e) {}
+    }
 
     let innings = inningsData || [];
     let deliveries = deliveriesData || [];
@@ -1340,13 +1387,16 @@ export const api = {
        }
     }
 
+    const finalResultText = matchData.result_text || matchData.result || matchData.resultText || (matchData.status === 'COMPLETED' ? 'Match Completed' : matchData.status);
+
     return {
       id: matchData.id,
-      tournament: matchData.tournament_id,
-      venue: matchData.venue_name || 'JDCA Ground',
-      date: matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Unknown Date',
-      resultText: matchData.result_text || matchData.status,
-      status: matchData.status,
+      tournament: matchData.tournament || matchData.tournament_name || matchData.tournament_id || 'JDCA Tournament',
+      venue: matchData.venue_name || matchData.venue || 'JDCA Ground',
+      date: matchData.date || (matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Match Day'),
+      resultText: finalResultText,
+      result: finalResultText,
+      status: matchData.status || 'COMPLETED',
       winner_team_id: matchData.winner_team_id,
       result_margin: matchData.result_margin,
       manOfTheMatch: mvp,
@@ -1354,24 +1404,47 @@ export const api = {
       playerOfMatch: mvp,
       home_team: {
         id: matchData.home_team_id,
-        name: matchData.home_team?.name || 'Home Team',
+        name: matchData.home_team?.name || matchData.team_a_name || 'Home Team',
         short_name: matchData.home_team?.short_name || 'HOM',
-        score: homeStats.batting.length > 0 || homeStats.runs > 0 ? `${homeStats.runs}/${homeStats.wickets}` : '',
-        overs: homeStats.batting.length > 0 || homeStats.runs > 0 ? `(${homeStats.overs} ov)` : '',
+        score: (homeStats.batting.length > 0 || homeStats.runs > 0)
+          ? `${homeStats.runs}/${homeStats.wickets}`
+          : (matchData.home_team?.score || matchData.scorecard?.home_team?.score || '-'),
+        overs: (homeStats.batting.length > 0 || homeStats.runs > 0)
+          ? `(${homeStats.overs} ov)`
+          : (matchData.home_team?.overs || matchData.scorecard?.home_team?.overs || ''),
         extras: homeStats.extras
       },
       away_team: {
         id: matchData.away_team_id,
-        name: matchData.away_team?.name || 'Away Team',
+        name: matchData.away_team?.name || matchData.team_b_name || 'Away Team',
         short_name: matchData.away_team?.short_name || 'AWA',
-        score: awayStats.batting.length > 0 || awayStats.runs > 0 ? `${awayStats.runs}/${awayStats.wickets}` : '',
-        overs: awayStats.batting.length > 0 || awayStats.runs > 0 ? `(${awayStats.overs} ov)` : '',
+        score: (awayStats.batting.length > 0 || awayStats.runs > 0)
+          ? `${awayStats.runs}/${awayStats.wickets}`
+          : (matchData.away_team?.score || matchData.scorecard?.away_team?.score || '-'),
+        overs: (awayStats.batting.length > 0 || awayStats.runs > 0)
+          ? `(${awayStats.overs} ov)`
+          : (matchData.away_team?.overs || matchData.scorecard?.away_team?.overs || ''),
         extras: awayStats.extras
       },
       scorecard: {
-        home_team: { batting: homeStats.batting, bowling: awayStats.bowling, extras: homeStats.extras, overs: homeStats.overs, score: homeStats.runs + '/' + homeStats.wickets, fallOfWickets: homeStats.fallOfWickets || [] },
-        away_team: { batting: awayStats.batting, bowling: homeStats.bowling, extras: awayStats.extras, overs: awayStats.overs, score: awayStats.runs + '/' + awayStats.wickets, fallOfWickets: awayStats.fallOfWickets || [] }
+        home_team: {
+          batting: homeStats.batting.length > 0 ? homeStats.batting : (matchData.scorecard?.home_team?.batting || []),
+          bowling: awayStats.bowling.length > 0 ? awayStats.bowling : (matchData.scorecard?.home_team?.bowling || []),
+          extras: homeStats.extras || matchData.scorecard?.home_team?.extras || 0,
+          overs: homeStats.overs !== '0.0' ? homeStats.overs : (matchData.scorecard?.home_team?.overs || matchData.home_team?.overs || ''),
+          score: (homeStats.batting.length > 0 || homeStats.runs > 0) ? `${homeStats.runs}/${homeStats.wickets}` : (matchData.scorecard?.home_team?.score || matchData.home_team?.score || '-'),
+          fallOfWickets: homeStats.fallOfWickets || matchData.scorecard?.home_team?.fallOfWickets || []
+        },
+        away_team: {
+          batting: awayStats.batting.length > 0 ? awayStats.batting : (matchData.scorecard?.away_team?.batting || []),
+          bowling: homeStats.bowling.length > 0 ? homeStats.bowling : (matchData.scorecard?.away_team?.bowling || []),
+          extras: awayStats.extras || matchData.scorecard?.away_team?.extras || 0,
+          overs: awayStats.overs !== '0.0' ? awayStats.overs : (matchData.scorecard?.away_team?.overs || matchData.away_team?.overs || ''),
+          score: (awayStats.batting.length > 0 || awayStats.runs > 0) ? `${awayStats.runs}/${awayStats.wickets}` : (matchData.scorecard?.away_team?.score || matchData.away_team?.score || '-'),
+          fallOfWickets: awayStats.fallOfWickets || matchData.scorecard?.away_team?.fallOfWickets || []
+        }
       },
+      isOfflineDexie: !isOnline || Boolean(matchData.isOfflineDexie),
       maxOvers: matchData.max_overs || null,
       innings_1: stats1,
       innings_2: stats2,
@@ -1909,24 +1982,44 @@ export const api = {
   },
 
   // ==========================================
-  // SCORING COMPLETION: FINALIZE MATCH
+  // SCORING COMPLETION: UPDATE & FINALIZE MATCH
   // ==========================================
+
+  async updateMatchDetails(matchId, details) {
+    if (!matchId) return false;
+    try {
+      const { db } = await import('./db');
+      await db.matches.update(matchId, {
+        ...details,
+        ...(details.result_text ? { result: details.result_text } : {})
+      });
+    } catch (e) {
+      console.warn('[api] Failed to update local Dexie match details:', e);
+    }
+
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('UPDATE_MATCH_DETAILS', { matchId, ...details });
+        return true;
+      }
+      const { error } = await supabase
+        .from('matches')
+        .update(details)
+        .eq('id', matchId);
+      if (error) throw error;
+    } catch (err) {
+      console.warn('[api] Remote updateMatchDetails failed, queueing offline action:', err);
+      try {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('UPDATE_MATCH_DETAILS', { matchId, ...details });
+      } catch (qe) {}
+    }
+    return true;
+  },
 
   async finalizeMatch(matchId, winnerId, resultMargin, resultText, manOfTheMatchId = null) {
     if (!matchId) throw new Error("Match ID required");
-    
-    // Fetch existing match state
-    const { data: existingMatch, error: fetchErr } = await supabase
-      .from('matches')
-      .select('status, winner_team_id, result_margin, result_text, man_of_the_match_id')
-      .eq('id', matchId)
-      .single();
-
-    if (fetchErr) {
-      const customError = new Error('NETWORK_ERROR');
-      customError.code = 'NETWORK_ERROR';
-      throw customError;
-    }
 
     const updatePayload = {
       status: 'COMPLETED',
@@ -1938,91 +2031,74 @@ export const api = {
       updatePayload.man_of_the_match_id = manOfTheMatchId;
     }
 
-    if (existingMatch.status === 'COMPLETED') {
-      if (manOfTheMatchId && existingMatch.man_of_the_match_id !== manOfTheMatchId) {
-        try {
-          await supabase
-            .from('matches')
-            .update({ man_of_the_match_id: manOfTheMatchId })
-            .eq('id', matchId);
-        } catch (e) {
-          console.warn('[api] Failed to update man_of_the_match_id on completed match:', e);
+    // 1. Immediately update Dexie database so offline state is 100% complete and final result is preserved
+    try {
+      const { db } = await import('./db');
+      let motmObj = null;
+      if (manOfTheMatchId) {
+        const allPlayers = await db.players.toArray();
+        const p = allPlayers.find(pl => String(pl.id) === String(manOfTheMatchId));
+        if (p) {
+          motmObj = {
+            id: p.id,
+            name: p.full_name || p.name,
+            full_name: p.full_name || p.name,
+            avatar_url: p.avatar_url || p.image
+          };
         }
       }
+      await db.matches.update(matchId, {
+        ...updatePayload,
+        result: resultText,
+        ...(manOfTheMatchId ? {
+          man_of_the_match: motmObj,
+          playerOfMatch: motmObj,
+          manOfTheMatch: motmObj
+        } : {})
+      });
+    } catch (e) {
+      console.warn('[api] Local Dexie finalizeMatch update error:', e);
+    }
+
+    // 2. If offline, queue for sync and return true without throwing
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
       try {
-        const { db } = await import('./db');
-        let motmObj = null;
-        if (manOfTheMatchId) {
-          const allPlayers = await db.players.toArray();
-          const p = allPlayers.find(pl => String(pl.id) === String(manOfTheMatchId));
-          if (p) {
-            motmObj = {
-              id: p.id,
-              name: p.full_name || p.name,
-              full_name: p.full_name || p.name,
-              avatar_url: p.avatar_url || p.image
-            };
-          }
-        }
-        await db.matches.update(matchId, {
-          status: 'COMPLETED',
-          winner_team_id: winnerId,
-          result_margin: resultMargin,
-          result_text: resultText,
-          ...(manOfTheMatchId ? { 
-            man_of_the_match_id: manOfTheMatchId,
-            man_of_the_match: motmObj,
-            playerOfMatch: motmObj,
-            manOfTheMatch: motmObj
-          } : {})
-        });
-      } catch (e) {}
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('FINALIZE_MATCH', { matchId, winnerId, resultMargin, resultText, manOfTheMatchId });
+      } catch (qe) {}
       return true;
     }
 
-    const { error } = await supabase
-      .from('matches')
-      .update(updatePayload)
-      .eq('id', matchId);
-      
-    if (error) {
-      console.error('[api] Failed to finalize match:', error);
-      const customError = new Error('UNKNOWN_DATABASE_ERROR');
-      customError.code = 'UNKNOWN_DATABASE_ERROR';
-      customError.details = error;
-      throw customError;
+    // 3. Online: attempt Supabase update
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update(updatePayload)
+        .eq('id', matchId);
+
+      if (error) {
+        console.warn('[api] Supabase finalizeMatch failed, queueing offline action:', error);
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('FINALIZE_MATCH', { matchId, winnerId, resultMargin, resultText, manOfTheMatchId });
+      }
+    } catch (err) {
+      console.warn('[api] Supabase finalizeMatch error, queueing offline action:', err);
+      try {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('FINALIZE_MATCH', { matchId, winnerId, resultMargin, resultText, manOfTheMatchId });
+      } catch (qe) {}
     }
 
-    try {
-      const { db } = await import('./db');
-      await db.matches.update(matchId, updatePayload);
-    } catch (e) {}
-    
     return true;
   },
 
   async assignManOfTheMatch(matchId, playerId) {
     if (!matchId) throw new Error("Match ID required");
     let result = null;
-    try {
-      const { data, error } = await supabase
-        .from('matches')
-        .update({ man_of_the_match_id: playerId || null })
-        .eq('id', matchId)
-        .select('id, man_of_the_match_id');
-
-      if (error) {
-        console.warn('[api] Remote assign man of the match error:', error);
-      } else if (data && data.length > 0) {
-        result = data[0];
-      }
-    } catch (e) {
-      console.warn('[api] Assign MOTM caught error:', e);
-    }
+    let motmObj = null;
 
     try {
       const { db } = await import('./db');
-      let motmObj = null;
       if (playerId) {
         const allPlayers = await db.players.toArray();
         const p = allPlayers.find(pl => String(pl.id) === String(playerId));
@@ -2043,7 +2119,35 @@ export const api = {
       });
     } catch (e) {}
 
-    return result || { id: matchId, man_of_the_match_id: playerId };
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('ASSIGN_MOTM', { matchId, playerId });
+        return { id: matchId, man_of_the_match_id: playerId, man_of_the_match: motmObj };
+      }
+
+      const { data, error } = await supabase
+        .from('matches')
+        .update({ man_of_the_match_id: playerId || null })
+        .eq('id', matchId)
+        .select('id, man_of_the_match_id');
+
+      if (error) {
+        console.warn('[api] Remote assign man of the match error, queueing offline action:', error);
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('ASSIGN_MOTM', { matchId, playerId });
+      } else if (data && data.length > 0) {
+        result = data[0];
+      }
+    } catch (e) {
+      console.warn('[api] Assign MOTM caught error, queueing offline action:', e);
+      try {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('ASSIGN_MOTM', { matchId, playerId });
+      } catch (qe) {}
+    }
+
+    return result || { id: matchId, man_of_the_match_id: playerId, man_of_the_match: motmObj };
   },
 
   // ==========================================
@@ -2053,41 +2157,43 @@ export const api = {
   async abandonMatch(matchId) {
     if (!matchId) throw new Error("Match ID required");
 
-    // Fetch existing match state
-    const { data: existingMatch, error: fetchErr } = await supabase
-      .from('matches')
-      .select('status')
-      .eq('id', matchId)
-      .single();
-
-    if (fetchErr) {
-      const customError = new Error('NETWORK_ERROR');
-      customError.code = 'NETWORK_ERROR';
-      throw customError;
-    }
-
-    if (existingMatch.status === 'COMPLETED' || existingMatch.status === 'ABANDONED' || existingMatch.status === 'CANCELLED') {
-       if (existingMatch.status === 'ABANDONED') return true;
-       
-       const customError = new Error('INVALID_STATE_TRANSITION');
-       customError.code = 'INVALID_STATE_TRANSITION';
-       throw customError;
-    }
-
-    const { error } = await supabase
-      .from('matches')
-      .update({
+    try {
+      const { db } = await import('./db');
+      await db.matches.update(matchId, {
         status: 'ABANDONED',
-        result_text: 'Match Ended Early / Abandoned'
-      })
-      .eq('id', matchId);
+        result_text: 'Match Ended Early / Abandoned',
+        result: 'Match Ended Early / Abandoned'
+      });
+    } catch (e) {}
 
-    if (error) {
-      console.error('[api] Failed to abandon match:', error);
-      const customError = new Error('UNKNOWN_DATABASE_ERROR');
-      customError.code = 'UNKNOWN_DATABASE_ERROR';
-      customError.details = error;
-      throw customError;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('ABANDON_MATCH', { matchId });
+      } catch (e) {}
+      return true;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update({
+          status: 'ABANDONED',
+          result_text: 'Match Ended Early / Abandoned'
+        })
+        .eq('id', matchId);
+
+      if (error) {
+        console.warn('[api] Failed to abandon match remotely, queueing offline action:', error);
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('ABANDON_MATCH', { matchId });
+      }
+    } catch (e) {
+      console.warn('[api] Failed to abandon match remotely, queueing offline action:', e);
+      try {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('ABANDON_MATCH', { matchId });
+      } catch (qe) {}
     }
 
     return true;
@@ -2096,42 +2202,46 @@ export const api = {
   async endMatchEarly(matchId, winnerId, resultMargin, resultText) {
     if (!matchId) throw new Error("Match ID required");
 
-    const { data: existingMatch, error: fetchErr } = await supabase
-      .from('matches')
-      .select('status')
-      .eq('id', matchId)
-      .single();
-
-    if (fetchErr) {
-      const err = new Error('NETWORK_ERROR');
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
-
-    if (['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(existingMatch.status)) {
-      const err = new Error('INVALID_STATE_TRANSITION');
-      err.code = 'INVALID_STATE_TRANSITION';
-      throw err;
-    }
-
     const updatePayload = {
       status: 'COMPLETED',
       result_text: resultText || 'Match Ended Early',
+      result: resultText || 'Match Ended Early'
     };
     if (winnerId) updatePayload.winner_team_id = winnerId;
     if (resultMargin) updatePayload.result_margin = resultMargin;
 
-    const { error } = await supabase
-      .from('matches')
-      .update(updatePayload)
-      .eq('id', matchId);
+    // 1. Update Dexie immediately
+    try {
+      const { db } = await import('./db');
+      await db.matches.update(matchId, updatePayload);
+    } catch (e) {}
 
-    if (error) {
-      console.error('[api] Failed to end match early:', error);
-      const err = new Error('UNKNOWN_DATABASE_ERROR');
-      err.code = 'UNKNOWN_DATABASE_ERROR';
-      err.details = error;
-      throw err;
+    // 2. Try Supabase or queue offline action
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('END_MATCH_EARLY', { matchId, winnerId, resultMargin, resultText });
+      } catch (e) {}
+      return true;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update(updatePayload)
+        .eq('id', matchId);
+
+      if (error) {
+        console.warn('[api] Remote endMatchEarly error, queueing offline action:', error);
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('END_MATCH_EARLY', { matchId, winnerId, resultMargin, resultText });
+      }
+    } catch (e) {
+      console.warn('[api] Remote endMatchEarly error, queueing offline action:', e);
+      try {
+        const { queueOfflineAction } = await import('./db');
+        await queueOfflineAction('END_MATCH_EARLY', { matchId, winnerId, resultMargin, resultText });
+      } catch (qe) {}
     }
 
     return true;

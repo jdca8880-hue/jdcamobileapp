@@ -30,7 +30,8 @@ export default function ScoringScreen() {
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
     tournaments, setActiveMatchId, isAppLoading, totalMatchOvers,
-    isPaused, pauseMatch, resumeMatch, togglePauseMatch, resetScoringSession
+    isPaused, pauseMatch, resumeMatch, togglePauseMatch, resetScoringSession,
+    notificationsEnabled
   } = useCricket();
 
   const haptics = useHaptics();
@@ -427,21 +428,23 @@ export default function ScoringScreen() {
     if (!scoringFirstRunDone) markScoringFirstRunDone?.();
 
     // Send push notification to update score silently, but vibrate for 4s and 6s
-    const isBoundary = value === 4 || value === 6;
-    let title = isBoundary ? (value === 6 ? 'SIX! What a shot!' : 'FOUR!') : 'Live Score Update';
-    let bodyText = isBoundary
-      ? `${striker?.name} hit a ${value}! ${teamAName} is ${runs + value}/${wickets}`
-      : `${teamAName} is ${runs + value}/${wickets} (Last: ${value} run${value !== 1 ? 's' : ''})`;
+    if (notificationsEnabled) {
+      const isBoundary = value === 4 || value === 6;
+      let title = isBoundary ? (value === 6 ? 'SIX! What a shot!' : 'FOUR!') : 'Live Score Update';
+      let bodyText = isBoundary
+        ? `${striker?.name} hit a ${value}! ${teamAName} is ${runs + value}/${wickets}`
+        : `${teamAName} is ${runs + value}/${wickets} (Last: ${value} run${value !== 1 ? 's' : ''})`;
 
-    supabase.functions.invoke('send-push', {
-      body: {
-        title,
-        body: bodyText,
-        url: `/matches`,
-        tag: `match-${activeMatchId || 'jdca'}`,
-        renotify: isBoundary
-      }
-    });
+      supabase.functions.invoke('send-push', {
+        body: {
+          title,
+          body: bodyText,
+          url: `/matches`,
+          tag: `match-${activeMatchId || 'jdca'}`,
+          renotify: isBoundary
+        }
+      });
+    }
   };
 
   const submitWicket = () => {
@@ -462,15 +465,17 @@ export default function ScoringScreen() {
     recordWicket(selectedDismissal, finalDismissedId, fielder, wk, runsCompleted);
 
     // Trigger push notification for wicket
-    supabase.functions.invoke('send-push', {
-      body: {
-        title: 'WICKET!',
-        body: `${outName} is out ${selectedDismissal}! ${teamAName} vs ${teamBName} (${runs}/${wickets + 1})`,
-        url: `/matches`,
-        tag: `match-${activeMatchId || 'jdca'}`,
-        renotify: true
-      }
-    });
+    if (notificationsEnabled) {
+      supabase.functions.invoke('send-push', {
+        body: {
+          title: 'WICKET!',
+          body: `${outName} is out ${selectedDismissal}! ${teamAName} vs ${teamBName} (${runs}/${wickets + 1})`,
+          url: `/matches`,
+          tag: `match-${activeMatchId || 'jdca'}`,
+          renotify: true
+        }
+      });
+    }
 
     setDismissalOpen(false);
     setFielder('');

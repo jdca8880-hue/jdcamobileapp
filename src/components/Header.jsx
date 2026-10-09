@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Bell } from 'lucide-react';
+import { ArrowLeft, Search, Bell, BellOff } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 
 const SCREEN_TITLES = {
@@ -26,7 +26,7 @@ const SCREEN_TITLES = {
 };
 
 export default function Header() {
-  const { currentScreen, goBack, userRole, navigateTo } = useCricket();
+  const { currentScreen, goBack, userRole, navigateTo, notificationsEnabled, toggleNotifications } = useCricket();
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -128,17 +128,21 @@ export default function Header() {
       <div className="flex items-center gap-1.5">
         {isHome && (
           <button
+            id="header-notification-off-btn"
+            onClick={toggleNotifications}
             className="flex items-center justify-center relative cursor-pointer"
             style={{
               width: 36,
               height: 36,
               borderRadius: 9,
-              color: '#94A3B8',
-              background: 'transparent',
+              color: notificationsEnabled ? '#94A3B8' : '#F87171',
+              background: notificationsEnabled ? 'transparent' : 'rgba(239, 68, 68, 0.1)',
               border: 'none',
             }}
+            title={notificationsEnabled ? "Notifications are ON (Click to turn OFF)" : "Notifications are OFF (Click to turn ON)"}
+            aria-label={notificationsEnabled ? "Turn notifications off" : "Turn notifications on"}
           >
-            <Bell size={18} />
+            {notificationsEnabled ? <Bell size={18} /> : <BellOff size={18} className="text-rose-400" />}
             {userRole === 'Admin' && (
               <span
                 className="absolute"
@@ -147,7 +151,7 @@ export default function Header() {
                   right: 7,
                   width: 7,
                   height: 7,
-                  background: '#EF4444',
+                  background: notificationsEnabled ? '#EF4444' : '#94A3B8',
                   borderRadius: '50%',
                   border: '2px solid #0A0A0A',
                 }}

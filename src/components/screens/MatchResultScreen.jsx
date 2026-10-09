@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { Trophy, ArrowRight, Newspaper, ShieldCheck, Lock, CheckCircle2, Trash2 } from 'lucide-react';
+import { Trophy, ArrowRight, Newspaper, ShieldCheck, Lock, CheckCircle2, Trash2, WifiOff, Database } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
 import { syncService } from '../../services/SyncService';
@@ -21,21 +21,89 @@ export default function MatchResultScreen() {
   useEffect(() => {
     async function fetchReport() {
       try {
-        const targetId = activeMatchId || matches.find(m => ['COMPLETED','FINISHED'].includes(m.status))?.id || matches[0]?.id;
+        let targetId = activeMatchId || matches.find(m => ['COMPLETED','FINISHED'].includes(m.status))?.id || matches[0]?.id;
+        
+        // If not found in memory (e.g. cold start offline), look in local Dexie database
+        if (!targetId) {
+          try {
+            const { db } = await import('../../lib/db');
+            const localMatches = await db.matches.toArray();
+            if (localMatches && localMatches.length > 0) {
+              const fin = localMatches.find(m => ['COMPLETED', 'FINISHED'].includes(m.status)) || localMatches[0];
+              targetId = fin?.id;
+            }
+          } catch (dexieLookupErr) {
+            console.warn('[MatchResultScreen] Dexie match target lookup error:', dexieLookupErr);
+          }
+        }
+
         if (!targetId) {
           setLoading(false);
           return;
         }
-        const data = await api.getMatchScorecard(targetId);
-        setMatchData(data);
-        const rawMotm = data.manOfTheMatch || data.man_of_the_match || data.playerOfMatch;
-        const motmObj = Array.isArray(rawMotm) ? rawMotm[0] : rawMotm;
-        if (motmObj?.id) {
-           setSelectedMotm(motmObj.id);
-        } else if (data.man_of_the_match_id) {
-           setSelectedMotm(data.man_of_the_match_id);
+
+        let data = null;
+        try {
+          data = await api.getMatchScorecard(targetId);
+        } catch (apiErr) {
+          console.warn('[MatchResultScreen] api.getMatchScorecard failed, falling back to direct Dexie load:', apiErr);
         }
-        setCustomResultText(data.resultText || data.result || 'Match Completed');
+
+        // Direct fallback to Dexie database if api returned null or failed
+        if (!data) {
+          try {
+            const { db } = await import('../../lib/db');
+            const localMatch = await db.matches.get(targetId) || (await db.matches.toArray()).find(m => String(m.id) === String(targetId));
+            if (localMatch) {
+              let hTeam = localMatch.home_team;
+              let aTeam = localMatch.away_team;
+              if ((!hTeam || !hTeam.name) && (localMatch.home_team_id || localMatch.team_a_id)) {
+                const t = await db.teams.get(localMatch.home_team_id || localMatch.team_a_id);
+                if (t) hTeam = { id: t.id, name: t.name, score: localMatch.home_team?.score || '-' };
+              }
+              if ((!aTeam || !aTeam.name) && (localMatch.away_team_id || localMatch.team_b_id)) {
+                const t = await db.teams.get(localMatch.away_team_id || localMatch.team_b_id);
+                if (t) aTeam = { id: t.id, name: t.name, score: localMatch.away_team?.score || '-' };
+              }
+              const rawRes = localMatch.result_text || localMatch.result || 'Match Completed';
+              data = {
+                id: localMatch.id,
+                tournament: localMatch.tournament || localMatch.tournament_name || 'JDCA Tournament',
+                venue: localMatch.venue || localMatch.venue_name || 'JDCA Ground',
+                date: localMatch.date || (localMatch.scheduled_at ? new Date(localMatch.scheduled_at).toLocaleDateString() : 'Match Day'),
+                resultText: rawRes,
+                result: rawRes,
+                status: localMatch.status || 'COMPLETED',
+                winner_team_id: localMatch.winner_team_id,
+                result_margin: localMatch.result_margin,
+                man_of_the_match: localMatch.man_of_the_match || localMatch.playerOfMatch,
+                manOfTheMatch: localMatch.man_of_the_match || localMatch.playerOfMatch,
+                playerOfMatch: localMatch.playerOfMatch || localMatch.man_of_the_match,
+                home_team: hTeam || { name: localMatch.team_a_name || 'Home Team', score: '-' },
+                away_team: aTeam || { name: localMatch.team_b_name || 'Away Team', score: '-' },
+                scorecard: localMatch.scorecard || {
+                  home_team: { batting: [], bowling: [], score: hTeam?.score || '-' },
+                  away_team: { batting: [], bowling: [], score: aTeam?.score || '-' }
+                },
+                isOfflineDexie: true
+              };
+            }
+          } catch (dexieErr) {
+            console.error('[MatchResultScreen] Direct Dexie load error:', dexieErr);
+          }
+        }
+
+        if (data) {
+          setMatchData(data);
+          const rawMotm = data.manOfTheMatch || data.man_of_the_match || data.playerOfMatch;
+          const motmObj = Array.isArray(rawMotm) ? rawMotm[0] : rawMotm;
+          if (motmObj?.id) {
+             setSelectedMotm(motmObj.id);
+          } else if (data.man_of_the_match_id) {
+             setSelectedMotm(data.man_of_the_match_id);
+          }
+          setCustomResultText(data.resultText || data.result || 'Match Completed');
+        }
       } catch (err) {
         console.error("Failed to load match scorecard", err);
       } finally {
@@ -69,7 +137,23 @@ export default function MatchResultScreen() {
     </div>;
   }
 
-  if (!matchData) return null;
+  if (!matchData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+        <Trophy size={48} className="text-slate-300 dark:text-slate-700 mb-3" />
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">No Final Match Data Found</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+          No completed match result is currently available in the device Dexie database or network.
+        </p>
+        <button
+          onClick={() => navigateTo('matches')}
+          className="mt-4 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-sm cursor-pointer"
+        >
+          Back to Matches Directory
+        </button>
+      </div>
+    );
+  }
 
   const canAssignMotm = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
   const isMatchPermanentlyLocked = matchData.status === 'COMPLETED' && (!activeMatchId || activeMatchId !== matchData.id);
@@ -168,7 +252,9 @@ export default function MatchResultScreen() {
         selectedMotm || null
       );
       await resetScoringSession();
-      alert("Match has been successfully finalized and permanently locked! Scorer console is refreshed and ready.");
+      alert(navigator.onLine 
+        ? "Match has been successfully finalized and permanently locked! Scorer console is refreshed and ready." 
+        : "Match has been successfully finalized and saved in Dexie database offline! It will synchronize automatically when internet returns.");
       navigateTo('matches');
     } catch (err) {
       console.error("Failed to finalize and lock match:", err);
@@ -207,6 +293,13 @@ export default function MatchResultScreen() {
         </button>
       )}
       <div>
+        {(!navigator.onLine || matchData?.isOfflineDexie) && (
+          <div className="mb-2.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+            <WifiOff size={14} className="shrink-0 text-amber-500 animate-pulse" />
+            <Database size={14} className="shrink-0 text-amber-500" />
+            <span>Offline Mode Active • Final result loaded from Dexie database</span>
+          </div>
+        )}
         <span className="result-hero-light__kicker text-[#2457D6] dark:text-[#A3E635] font-black text-xs uppercase tracking-wider flex items-center gap-1.5"><Trophy size={14}/> OFFICIAL MATCH RESULT</span>
         <h1 className="text-slate-900 dark:text-[#F3F4F6] font-black text-2xl mt-1">{matchData.resultText || matchData.result || 'Match completed'}</h1>
         <p className="text-slate-500 dark:text-[#94A3B8] text-xs mt-1">{matchData.tournament || 'JDCA Fixture'} • {matchData.venue || 'JDCA Ground'} • {matchData.date || 'Match Day'}</p>

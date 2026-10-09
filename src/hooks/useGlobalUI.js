@@ -110,6 +110,23 @@ export function useGlobalUI() {
     navigate(-1);
   };
 
+  const notificationsEnabled = systemSettings?.notifications !== false;
+
+  const toggleNotifications = (forceState) => {
+    setSystemSettings(prev => {
+      const nextVal = typeof forceState === 'boolean' ? forceState : !(prev?.notifications !== false);
+      try {
+        if (!nextVal) {
+          localStorage.setItem('jdca_notifications_muted', 'true');
+          localStorage.setItem('jdca_hide_push_prompt', 'true');
+        } else {
+          localStorage.removeItem('jdca_notifications_muted');
+        }
+      } catch {}
+      return { ...prev, notifications: nextVal };
+    });
+  };
+
   return {
     currentScreen,
     activeTab,
@@ -119,6 +136,7 @@ export function useGlobalUI() {
     appError, setAppError,
     isDarkMode, setIsDarkMode,
     systemSettings, setSystemSettings,
+    notificationsEnabled, toggleNotifications,
     drawerOpen, setDrawerOpen,
     navigateTo,
     goBack
