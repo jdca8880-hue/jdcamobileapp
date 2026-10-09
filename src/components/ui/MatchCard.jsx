@@ -1,25 +1,87 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarDays, ArrowRight, MapPin } from 'lucide-react';
 import { CloudinaryAvatar } from './CloudinaryAvatar';
 import { motion } from 'motion/react';
 import { useHaptics } from '../../hooks/useHaptics';
-export const MatchCard = ({ match, onClick }) => {
-  const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
-  const isCompleted = match.status === 'COMPLETED' || match.status === 'FINISHED';
+import { useCricket } from '../../context/CricketContext';
 
-  // Fetch dynamic data if available
+export const MatchCard = ({ match, onClick }) => {
+  const cricketContext = useCricket() || {};
+  const players = cricketContext.players || [];
+  const haptics = useHaptics();
+
+  const statusUpper = String(match.status || '').toUpperCase();
+  const isLive = statusUpper === 'LIVE' || statusUpper === 'IN_PROGRESS';
+  const isCompleted = statusUpper === 'COMPLETED' || statusUpper === 'FINISHED' || Boolean(match.result_text || match.result);
+
+  // Fetch dynamic date & teams
   const dateStr = match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : 'Date Not Set';
-  const rawPlayerOfMatch = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch || null;
-  const playerOfMatch = Array.isArray(rawPlayerOfMatch) ? rawPlayerOfMatch[0] : rawPlayerOfMatch;
   const teamAName = match.home_team?.name || 'Home Team';
   const teamBName = match.away_team?.name || 'Away Team';
 
+  // Dynamic overs calculation (not hardcoded)
+  const totalOvers = match.max_overs || match.overs || match.total_overs || (() => {
+    const fmt = String(match.match_format || match.format || '').toUpperCase();
+    if (fmt === 'T20') return 20;
+    if (fmt === 'T10') return 10;
+    if (fmt === 'THE HUNDRED') return 100;
+    if (fmt === 'ODI') return 50;
+    const digits = fmt.match(/\d+/);
+    return digits ? Number(digits[0]) : null;
+  })();
+
+  const formatText = match.match_format || match.format || (totalOvers ? `${totalOvers} Overs` : null);
+
+  // Dynamic officials: Umpire and Scorer
+  const umpireName = match.umpire_name || match.umpireName || match.umpire || 
+    (match.matchSetup?.umpires?.umpire1 
+      ? [match.matchSetup.umpires.umpire1, match.matchSetup.umpires.umpire2].filter(Boolean).join(' & ') 
+      : null);
+
+  const scorerName = match.scorer_name || match.scorerName || match.scorer || match.matchSetup?.scorerName || null;
+
+  // Resolve Man of the Match
+  const rawPlayerOfMatch = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch || null;
+  const playerOfMatch = Array.isArray(rawPlayerOfMatch) ? rawPlayerOfMatch[0] : rawPlayerOfMatch;
+
+  const motmId = match.man_of_the_match_id || 
+    (typeof rawPlayerOfMatch === 'object' ? rawPlayerOfMatch?.id : null) || 
+    (typeof rawPlayerOfMatch === 'string' && (/^[0-9a-f-]{10,}$/i.test(rawPlayerOfMatch) || !isNaN(rawPlayerOfMatch)) ? rawPlayerOfMatch : null);
+
+  const matchedPlayer = motmId ? players.find(p => String(p.id) === String(motmId)) : null;
+
+  const [asyncPlayer, setAsyncPlayer] = useState(null);
+
+  useEffect(() => {
+    if (!motmId || matchedPlayer) return;
+    let isMounted = true;
+    import('../../lib/db').then(({ db }) => {
+      db.players.get(motmId).then(p => {
+        if (p && isMounted) setAsyncPlayer(p);
+        else {
+          db.players.toArray().then(all => {
+            const found = all.find(pl => String(pl.id) === String(motmId));
+            if (found && isMounted) setAsyncPlayer(found);
+          });
+        }
+      }).catch(() => {});
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, [motmId, matchedPlayer]);
+
+  const finalPlayer = matchedPlayer || asyncPlayer || (typeof playerOfMatch === 'object' ? playerOfMatch : null);
+
+  const potmDisplayName = 
+    finalPlayer?.full_name || 
+    finalPlayer?.name || 
+    (typeof playerOfMatch === 'string' && !/^[0-9a-f-]{10,}$/i.test(playerOfMatch) && isNaN(playerOfMatch) ? playerOfMatch : null) || 
+    (motmId ? 'Official Award' : 'Not Awarded');
+
+  const hasPotm = Boolean(potmDisplayName && potmDisplayName !== 'Not Awarded');
+  const playerAvatar = finalPlayer?.avatar_url || finalPlayer?.image || null;
+
   // Image placeholders
   const bannerImage = match.bannerImage || "/imageformatchescard.png";
-  const playerAvatar = typeof playerOfMatch === 'object' ? (playerOfMatch?.avatar_url || playerOfMatch?.image) : null;
-  const potmDisplayName = typeof playerOfMatch === 'string' ? playerOfMatch : (playerOfMatch?.full_name || playerOfMatch?.name || (match.man_of_the_match_id ? 'Official Award' : 'Not Awarded'));
-
-  const haptics = useHaptics();
 
   return (
     <motion.div 
@@ -38,9 +100,16 @@ export const MatchCard = ({ match, onClick }) => {
         {/* Banner content */}
         <div className="absolute inset-0 p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold tracking-wider uppercase text-white/90 drop-shadow-sm`}>
-                {match.tournament || 'JDCA Official Fixtures'}
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs font-bold tracking-wider uppercase text-white/90 drop-shadow-sm`}>
+                  {match.tournament || 'JDCA Official Fixtures'}
+                </span>
+                {totalOvers && (
+                  <span className="px-2 py-0.5 rounded bg-white/20 text-white text-[10px] font-black uppercase backdrop-blur-sm border border-white/20 tracking-wider">
+                    {totalOvers} Ov
+                  </span>
+                )}
+              </div>
               {isLive ? (
                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#A3E635]/20 text-[#A3E635] text-xs font-bold border border-[#A3E635]/40 backdrop-blur-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#A3E635] animate-pulse" />
@@ -132,19 +201,55 @@ export const MatchCard = ({ match, onClick }) => {
             );
           })()}
 
+          {/* Match Details Bar: Overs, Umpire, Scorer */}
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 grid grid-cols-3 gap-2 text-[11px]">
+            {/* Dynamic Overs */}
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#1E2226] px-2.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700/60 min-w-0">
+              <span className="text-sm shrink-0">🏏</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Overs</span>
+                <span className="font-black text-slate-900 dark:text-[#F3F4F6] truncate">
+                  {totalOvers ? `${totalOvers} Ov` : (formatText || 'Standard')}
+                </span>
+              </div>
+            </div>
+
+            {/* Umpire */}
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#1E2226] px-2.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700/60 min-w-0">
+              <span className="text-sm shrink-0">⚖️</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Umpire</span>
+                <span className="font-black text-slate-900 dark:text-[#F3F4F6] truncate" title={umpireName || 'Not Assigned'}>
+                  {umpireName || 'Not Assigned'}
+                </span>
+              </div>
+            </div>
+
+            {/* Scorer */}
+            <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#1E2226] px-2.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700/60 min-w-0">
+              <span className="text-sm shrink-0">📋</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Scorer</span>
+                <span className="font-black text-slate-900 dark:text-[#F3F4F6] truncate" title={scorerName || 'Not Assigned'}>
+                  {scorerName || 'Not Assigned'}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Match Performers Section */}
-          {isCompleted && (
-            <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700/60 flex flex-col gap-3">
+          {(hasPotm || isCompleted) && (
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex flex-col gap-2.5">
               <span className="text-[10px] text-slate-500 dark:text-[#64748B] font-bold uppercase tracking-widest">Match Performers</span>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {/* Man of the Match */}
-                <div className="flex items-center gap-3 bg-slate-50 dark:bg-[#1E2226] p-2.5 rounded-xl border border-slate-100 dark:border-slate-700/60">
-                    <CloudinaryAvatar src={playerAvatar} alt={potmDisplayName} className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-sm shrink-0" />
-                    <div className="flex flex-col flex-1">
-                       <span className="text-[9px] text-[#F97316] font-bold uppercase tracking-wider flex items-center gap-1">🏆 Player of the Match</span>
-                       <span className="text-xs font-black text-slate-800 dark:text-[#F3F4F6]">{potmDisplayName}</span>
-                       <span className="text-[10px] font-semibold text-slate-500 dark:text-[#64748B]">Official Award</span>
+                <div className="flex items-center gap-3 bg-amber-500/10 dark:bg-amber-500/15 p-2.5 rounded-xl border border-amber-500/30 shadow-xs">
+                    <CloudinaryAvatar src={playerAvatar} alt={potmDisplayName} className="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shadow-sm shrink-0" />
+                    <div className="flex flex-col flex-1 min-w-0">
+                       <span className="text-[9px] text-[#F97316] dark:text-amber-400 font-black uppercase tracking-wider flex items-center gap-1">🏆 Player of the Match</span>
+                       <span className="text-xs font-black text-slate-900 dark:text-[#F3F4F6] truncate">{potmDisplayName}</span>
+                       <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300/80">Official Award</span>
                     </div>
                 </div>
 
@@ -183,7 +288,7 @@ export const MatchCard = ({ match, onClick }) => {
           )}
           
           {/* Footer info */}
-          <div className={`mt-4 pt-4 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-[#64748B] ${(!isCompleted && !isLive) ? 'border-t border-slate-100 dark:border-slate-700/60' : ''}`}>
+          <div className={`mt-4 pt-3 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-[#64748B] ${(!hasPotm && !isCompleted && !isLive) ? 'border-t border-slate-100 dark:border-slate-700/60' : ''}`}>
             <div className="flex items-center gap-1.5">
               <MapPin size={12} />
               {match.venue_name || match.venue || 'Unknown Venue'}
@@ -197,3 +302,4 @@ export const MatchCard = ({ match, onClick }) => {
     </motion.div>
   );
 };
+

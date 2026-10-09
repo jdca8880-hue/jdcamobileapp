@@ -20,6 +20,21 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
   const venueName = match.venue_name || match.venue || 'Cricket Ground';
   const matchFormat = match.match_format || match.format || 'T20';
 
+  // Dynamic overs calculation (not hardcoded)
+  const totalOvers = match.max_overs || match.overs || match.total_overs || (() => {
+    const fmt = String(match.match_format || match.format || '').toUpperCase();
+    if (fmt === 'T20') return 20;
+    if (fmt === 'T10') return 10;
+    if (fmt === 'THE HUNDRED') return 100;
+    if (fmt === 'ODI') return 50;
+    const digits = fmt.match(/\d+/);
+    return digits ? Number(digits[0]) : null;
+  })();
+
+  const umpireName = match.umpire_name || match.umpireName || match.umpire || 
+    (match.matchSetup?.umpires?.umpire1 ? [match.matchSetup.umpires.umpire1, match.matchSetup.umpires.umpire2].filter(Boolean).join(' & ') : null);
+  const scorerName = match.scorer_name || match.scorerName || match.scorer || null;
+
   // Check if current user is the assigned scorer or an admin
   const isAssignedScorer = userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || (
     userRole === 'SCORER' && (
@@ -75,7 +90,7 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
                 {matchIsPaused ? 'PAUSED' : 'LIVE'}
               </span>
               <span className="text-xs font-bold text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-md border border-white/10 uppercase tracking-wider">
-                {matchFormat}
+                {totalOvers ? `${totalOvers} Overs` : matchFormat}
               </span>
               <span className="text-xs font-semibold text-[#A3E635] truncate max-w-[200px]">
                 {tournamentName}
@@ -155,8 +170,8 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
             <span className={`w-1.5 h-1.5 rounded-full ${matchIsPaused ? 'bg-[#F97316]' : 'bg-[#A3E635] animate-pulse'}`} />
             {matchIsPaused ? 'PAUSED' : 'LIVE'}
           </span>
-          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#1E2226] px-1.5 py-0.5 rounded uppercase">
-            {matchFormat}
+          <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-[#1E2226] px-1.5 py-0.5 rounded uppercase">
+            {totalOvers ? `${totalOvers} Ov` : matchFormat}
           </span>
         </div>
         <span className="text-xs font-semibold text-slate-500 dark:text-[#64748B] truncate max-w-[150px] text-right">

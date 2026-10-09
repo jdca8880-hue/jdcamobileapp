@@ -143,8 +143,37 @@ const PointsTableUI = ({ pointsTable }) => {
 };
 
 const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, onEditMatch, onDeleteMatch, isAdmin }) => {
-  const isLive = match.status === 'LIVE' || match.status === 'IN_PROGRESS';
-  const isCompleted = match.status === 'COMPLETED' || match.status === 'FINISHED';
+  const { players = [] } = useCricket() || {};
+  const statusUpper = String(match.status || '').toUpperCase();
+  const isLive = statusUpper === 'LIVE' || statusUpper === 'IN_PROGRESS';
+  const isCompleted = statusUpper === 'COMPLETED' || statusUpper === 'FINISHED' || Boolean(match.result_text || match.result);
+
+  // Dynamic overs calculation
+  const totalOvers = match.max_overs || match.overs || match.total_overs || (() => {
+    const fmt = String(match.match_format || match.format || '').toUpperCase();
+    if (fmt === 'T20') return 20;
+    if (fmt === 'T10') return 10;
+    if (fmt === 'THE HUNDRED') return 100;
+    if (fmt === 'ODI') return 50;
+    const digits = fmt.match(/\d+/);
+    return digits ? Number(digits[0]) : null;
+  })();
+
+  // Resolve Player of Match
+  const rawPotm = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch;
+  const potm = Array.isArray(rawPotm) ? rawPotm[0] : rawPotm;
+  const motmId = match.man_of_the_match_id || 
+    (typeof rawPotm === 'object' ? rawPotm?.id : null) || 
+    (typeof rawPotm === 'string' && (/^[0-9a-f-]{10,}$/i.test(rawPotm) || !isNaN(rawPotm)) ? rawPotm : null);
+
+  const matchedPlayer = motmId ? players.find(p => String(p.id) === String(motmId)) : null;
+
+  const potmName = 
+    matchedPlayer?.full_name || 
+    matchedPlayer?.name || 
+    (typeof potm === 'object' ? (potm?.full_name || potm?.name) : null) || 
+    (typeof potm === 'string' && !/^[0-9a-f-]{10,}$/i.test(potm) && isNaN(potm) ? potm.trim() : null) || 
+    (motmId ? 'Official Award' : null);
 
   if (isExpanded) {
     return (
@@ -153,19 +182,14 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
         <MatchCard match={match} onClick={onOpenDetail} />
         {isCompleted && (
           <div className="mt-2 ml-4 mr-2 bg-slate-50 dark:bg-[#1E2226] p-3 rounded-xl border border-gray-100 dark:border-white/10 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
-            {(() => {
-              const rawPotm = match.man_of_the_match || match.playerOfMatch || match.manOfTheMatch;
-              const potm = Array.isArray(rawPotm) ? rawPotm[0] : rawPotm;
-              if (!potm) return null;
-              const potmName = typeof potm === 'string' ? potm.trim() : (potm.full_name || potm.name);
-              if (!potmName) return null;
-              return (
-                <div>
-                  <span className="text-[#8a99b0] dark:text-[#94A3B8] uppercase font-bold tracking-wider text-[10px] block">Man of the Match</span>
-                  <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{potmName}</span>
-                </div>
-              );
-            })()}
+            {potmName && (
+              <div>
+                <span className="text-[#8a99b0] dark:text-[#94A3B8] uppercase font-bold tracking-wider text-[10px] block">Man of the Match</span>
+                <span className="font-extrabold text-[#101827] dark:text-[#F3F4F6] flex items-center gap-1">
+                  🏆 {potmName}
+                </span>
+              </div>
+            )}
             {match.topBatter && (
               <div><span className="text-[#8a99b0] dark:text-[#94A3B8] uppercase font-bold tracking-wider text-[10px] block">Top Batter</span> <span className="font-bold text-[#101827] dark:text-[#F3F4F6]">{match.topBatter.name || match.topBatter}</span></div>
             )}
@@ -192,13 +216,20 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
       onClick={onToggle}
       className="flex items-center justify-between py-3 px-1 border-b border-gray-100 dark:border-white/5 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
     >
-      <div className="flex items-center gap-3">
-        <span className="text-[12px] font-bold text-[#8a99b0] dark:text-[#94A3B8] w-5">{String(index + 1).padStart(2, '0')}</span>
-        <div>
-          <div className="text-[14px] font-bold text-[#101827] dark:text-[#F3F4F6]">
-            {match.home_team?.name || 'Home Team'} <span className="text-[#8a99b0] dark:text-[#94A3B8] font-medium mx-1">vs</span> {match.away_team?.name || 'Away Team'}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <span className="text-[12px] font-bold text-[#8a99b0] dark:text-[#94A3B8] w-5 shrink-0">{String(index + 1).padStart(2, '0')}</span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-bold text-[#101827] dark:text-[#F3F4F6] flex items-center gap-2 flex-wrap">
+            <span>{match.home_team?.name || 'Home Team'}</span>
+            <span className="text-[#8a99b0] dark:text-[#94A3B8] font-medium">vs</span>
+            <span>{match.away_team?.name || 'Away Team'}</span>
+            {totalOvers && (
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                {totalOvers} Ov
+              </span>
+            )}
           </div>
-          <div className="text-[12px] text-[#596579] dark:text-[#CBD5E1] mt-0.5">
+          <div className="text-[12px] text-[#596579] dark:text-[#CBD5E1] mt-0.5 flex items-center gap-2 flex-wrap">
             {isLive ? (
               <span className="text-[#0FA968] font-bold flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#0FA968] animate-pulse" />
@@ -209,10 +240,15 @@ const TournamentMatchRow = ({ match, index, isExpanded, onToggle, onOpenDetail, 
             ) : (
               <span>{match.date || match.scheduled_at?.split('T')[0] || 'Tomorrow'}</span>
             )}
+            {potmName && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                🏆 PoTM: {potmName}
+              </span>
+            )}
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {isAdmin && (
           <>
             <button 

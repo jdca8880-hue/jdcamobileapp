@@ -8,7 +8,7 @@ import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
 
 export default function MatchResultScreen() {
-  const { matches = [], activeMatchId, navigateTo, userRole, resetScoringSession } = useCricket();
+  const { matches = [], setMatches, refreshAdminData, activeMatchId, navigateTo, userRole, resetScoringSession } = useCricket();
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedMotm, setSelectedMotm] = useState('');
@@ -164,9 +164,19 @@ export default function MatchResultScreen() {
     if (playerId && matchData) {
       setIsAssigning(true);
       try {
-        await api.assignManOfTheMatch(matchData.id, playerId);
+        const res = await api.assignManOfTheMatch(matchData.id, playerId);
         const updatedData = await api.getMatchScorecard(matchData.id);
         setMatchData(updatedData);
+        if (setMatches) {
+          setMatches(prev => prev.map(m => String(m.id) === String(matchData.id) ? {
+            ...m,
+            man_of_the_match_id: playerId,
+            man_of_the_match: res?.man_of_the_match || updatedData?.man_of_the_match,
+            playerOfMatch: res?.man_of_the_match || updatedData?.playerOfMatch || updatedData?.man_of_the_match,
+            manOfTheMatch: res?.man_of_the_match || updatedData?.manOfTheMatch || updatedData?.man_of_the_match
+          } : m));
+        }
+        if (refreshAdminData) refreshAdminData();
       } catch (err) {
         console.error("Failed to assign MotM:", err);
         alert("Failed to assign Man of the Match.");
@@ -251,6 +261,18 @@ export default function MatchResultScreen() {
         finalResultText, 
         selectedMotm || null
       );
+      if (setMatches) {
+        setMatches(prev => prev.map(m => String(m.id) === String(matchData.id) ? {
+          ...m,
+          status: 'COMPLETED',
+          result_text: finalResultText,
+          result: finalResultText,
+          man_of_the_match_id: selectedMotm || m.man_of_the_match_id,
+          winner_team_id: matchData.winner_team_id || m.winner_team_id,
+          result_margin: matchData.result_margin || m.result_margin
+        } : m));
+      }
+      if (refreshAdminData) refreshAdminData();
       await resetScoringSession();
       alert(navigator.onLine 
         ? "Match has been successfully finalized and permanently locked! Scorer console is refreshed and ready." 
