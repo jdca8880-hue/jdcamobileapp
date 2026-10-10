@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
 import { api, parseOversFromFormat } from '../lib/api';
@@ -710,36 +710,40 @@ export function useMatchScoring({
     }
   }, [activeMatchId]);
 
-  // Auto-restore scoring state from the local Dexie snapshot when the hook
-  // initializes with default values (page refresh / app restart). This is a
-  // fast, local-only safety net that ensures innings, runs, wickets, balls,
-  // striker, bowler, etc. are restored even when ScoringScreen's hydration
-  // is delayed or bypassed.
-  const snapshotRestoreAttempted = useRef(false);
+  // Hydration state — owned here so there is exactly ONE place that sets
+  // isHydrating true/false. ScoringScreen reads it, never writes it.
+  const [isHydrating, setIsHydrating] = useState(false);
+  const [hydrationError, setHydrationError] = useState(null);
+  const hydrationRanForMatch = useRef(null);
+
+  // Unified hydration: local snapshot first (instant), then API (authoritative).
+  // Runs once per activeMatchId when scoring state is at defaults (page refresh /
+  // app restart). SPA navigation keeps CricketContext alive, so state is already
+  // populated and the guard `innings !== 1 || balls !== 0` skips this.
   useEffect(() => {
     if (!activeMatchId) {
-      snapshotRestoreAttempted.current = false;
+      hydrationRanForMatch.current = null;
+      setIsHydrating(false);
+      setHydrationError(null);
       return;
     }
-    if (snapshotRestoreAttempted.current) return;
-    if (innings !== 1 || balls !== 0) {
-      snapshotRestoreAttempted.current = true;
-      return;
-    }
-    snapshotRestoreAttempted.current = true;
+    if (innings !== 1 || balls !== 0) return;
+    if (hydrationRanForMatch.current === activeMatchId) return;
+    hydrationRanForMatch.current = activeMatchId;
 
-    // Skip auto-restore for completed/abandoned/cancelled matches
     const activeMatch = matches?.find(m => m.id === activeMatchId);
     if (activeMatch && ['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(activeMatch.status)) return;
 
     let cancelled = false;
+
     (async () => {
+      // --- Step 1: instant local restore from Dexie snapshot ---
+      let restoredLocally = false;
       try {
         const { db } = await import('../lib/db.js');
         const snapshot = await db.match_state.get(activeMatchId);
-        if (cancelled || !snapshot) return;
-        if (snapshot.innings > 1 || snapshot.balls > 0) {
-          console.log('[useMatchScoring] Auto-restoring scoring state from local snapshot');
+        if (!cancelled && snapshot && (snapshot.innings > 1 || snapshot.balls > 0 || snapshot.matchSetup)) {
+          console.log('[useMatchScoring] Restoring from local snapshot');
           setInnings(snapshot.innings ?? 1);
           setCurrentInningsId(snapshot.currentInningsId);
           if (snapshot.currentBattingTeamId) setCurrentBattingTeamId(snapshot.currentBattingTeamId);
@@ -764,13 +768,64 @@ export function useMatchScoring({
             Object.assign(inningsSeqRef.current, snapshot.inningsSeqCounters);
           }
           if (snapshot.matchSetup) setMatchSetup(snapshot.matchSetup);
+          restoredLocally = true;
         }
       } catch (e) {
-        console.warn('[useMatchScoring] Auto-restore from snapshot failed:', e);
+        console.warn('[useMatchScoring] Local snapshot restore failed:', e);
+      }
+
+      if (cancelled) return;
+
+      // --- Step 2: full API hydration for authoritative server data ---
+      // Show loading only when there was no local data to display.
+      if (!restoredLocally) setIsHydrating(true);
+      setHydrationError(null);
+
+      try {
+        const result = await hydrateMatchState(activeMatchId);
+        if (!cancelled) {
+          setIsHydrating(false);
+          if (!result?.success && !restoredLocally) {
+            setHydrationError(result?.error || 'Failed to load match data');
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setIsHydrating(false);
+          if (!restoredLocally) {
+            setHydrationError(e?.message || 'Failed to load match data');
+          }
+        }
       }
     })();
+
     return () => { cancelled = true; };
   }, [activeMatchId]);
+
+  // Retry hydration (exposed to UI for the "Retry" button and online recovery)
+  const retryHydration = useCallback(async () => {
+    if (!activeMatchId) return;
+    setIsHydrating(true);
+    setHydrationError(null);
+    try {
+      const result = await hydrateMatchState(activeMatchId);
+      setIsHydrating(false);
+      if (!result?.success) {
+        setHydrationError(result?.error || 'Retry failed');
+      }
+    } catch (e) {
+      setIsHydrating(false);
+      setHydrationError(e?.message || 'Retry failed');
+    }
+  }, [activeMatchId]);
+
+  // Auto-retry when connectivity is restored after a hydration failure
+  useEffect(() => {
+    if (!hydrationError || !activeMatchId) return;
+    const handleOnline = () => retryHydration();
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [hydrationError, activeMatchId, retryHydration]);
 
   const prevMatchForResolve = useRef(activeMatchId);
   useEffect(() => {
@@ -1967,6 +2022,9 @@ export function useMatchScoring({
     currentInningsId, setCurrentInningsId,
     currentBattingTeamId, currentBowlingTeamId,
     target, setTarget,
+    isHydrating, setIsHydrating,
+    hydrationError, setHydrationError,
+    retryHydration,
     hydrateMatchState,
     resolveInningsId,
     matchFormat, setMatchFormat,

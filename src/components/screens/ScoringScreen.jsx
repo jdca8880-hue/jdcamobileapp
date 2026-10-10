@@ -26,7 +26,8 @@ export default function ScoringScreen() {
     validationError, setValidationError, matchStatus, recordRuns, recordExtra, recordPenaltyEvent,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
     currentBattingTeamId, currentBowlingTeamId,
-    matchSetup, setMatchSetup, applyRevisedOvers, endMatchEarly, hydrateMatchState, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
+    matchSetup, setMatchSetup, applyRevisedOvers, endMatchEarly, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
+    isHydrating, setIsHydrating, hydrationError, setHydrationError, retryHydration,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
     tournaments, setActiveMatchId, isAppLoading, totalMatchOvers,
@@ -60,8 +61,6 @@ export default function ScoringScreen() {
   const [showHelp, setShowHelp] = useState(false);
   const [syncState, setSyncState] = useState({ status: 'ONLINE', pendingCount: 0 });
   const [syncError, setSyncError] = useState(null);
-  const [isHydrating, setIsHydrating] = useState(false);
-  const [hydrationError, setHydrationError] = useState(null);
   const [selectedTournament, setSelectedTournament] = useState('');
   const [interruptionModalOpen, setInterruptionModalOpen] = useState(false);
 
@@ -86,109 +85,6 @@ export default function ScoringScreen() {
       navigateTo('matches');
     }
   }, [activeMatchId, matches, isAppLoading]);
-
-  const performHydration = React.useCallback(async () => {
-    if (!activeMatchId) return;
-    setIsHydrating(true);
-    setHydrationError(null);
-    try {
-      const timeoutPromise = new Promise(resolve => 
-        setTimeout(() => resolve({ success: false, timeout: true, error: 'Hydration timed out' }), 4500)
-      );
-      const result = await Promise.race([hydrateMatchState(activeMatchId), timeoutPromise]);
-      setIsHydrating(false);
-      if (!result?.success && !result?.timeout) {
-        setHydrationError(result?.error || 'Unknown error');
-      }
-    } catch (err) {
-      setIsHydrating(false);
-      setHydrationError(err?.message || 'Hydration failed');
-    }
-  }, [activeMatchId, hydrateMatchState]);
-
-  const hydrationInProgressRef = React.useRef(false);
-  useEffect(() => {
-    let isMounted = true;
-    const checkHydration = async () => {
-      if (!activeMatchId) return;
-
-      // If matchSetup AND scoring state are both already in React state
-      // (SPA navigation — CricketContext never unmounted), skip hydration entirely.
-      if (matchSetup?.matchId === activeMatchId && matchSetup?.teamAXI?.length > 0
-          && (innings > 1 || balls > 0)) {
-        if (isMounted) setIsHydrating(false);
-        return;
-      }
-
-      // If another run of this effect already started hydration, skip.
-      if (hydrationInProgressRef.current) return;
-
-      // Pre-load matchSetup from localStorage for instant team info while
-      // full hydration restores scoring state in the background.
-      try {
-        const cached = JSON.parse(
-          localStorage.getItem(`jdca-match-setup-${activeMatchId}`) ||
-          localStorage.getItem(`jdca_match_setup_${activeMatchId}`) ||
-          'null'
-        );
-        if (cached && Array.isArray(cached.teamAXI) && cached.teamAXI.length > 0) {
-          setMatchSetup(prev => ({
-            ...prev,
-            ...cached,
-            matchId: activeMatchId
-          }));
-        }
-      } catch (e) {}
-
-      // Full hydration: restores innings number, runs, wickets, balls, striker,
-      // bowler, delivery log, and all other scoring state from Supabase or the
-      // local Dexie snapshot. Without this, a page refresh leaves innings at its
-      // default (1) even if the match was in innings 2.
-      hydrationInProgressRef.current = true;
-      if (isMounted) {
-        setIsHydrating(true);
-        setHydrationError(null);
-      }
-
-      const timeoutPromise = new Promise(resolve =>
-        setTimeout(() => resolve({ success: false, timeout: true, error: 'Hydration timed out' }), 4500)
-      );
-
-      try {
-        const result = await Promise.race([hydrateMatchState(activeMatchId), timeoutPromise]);
-        if (isMounted) {
-          setIsHydrating(false);
-          if (!result?.success && !result?.timeout) {
-            setHydrationError(result?.error || 'Unknown error');
-          }
-        }
-      } catch (err) {
-        if (isMounted) {
-          setIsHydrating(false);
-        }
-      } finally {
-        hydrationInProgressRef.current = false;
-      }
-    };
-    checkHydration();
-    return () => { isMounted = false; };
-  }, [activeMatchId, matchSetup?.matchId]);
-
-  // Auto-retry hydration when connectivity is restored
-  useEffect(() => {
-    const handleOnline = () => {
-      if (hydrationError && activeMatchId) {
-        performHydration();
-      }
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [hydrationError, activeMatchId, performHydration]);
-
-  const hydrateMatchStateRef = React.useRef(hydrateMatchState);
-  useEffect(() => {
-    hydrateMatchStateRef.current = hydrateMatchState;
-  });
 
   // Realtime listener for cross-device updates
 
@@ -384,7 +280,7 @@ export default function ScoringScreen() {
         <p className="text-gray-400 text-sm mt-1">Please check your network connection and try again.</p>
         <div className="flex items-center gap-3 mt-6">
           <button
-            onClick={() => performHydration()}
+            onClick={() => retryHydration()}
             className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold flex items-center gap-2 hover:bg-primary-700 transition"
           >
             <RefreshCw className="h-4 w-4" /> Retry Loading
