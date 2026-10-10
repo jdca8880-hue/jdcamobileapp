@@ -710,11 +710,80 @@ export function useMatchScoring({
     }
   }, [activeMatchId]);
 
+  // Auto-restore scoring state from the local Dexie snapshot when the hook
+  // initializes with default values (page refresh / app restart). This is a
+  // fast, local-only safety net that ensures innings, runs, wickets, balls,
+  // striker, bowler, etc. are restored even when ScoringScreen's hydration
+  // is delayed or bypassed.
+  const snapshotRestoreAttempted = useRef(false);
   useEffect(() => {
-    setCurrentInningsId(null);
-    // Clear stale team resolution; resolveInningsId sets it from the innings record.
-    setCurrentBattingTeamId(null);
-    setCurrentBowlingTeamId(null);
+    if (!activeMatchId) {
+      snapshotRestoreAttempted.current = false;
+      return;
+    }
+    if (snapshotRestoreAttempted.current) return;
+    if (innings !== 1 || balls !== 0) {
+      snapshotRestoreAttempted.current = true;
+      return;
+    }
+    snapshotRestoreAttempted.current = true;
+
+    // Skip auto-restore for completed/abandoned/cancelled matches
+    const activeMatch = matches?.find(m => m.id === activeMatchId);
+    if (activeMatch && ['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(activeMatch.status)) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { db } = await import('../lib/db.js');
+        const snapshot = await db.match_state.get(activeMatchId);
+        if (cancelled || !snapshot) return;
+        if (snapshot.innings > 1 || snapshot.balls > 0) {
+          console.log('[useMatchScoring] Auto-restoring scoring state from local snapshot');
+          setInnings(snapshot.innings ?? 1);
+          setCurrentInningsId(snapshot.currentInningsId);
+          if (snapshot.currentBattingTeamId) setCurrentBattingTeamId(snapshot.currentBattingTeamId);
+          if (snapshot.currentBowlingTeamId) setCurrentBowlingTeamId(snapshot.currentBowlingTeamId);
+          setRuns(snapshot.runs ?? 0);
+          setWickets(snapshot.wickets ?? 0);
+          setBalls(snapshot.balls ?? 0);
+          setTarget(snapshot.target);
+          setStriker(snapshot.striker);
+          setNonStriker(snapshot.nonStriker);
+          setCurrentBowler(snapshot.currentBowler);
+          setDeliveryLog(snapshot.deliveryLog ?? []);
+          setCurrentOverBalls(snapshot.currentOverBalls ?? []);
+          setExtras(snapshot.extras ?? { wides: 0, noBalls: 0, legByes: 0, byes: 0, penalty: 0 });
+          setIsFreeHit(snapshot.isFreeHit ?? false);
+          setMatchStatus(snapshot.matchStatus ?? 'IN_PROGRESS');
+          setIsPaused(snapshot.isPaused ?? false);
+          if (snapshot.scorecard) setScorecard(snapshot.scorecard);
+          if (snapshot.lastOverBowlerId !== undefined) setLastOverBowlerId(snapshot.lastOverBowlerId);
+          if (snapshot.totalMatchOvers) setTotalMatchOvers(snapshot.totalMatchOvers);
+          if (snapshot.inningsSeqCounters) {
+            Object.assign(inningsSeqRef.current, snapshot.inningsSeqCounters);
+          }
+          if (snapshot.matchSetup) setMatchSetup(snapshot.matchSetup);
+        }
+      } catch (e) {
+        console.warn('[useMatchScoring] Auto-restore from snapshot failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeMatchId]);
+
+  const prevMatchForResolve = useRef(activeMatchId);
+  useEffect(() => {
+    // Only clear innings IDs when the active match changes. When innings
+    // changes within the same match (e.g. snapshot restore setting innings=2),
+    // keep the existing IDs until resolveInningsId provides new ones — clearing
+    // them would briefly null out the correct values the restore just set.
+    if (prevMatchForResolve.current !== activeMatchId) {
+      prevMatchForResolve.current = activeMatchId;
+      setCurrentInningsId(null);
+      setCurrentBattingTeamId(null);
+      setCurrentBowlingTeamId(null);
+    }
     if (activeMatchId) {
       resolveInningsId(activeMatchId, innings);
     }

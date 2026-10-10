@@ -106,18 +106,25 @@ export default function ScoringScreen() {
     }
   }, [activeMatchId, hydrateMatchState]);
 
+  const hydrationInProgressRef = React.useRef(false);
   useEffect(() => {
     let isMounted = true;
     const checkHydration = async () => {
       if (!activeMatchId) return;
 
-      // 1. If matchSetup is already loaded for this match with Playing XI, no need to re-hydrate from database
-      if (matchSetup?.matchId === activeMatchId && matchSetup?.teamAXI?.length > 0) {
+      // If matchSetup AND scoring state are both already in React state
+      // (SPA navigation — CricketContext never unmounted), skip hydration entirely.
+      if (matchSetup?.matchId === activeMatchId && matchSetup?.teamAXI?.length > 0
+          && (innings > 1 || balls > 0)) {
         if (isMounted) setIsHydrating(false);
         return;
       }
 
-      // 2. Fast local recovery from localStorage
+      // If another run of this effect already started hydration, skip.
+      if (hydrationInProgressRef.current) return;
+
+      // Pre-load matchSetup from localStorage for instant team info while
+      // full hydration restores scoring state in the background.
       try {
         const cached = JSON.parse(
           localStorage.getItem(`jdca-match-setup-${activeMatchId}`) ||
@@ -130,33 +137,37 @@ export default function ScoringScreen() {
             ...cached,
             matchId: activeMatchId
           }));
-          if (isMounted) setIsHydrating(false);
-          return;
         }
       } catch (e) {}
 
-      // 3. If no setup exists locally, hydrate with a strict timeout so the screen never freezes
-      if (!matchSetup?.teamAXI || matchSetup.teamAXI.length === 0 || matchSetup?.matchId !== activeMatchId) {
+      // Full hydration: restores innings number, runs, wickets, balls, striker,
+      // bowler, delivery log, and all other scoring state from Supabase or the
+      // local Dexie snapshot. Without this, a page refresh leaves innings at its
+      // default (1) even if the match was in innings 2.
+      hydrationInProgressRef.current = true;
+      if (isMounted) {
         setIsHydrating(true);
         setHydrationError(null);
+      }
 
-        const timeoutPromise = new Promise(resolve => 
-          setTimeout(() => resolve({ success: false, timeout: true, error: 'Hydration timed out' }), 4500)
-        );
+      const timeoutPromise = new Promise(resolve =>
+        setTimeout(() => resolve({ success: false, timeout: true, error: 'Hydration timed out' }), 4500)
+      );
 
-        try {
-          const result = await Promise.race([hydrateMatchState(activeMatchId), timeoutPromise]);
-          if (isMounted) {
-            setIsHydrating(false);
-            if (!result?.success && !result?.timeout) {
-              setHydrationError(result?.error || 'Unknown error');
-            }
-          }
-        } catch (err) {
-          if (isMounted) {
-            setIsHydrating(false);
+      try {
+        const result = await Promise.race([hydrateMatchState(activeMatchId), timeoutPromise]);
+        if (isMounted) {
+          setIsHydrating(false);
+          if (!result?.success && !result?.timeout) {
+            setHydrationError(result?.error || 'Unknown error');
           }
         }
+      } catch (err) {
+        if (isMounted) {
+          setIsHydrating(false);
+        }
+      } finally {
+        hydrationInProgressRef.current = false;
       }
     };
     checkHydration();
