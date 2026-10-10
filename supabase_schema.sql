@@ -157,6 +157,7 @@ create table if not exists age_categories (
   name varchar(80) not null unique,
   short_name varchar(30) not null unique,
   rank_level integer not null unique,
+  gender gender_category not null,
   minimum_age integer,
   maximum_age integer,
   cutoff_date_rule varchar(200),
@@ -1596,15 +1597,29 @@ exception when duplicate_object then null; end $$;
 -- ============================================================
 
 insert into age_categories
-  (name, short_name, rank_level, minimum_age, maximum_age, cutoff_date_rule)
+  (name, short_name, rank_level, gender, minimum_age, maximum_age, cutoff_date_rule)
 values
-  ('Under 13','U13', 1, null, 12, 'Eligibility determined from official competition cutoff date'),
-  ('Under 15','U15', 2, null, 14, 'Eligibility determined from official competition cutoff date'),
-  ('Under 17','U17', 3, null, 16, 'Eligibility determined from official competition cutoff date'),
-  ('Under 19','U19', 4, null, 18, 'Eligibility determined from official competition cutoff date'),
-  ('Under 23','U23', 5, 19, 22, 'Eligibility determined from official competition cutoff date'),
-  ('Senior','SENIOR', 6, 23, null, 'Senior/open eligibility according to competition rules')
-on conflict (short_name) do nothing;
+  ('Under 13 Boys','U-13 Boys', 1, 'Men', null, 12, 'Eligibility determined from official competition cutoff date'),
+  ('Under 14 Boys','U-14 Boys', 2, 'Men', null, 13, 'Eligibility determined from official competition cutoff date'),
+  ('Under 15 Boys','U-15 Boys', 3, 'Men', null, 14, 'Eligibility determined from official competition cutoff date'),
+  ('Under 16 Boys','U-16 Boys', 4, 'Men', null, 15, 'Eligibility determined from official competition cutoff date'),
+  ('Under 18 Boys','U-18 Boys', 5, 'Men', null, 17, 'Eligibility determined from official competition cutoff date'),
+  ('Under 19 Boys','U-19 Boys', 6, 'Men', null, 18, 'Eligibility determined from official competition cutoff date'),
+  ('Under 22 Men','U-22 Men', 7, 'Men', null, 21, 'Eligibility determined from official competition cutoff date'),
+  ('Under 23 Men','U-23 Men', 8, 'Men', null, 22, 'Eligibility determined from official competition cutoff date'),
+  ('Senior Men','Senior Men', 9, 'Men', 23, null, 'Senior/open eligibility according to competition rules'),
+  ('Under 15 Girls','U-15 Girls', 10, 'Women', null, 14, 'Eligibility determined from official competition cutoff date'),
+  ('Under 18 Girls','U-18 Girls', 11, 'Women', null, 17, 'Eligibility determined from official competition cutoff date'),
+  ('Under 19 Girls','U-19 Girls', 12, 'Women', null, 18, 'Eligibility determined from official competition cutoff date'),
+  ('Under 23 Women','U-23 Women', 13, 'Women', null, 22, 'Eligibility determined from official competition cutoff date'),
+  ('Senior Women','Senior Women', 14, 'Women', 23, null, 'Senior/open eligibility according to competition rules')
+on conflict (short_name) do update set
+  name = excluded.name,
+  rank_level = excluded.rank_level,
+  gender = excluded.gender,
+  minimum_age = excluded.minimum_age,
+  maximum_age = excluded.maximum_age,
+  cutoff_date_rule = excluded.cutoff_date_rule;
 
 -- ============================================================
 -- PUSH NOTIFICATIONS

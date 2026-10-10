@@ -538,10 +538,9 @@ export const api = {
 
   async rebuildTeams() {
     const { data: districts } = await supabase.from('districts').select('id, name').eq('is_active', true);
-    const { data: ageCategories } = await supabase.from('age_categories').select('id, name, short_name').eq('is_active', true);
+    const { data: ageCategories } = await supabase.from('age_categories').select('id, name, short_name, gender').eq('is_active', true);
     if (!districts || !ageCategories) return;
 
-    const genders = ['Men', 'Women'];
     const teamsToInsert = [];
 
     const activeSeasonData = await this.getActiveSeason();
@@ -549,16 +548,15 @@ export const api = {
 
     districts.forEach(d => {
       ageCategories.forEach(ac => {
-        genders.forEach(g => {
-          teamsToInsert.push({
-            name: `${d.name} ${ac.name} ${g}`,
-            short_name: `${ac.short_name}-${g.substring(0, 1)}`,
-            season_id: activeSeasonData.id,
-            district_id: d.id,
-            age_category_id: ac.id,
-            gender: g,
-            is_active: true
-          });
+        const g = ac.gender || 'Men'; // Default fallback
+        teamsToInsert.push({
+          name: `${d.name} ${ac.name}`,
+          short_name: `${ac.short_name}`,
+          season_id: activeSeasonData.id,
+          district_id: d.id,
+          age_category_id: ac.id,
+          gender: g,
+          is_active: true
         });
       });
     });
