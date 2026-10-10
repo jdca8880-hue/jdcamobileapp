@@ -110,7 +110,7 @@ export default function DrawerMenu() {
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#A3E635', display: 'inline-block' }} />
                   </div>
                   <div style={{ fontSize: 9, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                    Jabalpur District Cricket
+                    Jabalpur Division Cricket
                   </div>
                 </div>
               </div>

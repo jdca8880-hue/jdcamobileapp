@@ -1516,6 +1516,8 @@ export const api = {
       tournament: matchData.tournament || matchData.tournament_name || matchData.tournament_id || 'JDCA Tournament',
       venue: matchData.venue_name || matchData.venue || 'JDCA Ground',
       date: matchData.date || (matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Match Day'),
+      umpire: matchData.umpire_name || matchData.umpireName || null,
+      scorer: matchData.scorer_name || matchData.scorerName || null,
       resultText: finalResultText,
       result: finalResultText,
       status: matchData.status || 'COMPLETED',
@@ -1922,6 +1924,12 @@ export const api = {
     let tossWinnerTeamId = setupData.tossWinnerTeamId || null;
     let tossDecision = setupData.tossDecision || 'BAT'; // BAT or BOWL
 
+    // Officials captured in the setup wizard (Step 5) are the FINAL TRUTH for
+    // the match and overwrite anything entered when the fixture was created.
+    const setupUmpireName =
+      [setupData.umpires?.umpire1, setupData.umpires?.umpire2].filter(Boolean).join(' & ') || null;
+    const setupScorerName = setupData.scorerName || null;
+
     // 1. Immediately cache to localStorage & local Dexie DB so scoring is unblocked offline
     try {
       localStorage.setItem(`jdca-match-setup-${matchId}`, JSON.stringify({
@@ -1948,7 +1956,9 @@ export const api = {
         toss_winner_id: tossWinnerTeamId || null,
         toss_decision: tossWinnerTeamId ? tossDecision : null,
         status: 'IN_PROGRESS',
-        ...(setupData.totalOvers ? { max_overs: Number(setupData.totalOvers) } : {})
+        ...(setupData.totalOvers ? { max_overs: Number(setupData.totalOvers) } : {}),
+        ...(setupUmpireName !== null ? { umpire_name: setupUmpireName } : {}),
+        ...(setupScorerName !== null ? { scorer_name: setupScorerName } : {})
       });
     } catch (e) {}
 
@@ -2048,6 +2058,8 @@ export const api = {
       if (setupData.totalOvers) {
         matchUpdateFields.max_overs = Number(setupData.totalOvers);
       }
+      if (setupUmpireName !== null) matchUpdateFields.umpire_name = setupUmpireName;
+      if (setupScorerName !== null) matchUpdateFields.scorer_name = setupScorerName;
       await withTimeout(
         supabase
           .from('matches')

@@ -293,7 +293,7 @@ export default function TeamsScreen() {
       {/* Page Header */}
       <PageHeader
         title="Official Teams"
-        subtitle="Jabalpur District Cricket Association · Season 2026 Directory of Teams"
+        subtitle="Jabalpur Division Cricket Association · Season 2026 Directory of Teams"
         actions={
           <div className="flex items-center gap-2">
             {isAdmin && (
@@ -1155,7 +1155,7 @@ export default function TeamsScreen() {
 
               {/* Roster Footer */}
               <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 shrink-0 flex items-center justify-between text-xs text-slate-500">
-                <span>Official Record of Jabalpur District Cricket Association (JDCA)</span>
+                <span>Official Record of Jabalpur Division Cricket Association (JDCA)</span>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"

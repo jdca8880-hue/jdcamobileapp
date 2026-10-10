@@ -123,7 +123,7 @@ export default function AuthScreen() {
             </span>
           </h1>
           <p className="text-slate-300 text-sm max-w-md leading-relaxed font-medium">
-            Jabalpur District Cricket Association's unified platform for tournament management, live scoring, and player registration.
+            Jabalpur Division Cricket Association's unified platform for tournament management, live scoring, and player registration.
           </p>
         </motion.div>
       </div>

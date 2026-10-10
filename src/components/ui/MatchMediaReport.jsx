@@ -35,7 +35,7 @@ export default function MatchMediaReport({ match = {} }) {
       <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 shadow-sm rounded-[16px] overflow-hidden mb-6 relative">
         <div className="bg-[#101827] dark:bg-[#14171A] text-white p-5 text-center flex flex-col items-center justify-center border-b border-transparent dark:border-white/10">
           <img src="/jdca-logo.png" alt="JDCA Emblem" className="w-12 h-12 object-contain mb-2 drop-shadow-md" />
-          <div className="text-xs font-bold tracking-widest uppercase text-white/60 mb-1">Jabalpur District Cricket Association</div>
+          <div className="text-xs font-bold tracking-widest uppercase text-white/60 mb-1">Jabalpur Division Cricket Association</div>
           <div className="text-[14px] font-black uppercase tracking-wider text-white">Official Media Report</div>
         </div>
         

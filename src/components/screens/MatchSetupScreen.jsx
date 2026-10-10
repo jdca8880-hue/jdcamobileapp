@@ -183,7 +183,14 @@ export default function MatchSetupScreen() {
         const nextTeamB = activeMatch.away_team?.name || activeMatch.teamB?.name || prev.teamB || 'Team B';
         const nextTeamBId = activeMatch.away_team_id || activeMatch.teamB?.id || prev.teamBId;
         const nextScorerId = activeMatch.scorer_id || prev.assignedScorerId;
+        const nextScorerName = prev.scorerName || activeMatch.scorer_name || '';
         const nextOvers = activeMatch.max_overs || prev.totalOvers || 20;
+        // Prefill umpires from a previously saved "A & B" umpire_name.
+        const hasSetupUmpires = prev.umpires?.umpire1 || prev.umpires?.umpire2;
+        const savedUmpires = String(activeMatch.umpire_name || '').split(' & ');
+        const nextUmpires = hasSetupUmpires
+          ? prev.umpires
+          : { ...prev.umpires, umpire1: savedUmpires[0] || '', umpire2: savedUmpires[1] || '' };
 
         let newTeamAXI = prev.teamAXI;
         let newTeamBXI = prev.teamBXI;
@@ -209,6 +216,9 @@ export default function MatchSetupScreen() {
           prev.teamB === nextTeamB &&
           prev.teamBId === nextTeamBId &&
           prev.assignedScorerId === nextScorerId &&
+          prev.scorerName === nextScorerName &&
+          prev.umpires?.umpire1 === nextUmpires.umpire1 &&
+          prev.umpires?.umpire2 === nextUmpires.umpire2 &&
           prev.totalOvers === nextOvers &&
           prev.teamAXI.length === newTeamAXI.length &&
           prev.teamBXI.length === newTeamBXI.length
@@ -226,6 +236,8 @@ export default function MatchSetupScreen() {
           teamAXI: newTeamAXI,
           teamBXI: newTeamBXI,
           assignedScorerId: nextScorerId,
+          scorerName: nextScorerName,
+          umpires: nextUmpires,
           totalOvers: nextOvers,
         };
       });
@@ -329,7 +341,8 @@ export default function MatchSetupScreen() {
   ];
 
   const filteredPlayers = activeXI.filter((p) => (p.full_name || p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
-  const availableScorers = registeredUsers.filter(u => u.role?.toUpperCase() === 'SCORER');
+  const availableScorers = registeredUsers.filter(u => ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()));
+  const availableUmpires = registeredUsers.filter(u => ['UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()));
 
   /* ─── Step validation before advancing ─── */
   const canAdvance = () => {
@@ -745,16 +758,30 @@ export default function MatchSetupScreen() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Total Overs</label>
-                  <select value={matchSetup.totalOvers} onChange={e => setMatchSetup(p => ({ ...p, totalOvers: Number(e.target.value) }))} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent appearance-none">
-                    <option value={5}>5 Overs (Quick Match)</option>
-                    <option value={10}>10 Overs (Sprint)</option>
-                    <option value={15}>15 Overs</option>
-                    <option value={20}>20 Overs (T20)</option>
-                    <option value={30}>30 Overs</option>
-                    <option value={40}>40 Overs (One Day)</option>
-                    <option value={50}>50 Overs (ODI)</option>
-                  </select>
+                  <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Total Overs (per side)</label>
+                  <input
+                    type="number" min="1" max="50"
+                    value={matchSetup.totalOvers ?? ''}
+                    onChange={e => setMatchSetup(p => ({ ...p, totalOvers: e.target.value === '' ? '' : Number(e.target.value) }))}
+                    placeholder="Enter overs (e.g. 12, 20, 50)"
+                    className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6]"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {[5, 10, 15, 20, 30, 40, 50].map(o => (
+                      <button
+                        key={o}
+                        type="button"
+                        onClick={() => setMatchSetup(p => ({ ...p, totalOvers: o }))}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+                          Number(matchSetup.totalOvers) === o
+                            ? 'bg-[#2457D6] text-white'
+                            : 'bg-slate-100 text-[#596579] hover:bg-slate-200'
+                        }`}
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
@@ -768,52 +795,47 @@ export default function MatchSetupScreen() {
                 <div>
                   <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Official Scorer</label>
                   <select
-                    value={matchSetup.assignedScorerId || ''}
-                    onChange={e => setMatchSetup(p => ({ ...p, assignedScorerId: e.target.value }))}
+                    value={matchSetup.scorerName || ''}
+                    onChange={e => setMatchSetup(p => ({ ...p, scorerName: e.target.value }))}
                     className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent appearance-none"
                   >
                     <option value="">Select a scorer...</option>
                     {availableScorers.map(s => (
-                      <option key={s.id} value={s.id}>{s.email || s.name}</option>
+                      <option key={s.id} value={s.name || s.email}>{s.name || s.email}</option>
                     ))}
                   </select>
+                  <p className="text-[11px] text-[#8a99b0] mt-1">This is saved as the official scorer on the final scorecard.</p>
                 </div>
 
                 <div className="pt-4 border-t border-gray-100">
-                  <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4">Match Officials (Optional)</h3>
+                  <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4">Match Umpires</h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Umpire 1</label>
-                      <input
-                        type="text" value={matchSetup.umpires?.umpire1 || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, umpire1: e.target.value } }))}
-                        placeholder="Enter Name"
-                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
-                      />
+                      <select
+                        value={matchSetup.umpires?.umpire1 || ''}
+                        onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, umpire1: e.target.value } }))}
+                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent appearance-none"
+                      >
+                        <option value="">Select umpire...</option>
+                        {availableUmpires.map(u => (
+                          <option key={u.id} value={u.name || u.email}>{u.name || u.email}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Umpire 2</label>
-                      <input
-                        type="text" value={matchSetup.umpires?.umpire2 || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, umpire2: e.target.value } }))}
-                        placeholder="Enter Name"
-                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">TV Umpire (Optional)</label>
-                      <input
-                        type="text" value={matchSetup.umpires?.tvUmpire || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, tvUmpire: e.target.value } }))}
-                        placeholder="Enter Name"
-                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Match Referee</label>
-                      <input
-                        type="text" value={matchSetup.umpires?.referee || ''} onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, referee: e.target.value } }))}
-                        placeholder="Enter Name"
-                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent"
-                      />
+                      <select
+                        value={matchSetup.umpires?.umpire2 || ''}
+                        onChange={e => setMatchSetup(p => ({ ...p, umpires: { ...p.umpires, umpire2: e.target.value } }))}
+                        className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] border-transparent appearance-none"
+                      >
+                        <option value="">Select umpire...</option>
+                        {availableUmpires.map(u => (
+                          <option key={u.id} value={u.name || u.email}>{u.name || u.email}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>

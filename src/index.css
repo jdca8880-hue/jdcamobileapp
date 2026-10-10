@@ -642,6 +642,13 @@ html.dark [role="dialog"],
   border-bottom: none;
 }
 
+/* Keep score tables readable: when wrapped in an `.overflow-x-auto`
+   container, give the table a minimum width so narrow screens scroll it
+   horizontally instead of squeezing the columns into unreadable wrapped text. */
+.overflow-x-auto > .jdca-table {
+  min-width: 640px;
+}
+
 /* ═══════════════════════════════════════════════════════
    BUTTONS
    ═══════════════════════════════════════════════════════ */

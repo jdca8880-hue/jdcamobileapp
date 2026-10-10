@@ -54,6 +54,7 @@ export function useMatchScoring({
     totalOvers: 20,
     widePenalty: 1,
     noBallPenalty: 1,
+    scorerName: '',
     umpires: {
       umpire1: '',
       umpire2: '',

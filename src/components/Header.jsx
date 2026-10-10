@@ -113,7 +113,7 @@ export default function Header() {
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#A3E635', display: 'inline-block' }} />
               </div>
               <div style={{ fontSize: 10, color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                Jabalpur District Cricket
+                Jabalpur Division Cricket
               </div>
             </>
           ) : (

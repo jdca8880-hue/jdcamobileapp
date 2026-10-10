@@ -931,7 +931,7 @@ export default function SelectionWorkspace() {
             >
               <div className="text-center border-b pb-3">
                 <h2 className="text-base font-bold text-slate-900 uppercase">
-                  Jabalpur District Cricket Association
+                  Jabalpur Division Cricket Association
                 </h2>
                 <p className="text-xs font-semibold text-slate-500">
                   Official Squad Sheet: {activeTeam.name} ({activeSeason})

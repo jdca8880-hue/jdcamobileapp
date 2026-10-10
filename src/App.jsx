@@ -93,7 +93,7 @@ function MainApp() {
           transition={{ delay: 0.25 }}
           className="text-[#A3E635] text-xs font-semibold tracking-widest uppercase mb-6"
         >
-          Jabalpur District Cricket Association
+          Jabalpur Division Cricket Association
         </motion.p>
 
         <motion.div

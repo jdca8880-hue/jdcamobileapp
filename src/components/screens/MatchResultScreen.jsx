@@ -274,10 +274,17 @@ export default function MatchResultScreen() {
       }
       if (refreshAdminData) refreshAdminData();
       await resetScoringSession();
-      alert(navigator.onLine 
-        ? "Match has been successfully finalized and permanently locked! Scorer console is refreshed and ready." 
-        : "Match has been successfully finalized and saved in Dexie database offline! It will synchronize automatically when internet returns.");
-      navigateTo('matches');
+      // Stay on the result screen so the scorer can still share the final card,
+      // scorecard PDF and social report. Re-fetch so it shows the locked state.
+      try {
+        const refreshed = await api.getMatchScorecard(matchData.id);
+        if (refreshed) setMatchData(refreshed);
+      } catch (refreshErr) {
+        console.warn('[MatchResultScreen] Could not refresh after lock:', refreshErr);
+      }
+      alert(navigator.onLine
+        ? "Match has been successfully finalized and permanently locked! You can still share the result and scorecard from this screen."
+        : "Match has been successfully finalized and saved in Dexie database offline! It will synchronize automatically when internet returns. You can still share the result from this screen.");
     } catch (err) {
       console.error("Failed to finalize and lock match:", err);
       alert("Error locking match: " + (err.message || 'Please check network'));
@@ -325,6 +332,13 @@ export default function MatchResultScreen() {
         <span className="result-hero-light__kicker text-[#2457D6] dark:text-[#A3E635] font-black text-xs uppercase tracking-wider flex items-center gap-1.5"><Trophy size={14}/> OFFICIAL MATCH RESULT</span>
         <h1 className="text-slate-900 dark:text-[#F3F4F6] font-black text-2xl mt-1">{matchData.resultText || matchData.result || 'Match completed'}</h1>
         <p className="text-slate-500 dark:text-[#94A3B8] text-xs mt-1">{matchData.tournament || 'JDCA Fixture'} • {matchData.venue || 'JDCA Ground'} • {matchData.date || 'Match Day'}</p>
+        {(matchData.umpire || matchData.scorer) && (
+          <p className="text-slate-400 dark:text-slate-500 text-[11px] mt-0.5">
+            {matchData.umpire ? `Umpire: ${matchData.umpire}` : ''}
+            {matchData.umpire && matchData.scorer ? ' • ' : ''}
+            {matchData.scorer ? `Scorer: ${matchData.scorer}` : ''}
+          </p>
+        )}
       </div>
       <div className="result-hero-light__scores bg-slate-50 dark:bg-[#1E2226] border border-slate-200 dark:border-white/10 rounded-xl p-3">
         <span className="text-slate-700 dark:text-[#CBD5E1] font-bold text-xs">{matchData.home_team?.name}</span>

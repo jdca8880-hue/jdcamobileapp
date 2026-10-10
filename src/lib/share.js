@@ -106,7 +106,7 @@ async function paintHeader(doc, { title, subtitle }) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('JABALPUR DISTRICT CRICKET ASSOCIATION', x, 32);
+  doc.text('JABALPUR DIVISION CRICKET ASSOCIATION', x, 32);
   doc.setFontSize(17);
   doc.text(title, x, 54);
   if (subtitle) {
@@ -163,7 +163,11 @@ export async function shareScorecardPdf(scorecard = {}, match = {}, opts = {}) {
   const homeName = scorecard?.home_team?.name || match?.home_team?.name || 'Home Team';
   const awayName = scorecard?.away_team?.name || match?.away_team?.name || 'Away Team';
   const tournament = scorecard?.tournament || match?.tournament || 'JDCA Fixture';
-  const venue = scorecard?.venue || match?.venue || '—';
+  const venue = scorecard?.venue || match?.venue_name || match?.venue || '—';
+  const matchDate = scorecard?.date || match?.date
+    || (match?.scheduled_at ? new Date(match.scheduled_at).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '');
+  const umpire = scorecard?.umpire || match?.umpire_name || match?.umpireName || '';
+  const scorer = scorecard?.scorer || match?.scorer_name || match?.scorerName || '';
 
   await paintHeader(doc, { title: 'Match Scorecard', subtitle: `${tournament}  ·  ${venue}` });
 
@@ -207,6 +211,25 @@ export async function shareScorecardPdf(scorecard = {}, match = {}, opts = {}) {
     y += 16;
   }
 
+  // Match details — tournament / venue / date / officials
+  const detailRows = [
+    ['Tournament', tournament],
+    ['Venue', venue],
+    matchDate ? ['Date', matchDate] : null,
+    ['Umpire', umpire || '—'],
+    ['Scorer', scorer || '—'],
+  ].filter(Boolean);
+  y = sectionTitle(doc, 'Match Details', y + 8) + 6;
+  autoTable(doc, {
+    ...tableTheme(),
+    startY: y,
+    head: [['Detail', 'Value']],
+    body: detailRows.map(([k, v]) => [k, v || '—']),
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 150 } },
+  });
+  y = doc.lastAutoTable.finalY + 10;
+
+  // Both innings — full scoresheet for each team (never a single-team toggle)
   const innings = [
     { label: `${homeName} — Innings`, data: scorecard?.scorecard?.home_team, bowlLabel: awayName },
     { label: `${awayName} — Innings`, data: scorecard?.scorecard?.away_team, bowlLabel: homeName },
@@ -417,7 +440,7 @@ export async function shareResultCardImage(match = {}, highlights = {}) {
     } catch { /* ignore */ }
   }
 
-  txt('JABALPUR DISTRICT CRICKET ASSOCIATION', center, 255, { size: 20, color: '#8FA6C8', spacing: 3 });
+  txt('JABALPUR DIVISION CRICKET ASSOCIATION', center, 255, { size: 20, color: '#8FA6C8', spacing: 3 });
   txt(fit(ctx, tournament.toUpperCase(), 900, 26, 'bold'), center, 300, { size: 26, color: '#5B8DEF' });
 
   // Teams + scores

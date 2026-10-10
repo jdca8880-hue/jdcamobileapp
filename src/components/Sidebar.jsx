@@ -93,7 +93,7 @@ export default function Sidebar() {
               letterSpacing: '0.08em',
             }}
           >
-            Jabalpur District Cricket
+            Jabalpur Division Cricket
           </div>
         </div>
       </div>

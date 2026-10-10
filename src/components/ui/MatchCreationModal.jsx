@@ -18,6 +18,9 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
   const [homeTeam, setHomeTeam] = useState(initialData?.home_team_id || initialData?.homeTeamId || '');
   const [awayTeam, setAwayTeam] = useState(initialData?.away_team_id || initialData?.awayTeamId || '');
   const [format, setFormat] = useState(initialData?.match_format || initialData?.format || tournament?.format || 'T20');
+  const [customOvers, setCustomOvers] = useState(
+    initialData?.max_overs ? String(initialData.max_overs) : ''
+  );
   const [scheduledAt, setScheduledAt] = useState(formattedDate);
   const [venueName, setVenueName] = useState(initialData?.venue_name || initialData?.venueName || '');
   const [umpireName, setUmpireName] = useState(initialData?.umpire_name || initialData?.umpireName || '');
@@ -48,6 +51,12 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
       alert("Please enter a venue name");
       return;
     }
+    const isCustom = format === 'CUSTOM';
+    const customOversNum = parseInt(customOvers, 10);
+    if (isCustom && (!customOversNum || customOversNum <= 0)) {
+      alert("Please enter the number of overs for the custom match");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -59,7 +68,8 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
           scheduledAt: scheduledAt || null,
           venueName: venueName || null,
           umpireName: umpireName || null,
-          scorerName: scorerName || null
+          scorerName: scorerName || null,
+          ...(isCustom ? { max_overs: customOversNum } : {})
         };
         await api.updateMatchDetails(initialData.id, updateData);
         if (refreshAdminData) {
@@ -75,7 +85,8 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
           venueName: venueName || null,
           umpireName: umpireName || null,
           scorerName: scorerName || null,
-          status: 'SCHEDULED'
+          status: 'SCHEDULED',
+          ...(isCustom ? { max_overs: customOversNum } : {})
         }];
         
         const createdMatches = await api.createDetailedMatches(tournament.id, format, matchesToInsert);
@@ -155,7 +166,21 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
                 <option value="CUSTOM">Custom</option>
               </select>
             </div>
-            
+
+            {format === 'CUSTOM' && (
+              <div className="w-full sm:w-1/2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Overs per Side</label>
+                <input
+                  type="number" min="1" max="50"
+                  value={customOvers}
+                  onChange={(e) => setCustomOvers(e.target.value)}
+                  placeholder="e.g. 12"
+                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
+                  required
+                />
+              </div>
+            )}
+
             <div className="w-full sm:w-1/2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date & Time (Optional)</label>
               <input 
