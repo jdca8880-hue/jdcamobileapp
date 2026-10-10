@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { Radio, Users, ShieldCheck, ChevronRight, Share2, Award, Printer, ArrowLeft } from 'lucide-react';
+import { Radio, Users, ShieldCheck, ChevronRight, Share2, Award, Printer, ArrowLeft, Loader2 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
+import { shareScorecardPdf } from '../../lib/share';
 import { PageHeader, TabBar } from '../ui/PageHeader';
 import { MatchStatusBadge } from '../ui/Badge';
 import { useLiveSubscription } from '../../hooks/useLiveSubscription';
@@ -10,6 +11,7 @@ export default function ScorecardScreen() {
   const [activeInningsTab, setActiveInningsTab] = useState('1st');
   const [fullScorecard, setFullScorecard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(null); // 'save' | 'share' | null
 
   const targetId = activeMatchId || matches?.find(m => ['COMPLETED','FINISHED','LIVE','IN_PROGRESS'].includes(m.status))?.id || matches?.[0]?.id;
   const targetMatch = matches?.find(m => m.id === targetId);
@@ -48,6 +50,20 @@ export default function ScorecardScreen() {
   }, [targetId]);
 
   const activeMatch = matches?.find((m) => m.id === targetId);
+
+  const handleExport = async (mode) => {
+    if (pdfBusy) return;
+    setPdfBusy(mode);
+    try {
+      await shareScorecardPdf(fullScorecard || {}, activeMatch || {}, { forceDownload: mode === 'save' });
+    } catch (err) {
+      console.error('Scorecard PDF failed', err);
+      alert('Could not generate the scorecard PDF. Please try again.');
+    } finally {
+      setPdfBusy(null);
+    }
+  };
+
   const teamAName = fullScorecard?.home_team?.name || activeMatch?.home_team?.name || 'Home Team';
   const teamBName = fullScorecard?.away_team?.name || activeMatch?.away_team?.name || 'Away Team';
   const tournamentName = fullScorecard?.tournament || activeMatch?.tournament || 'JDCA Senior District Trophy 2026';
@@ -90,18 +106,20 @@ export default function ScorecardScreen() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14171A] text-xs font-bold text-slate-700 dark:text-[#F3F4F6] hover:bg-slate-50 dark:hover:bg-[#262B30] cursor-pointer"
+            onClick={() => handleExport('save')}
+            disabled={!!pdfBusy}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14171A] text-xs font-bold text-slate-700 dark:text-[#F3F4F6] hover:bg-slate-50 dark:hover:bg-[#262B30] cursor-pointer disabled:opacity-60"
           >
-            <Printer size={13} />
-            <span className="hidden sm:inline">Print Card</span>
+            {pdfBusy === 'save' ? <Loader2 size={13} className="animate-spin" /> : <Printer size={13} />}
+            <span className="hidden sm:inline">Save PDF</span>
           </button>
           <button
-            onClick={() => alert('Official JDCA Match Report copied to clipboard')}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#2457D6] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] text-xs font-bold hover:bg-[#1b41a8] dark:hover:bg-[#bef264] cursor-pointer"
+            onClick={() => handleExport('share')}
+            disabled={!!pdfBusy}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#2457D6] dark:bg-[#A3E635] text-white dark:text-[#0A0A0A] text-xs font-bold hover:bg-[#1b41a8] dark:hover:bg-[#bef264] cursor-pointer disabled:opacity-60"
           >
-            <Share2 size={13} />
-            <span>Share</span>
+            {pdfBusy === 'share' ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />}
+            <span>Share PDF</span>
           </button>
         </div>
       </div>

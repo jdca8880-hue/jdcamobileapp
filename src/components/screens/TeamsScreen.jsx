@@ -31,6 +31,7 @@ import { useCricket } from '../../context/CricketContext';
 import { PageHeader } from '../ui/PageHeader';
 import StatCard from '../ui/StatCard';
 import TeamManagerModal from '../ui/TeamManagerModal';
+import { shareTeamRosterPdf, shareTeamsListPdf } from '../../lib/share';
 
 const ROLE_COLORS = {
   'Batter': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', tag: 'bg-amber-500' },
@@ -60,6 +61,7 @@ export default function TeamsScreen() {
   const [selectedGender, setSelectedGender] = useState('All'); // 'All' | 'Men' | 'Women'
   const [activeRosterTeam, setActiveRosterTeam] = useState(null);
   const [printSuccessToast, setPrintSuccessToast] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [showOverviewStats, setShowOverviewStats] = useState(false);
   const [isTeamManagerOpen, setIsTeamManagerOpen] = useState(false);
   const isAdmin = userRole === 'Admin' || userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN';
@@ -241,12 +243,41 @@ export default function TeamsScreen() {
     }
   };
 
-  const handlePrintRoster = () => {
+  const handlePrintRoster = async () => {
+    if (!activeRosterTeam || pdfBusy) return;
+    setPdfBusy(true);
     setPrintSuccessToast(true);
-    setTimeout(() => {
-      window.print();
+    try {
+      await shareTeamRosterPdf(activeRosterTeam);
+    } catch (err) {
+      console.error('Team sheet PDF failed', err);
+      alert('Could not generate the team sheet PDF. Please try again.');
+    } finally {
       setPrintSuccessToast(false);
-    }, 400);
+      setPdfBusy(false);
+    }
+  };
+
+  // Share the whole filtered directory as one PDF
+  const handleShareDirectory = async () => {
+    if (pdfBusy) return;
+    const list = (filteredOfficialTeams && filteredOfficialTeams.length) ? filteredOfficialTeams : mappedTeams;
+    if (!list || list.length === 0) {
+      alert('No teams to export for the current filter.');
+      return;
+    }
+    setPdfBusy(true);
+    try {
+      await shareTeamsListPdf(list, {
+        title: 'Official Teams Directory',
+        subtitle: `${activeTab}${selectedGender !== 'All' ? ' · ' + selectedGender : ''} · Season 2026`,
+      });
+    } catch (err) {
+      console.error('Teams directory PDF failed', err);
+      alert('Could not generate the teams directory PDF. Please try again.');
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
   return (
@@ -286,6 +317,15 @@ export default function TeamsScreen() {
                 <span>Create Team</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={handleShareDirectory}
+              disabled={pdfBusy}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-60"
+            >
+              {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              <span>Share PDF</span>
+            </button>
             <button
               type="button"
               onClick={() => navigateTo('selection')}
@@ -962,10 +1002,11 @@ export default function TeamsScreen() {
                   <button
                     type="button"
                     onClick={handlePrintRoster}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+                    disabled={pdfBusy}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition disabled:opacity-60"
                   >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Print Team Sheet</span>
+                    {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                    <span>Share Team Sheet</span>
                   </button>
                   <button
                     type="button"
@@ -1126,10 +1167,11 @@ export default function TeamsScreen() {
                   <button
                     type="button"
                     onClick={handlePrintRoster}
-                    className="px-4 py-1.5 rounded-lg bg-blue-600 font-bold text-white hover:bg-blue-700 transition flex items-center gap-1.5"
+                    disabled={pdfBusy}
+                    className="px-4 py-1.5 rounded-lg bg-blue-600 font-bold text-white hover:bg-blue-700 transition flex items-center gap-1.5 disabled:opacity-60"
                   >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Print Official Team Sheet</span>
+                    {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                    <span>Share Official Team Sheet</span>
                   </button>
                 </div>
               </div>

@@ -741,11 +741,11 @@ export default function ScoringScreen() {
             }}
             className={`bg-white rounded-[12px] p-4 border flex items-center justify-between mb-3 shadow-sm cursor-pointer hover:bg-slate-50 ${!currentBowler?.id ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200'}`}
           >
-            <div>
+            <div className="min-w-0 flex-1 pr-3">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><RefreshCw size={10} /> Bowler (Tap to Change)</div>
-              <div className="text-[15px] font-black text-slate-900">{currentBowler?.name || 'Select Bowler ➕'}</div>
+              <div className="text-[15px] font-black text-slate-900 truncate">{currentBowler?.name || 'Select Bowler ➕'}</div>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">O-M-R-W</div>
               <div className="text-[16px] font-black tabular-nums text-slate-900">{currentBowler ? `${currentBowler.overs || 0}-${currentBowler.maidens || 0}-${currentBowler.runs || 0}-${currentBowler.wickets || 0}` : '0-0-0-0'}</div>
             </div>

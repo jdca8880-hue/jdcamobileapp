@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Copy, Share2, Check, MessageCircle, FileText } from 'lucide-react';
+import { Copy, Share2, Check, MessageCircle, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { calculateMatchHighlights, generateMatchSummary, generateSocialCaption } from '../../engine/matchSummaryEngine';
+import { shareResultCardImage } from '../../lib/share';
 
 export default function MatchMediaReport({ match = {} }) {
   const [copied, setCopied] = useState(false);
+  const [imgBusy, setImgBusy] = useState(false);
   const highlights = useMemo(() => calculateMatchHighlights(match), [match]);
   const summary = useMemo(() => generateMatchSummary(match, highlights), [match, highlights]);
   const caption = useMemo(() => generateSocialCaption(match, highlights), [match, highlights]);
@@ -13,6 +15,19 @@ export default function MatchMediaReport({ match = {} }) {
 
   const copy = async (text = summary) => {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}
+  };
+
+  const shareImage = async () => {
+    if (imgBusy) return;
+    setImgBusy(true);
+    try {
+      await shareResultCardImage({ ...match, resultText: match?.resultText || match?.result_text || match?.result }, highlights);
+    } catch (err) {
+      console.error('Result image failed', err);
+      alert('Could not generate the result image. Please try again.');
+    } finally {
+      setImgBusy(false);
+    }
   };
 
   return (
@@ -86,11 +101,19 @@ export default function MatchMediaReport({ match = {} }) {
           <MessageCircle size={16}/> 
           Copy Social
         </button>
-        <button 
-          onClick={() => navigator.share ? navigator.share({title: headline, text: summary}) : copy(summary)}
+        <button
+          onClick={shareImage}
+          disabled={imgBusy}
+          className="col-span-2 bg-[#101827] dark:bg-[#14171A] text-white flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-bold active:opacity-90 transition-colors cursor-pointer disabled:opacity-60 border border-transparent dark:border-white/10"
+        >
+          {imgBusy ? <Loader2 size={16} className="animate-spin"/> : <ImageIcon size={16}/>}
+          {imgBusy ? 'Preparing image…' : 'Share Result Image'}
+        </button>
+        <button
+          onClick={() => navigator.share ? navigator.share({title: headline, text: summary}).catch(() => {}) : copy(summary)}
           className="col-span-2 bg-white dark:bg-[#181A1D] border border-gray-200 dark:border-white/10 text-[#101827] dark:text-[#F3F4F6] flex items-center justify-center gap-2 py-3 rounded-[12px] text-[13px] font-bold active:bg-gray-50 dark:active:bg-[#262B30] transition-colors cursor-pointer"
         >
-          <Share2 size={16}/> Share
+          <Share2 size={16}/> Share Text
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Trophy, ChevronDown, ChevronUp, ChevronRight, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Trophy, ChevronDown, ChevronUp, ChevronRight, Plus, Edit2, Trash2, Download, Loader2 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
+import { sharePointsTablePdf } from '../../lib/share';
 import { MatchCard } from '../ui/MatchCard';
 import TournamentManagerModal from '../ui/TournamentManagerModal';
 import MatchCreationModal from '../ui/MatchCreationModal';
@@ -68,11 +69,39 @@ const TOURNAMENT_THEMES = [
 import { useStandings } from '../../lib/standings';
 
 // Points Table Component
-const PointsTableUI = ({ pointsTable }) => {
+const PointsTableUI = ({ pointsTable, tournamentName }) => {
+  const [pdfBusy, setPdfBusy] = useState(false);
   if (!pointsTable || pointsTable.length === 0) return <div className="p-4 text-center text-[#8a99b0] dark:text-[#94A3B8] text-[13px] font-medium">No standings available yet.</div>;
+
+  const handleShare = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await sharePointsTablePdf(pointsTable, {
+        title: 'Points Table',
+        subtitle: `${tournamentName || 'JDCA'} · Season 2026`,
+      });
+    } catch (err) {
+      console.error('Points table PDF failed', err);
+      alert('Could not generate the points table PDF. Please try again.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   return (
     <div className="overflow-x-auto w-full no-scrollbar">
+      <div className="flex justify-end px-2 pt-2">
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={pdfBusy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#181A1D] px-3 py-1.5 text-xs font-bold text-[#596579] dark:text-[#CBD5E1] hover:bg-gray-50 dark:hover:bg-[#262B30] transition cursor-pointer disabled:opacity-60"
+        >
+          {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          <span>Share PDF</span>
+        </button>
+      </div>
       <table className="w-full text-left border-collapse min-w-[500px]">
         <thead>
           <tr className="border-b border-gray-200 dark:border-white/10">
@@ -513,7 +542,7 @@ export default function TournamentsScreen() {
               {isExpanded && (
                 <div className="bg-white dark:bg-[#14171A] animate-in slide-in-from-top-2 duration-300">
                   {activeTab === 'Standings' ? (
-                    <PointsTableUI pointsTable={activeTournamentPointsTable} />
+                    <PointsTableUI pointsTable={activeTournamentPointsTable} tournamentName={tournament.name} />
                   ) : activeTab === 'Participating Teams' ? (
                     <div className="p-4 sm:p-5">
                       <h3 className="text-[12px] font-black uppercase tracking-widest text-[#596579] dark:text-[#94A3B8] mb-4">Participating District Teams</h3>
