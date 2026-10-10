@@ -47,13 +47,24 @@ export const ROLE_FILTER_OPTIONS = ['Batter', 'Bowler', 'All-Rounder', 'Wicket K
 export function normalizeSelectionPlayer(p) {
   if (!p) return null;
 
-  // Map older category labels to standard hierarchy
-  let catStr = (p.category || p.ageGroup || 'Senior').toUpperCase();
+  // Map category labels to standard hierarchy
+  let catStr = (p.category || p.ageGroup || '').toUpperCase();
   let category = 'Senior';
-  if (catStr.includes('13')) category = 'U13';
-  else if (catStr.includes('14') || catStr.includes('15')) category = 'U15';
-  else if (catStr.includes('16') || catStr.includes('17')) category = 'U17';
-  else if (catStr.includes('19')) category = 'U19';
+  if (catStr.includes('13')) category = 'Under 13';
+  else if (catStr.includes('14') || catStr.includes('15')) category = 'Under 15';
+  else if (catStr.includes('16') || catStr.includes('17')) category = 'Under 17';
+  else if (catStr.includes('19')) category = 'Under 19';
+  else if (catStr.includes('23')) category = 'Under 23';
+  else if (p.date_of_birth || p.dob) {
+    const birthYear = new Date(p.date_of_birth || p.dob).getFullYear();
+    const age = new Date().getFullYear() - birthYear;
+    if (age <= 13) category = 'Under 13';
+    else if (age <= 15) category = 'Under 15';
+    else if (age <= 17) category = 'Under 17';
+    else if (age <= 19) category = 'Under 19';
+    else if (age <= 23) category = 'Under 23';
+    else category = 'Senior';
+  }
 
   let gender = p.gender || 'Men';
   const playerName = p.name || p.full_name || '';

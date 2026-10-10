@@ -35,6 +35,53 @@ const ROLES = [
   'Other Staff'
 ];
 
+function SelectorAgeCategoryPicker({ userId, currentCategoryId }) {
+  const [categories, setCategories] = React.useState([]);
+  const [selectedId, setSelectedId] = React.useState(currentCategoryId || '');
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    api.getAgeCategories().then(cats => setCategories(cats)).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    setSelectedId(currentCategoryId || '');
+  }, [currentCategoryId]);
+
+  const handleChange = async (e) => {
+    const newId = e.target.value || null;
+    setSelectedId(newId || '');
+    setSaving(true);
+    try {
+      await api.updateSelectorAgeCategory(userId, newId);
+    } catch (err) {
+      console.error('Failed to update selector age category:', err);
+      setSelectedId(currentCategoryId || '');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <select
+      value={selectedId}
+      onChange={handleChange}
+      disabled={saving}
+      className={`text-[10px] border rounded px-1.5 py-1 font-semibold outline-none cursor-pointer ${
+        selectedId ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-slate-200 bg-slate-50 text-slate-500'
+      } ${saving ? 'opacity-50' : ''}`}
+      title="Assign age category scope for this selector"
+    >
+      <option value="">No Age Level</option>
+      {categories.map(cat => (
+        <option key={cat.id} value={cat.id}>
+          {cat.name} (Rank {cat.rank_level})
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function AdministrationScreen() {
   const { registeredUsers, setRegisteredUsers, userRole, userId, isDarkMode, setIsDarkMode, systemSettings, setSystemSettings } = useCricket();
 
@@ -98,8 +145,10 @@ export default function AdministrationScreen() {
           name: p.full_name,
           email: p.email || 'N/A',
           role: p.role,
+          is_active: p.is_active,
           status: p.is_active ? 'Active' : 'Inactive',
-          district: p.district?.name || 'All Districts'
+          district: p.district?.name || 'All Districts',
+          selector_age_category_id: p.selector_age_category_id || null
         }));
         setRegisteredUsers(mapped);
 
@@ -146,8 +195,10 @@ export default function AdministrationScreen() {
         can_add: p.can_add,
         can_edit: p.can_edit,
         can_delete: p.can_delete,
+        is_active: p.is_active,
         status: p.is_active ? 'Active' : 'Inactive',
-        district: p.district?.name || 'All Districts'
+        district: p.district?.name || 'All Districts',
+        selector_age_category_id: p.selector_age_category_id || null
       }));
       setRegisteredUsers(mapped);
     }
@@ -318,12 +369,18 @@ export default function AdministrationScreen() {
                               <RoleBadge role={usr.role} />
                             )}
                             {usr.role === 'SELECTOR' && userRole === 'SUPER_ADMIN' && (
-                              <button
-                                onClick={() => setSelectorUserToAssign(usr)}
-                                className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold hover:bg-indigo-100"
-                              >
-                                Assign Groups
-                              </button>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => setSelectorUserToAssign(usr)}
+                                  className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold hover:bg-indigo-100"
+                                >
+                                  Assign Groups
+                                </button>
+                                <SelectorAgeCategoryPicker
+                                  userId={usr.id}
+                                  currentCategoryId={usr.selector_age_category_id}
+                                />
+                              </div>
                             )}
                           </div>
                         </td>

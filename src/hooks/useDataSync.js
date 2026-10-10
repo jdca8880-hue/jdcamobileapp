@@ -17,7 +17,9 @@ export function useDataSync({ auth, ui }) {
 
   // Selector Permission Scopes
   const [selectorPermissions, setSelectorPermissions] = useState({
-    maxAgeRankLevel: 4,
+    maxAgeRankLevel: null,
+    ageCategoryId: null,
+    ageCategoryName: null,
     allowedDistricts: ['Jabalpur', 'Katni', 'Narsinghpur', 'Seoni', 'Mandla', 'Balaghat', 'Chhindwara', 'Dindori', 'Pandhurna']
   });
 
@@ -57,7 +59,7 @@ export function useDataSync({ auth, ui }) {
             setIsAuthenticated(true);
             const { data: profile } = await supabase
               .from('profiles')
-              .select('role, is_active, can_add, can_edit, can_delete, full_name')
+              .select('role, is_active, can_add, can_edit, can_delete, full_name, selector_age_category_id, selector_age_category:selector_age_category_id(id, name, short_name, rank_level)')
               .eq('id', session.user.id)
               .single();
             if (profile) {
@@ -71,10 +73,21 @@ export function useDataSync({ auth, ui }) {
                   can_edit: profile.can_edit,
                   can_delete: profile.can_delete
                 });
+                if (profile.role === 'SELECTOR' && profile.selector_age_category) {
+                  const cat = profile.selector_age_category;
+                  setSelectorPermissions(prev => ({
+                    ...prev,
+                    maxAgeRankLevel: cat.rank_level,
+                    ageCategoryId: cat.id,
+                    ageCategoryName: cat.name
+                  }));
+                } else if (profile.role === 'SUPER_ADMIN' || profile.role === 'DISTRICT_ADMIN') {
+                  setSelectorPermissions(prev => ({ ...prev, maxAgeRankLevel: 99 }));
+                }
               }
             }
           }
-          
+
           supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
               setUserEmail(session.user.email);
@@ -82,7 +95,7 @@ export function useDataSync({ auth, ui }) {
               setIsAuthenticated(true);
               const { data: profile } = await supabase
                 .from('profiles')
-                .select('role, is_active, can_add, can_edit, can_delete, full_name')
+                .select('role, is_active, can_add, can_edit, can_delete, full_name, selector_age_category_id, selector_age_category:selector_age_category_id(id, name, short_name, rank_level)')
                 .eq('id', session.user.id)
                 .single();
               if (profile) {
@@ -96,6 +109,17 @@ export function useDataSync({ auth, ui }) {
                     can_edit: profile.can_edit,
                     can_delete: profile.can_delete
                   });
+                  if (profile.role === 'SELECTOR' && profile.selector_age_category) {
+                    const cat = profile.selector_age_category;
+                    setSelectorPermissions(prev => ({
+                      ...prev,
+                      maxAgeRankLevel: cat.rank_level,
+                      ageCategoryId: cat.id,
+                      ageCategoryName: cat.name
+                    }));
+                  } else if (profile.role === 'SUPER_ADMIN' || profile.role === 'DISTRICT_ADMIN') {
+                    setSelectorPermissions(prev => ({ ...prev, maxAgeRankLevel: 99 }));
+                  }
                 }
               }
             } else {
@@ -144,7 +168,7 @@ export function useDataSync({ auth, ui }) {
               supabase.from('matches').select('*, tournaments(id, name), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 10); setLoadingMessage("Updating matches..."); return r; }),
               supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)').then(r => { setLoadingProgress(p => p + 5); setLoadingMessage("Updating teams..."); return r; }),
               supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 5); return r; }),
-              supabase.from('players').select('*, player_registrations(district:district_id(name)), team_players(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 15); setLoadingMessage("Syncing player registry..."); return r; }),
+              supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name)), team_players(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 15); setLoadingMessage("Syncing player registry..."); return r; }),
               supabase.from('v_player_career_batting').select('*').then(r => { setLoadingProgress(p => p + 5); return r; }),
               supabase.from('v_player_career_bowling').select('*').then(r => { setLoadingProgress(p => p + 5); return r; }),
               supabase.from('v_player_career_fielding').select('*').then(r => { setLoadingProgress(p => p + 5); return r; })
@@ -242,13 +266,9 @@ export function useDataSync({ auth, ui }) {
               const fieldStats = fieldStatsRes?.status === 'fulfilled' ? fieldStatsRes.value.data || [] : [];
 
               const freshPlayers = playersRes.value.data.map(p => {
-                let district = undefined;
-                let category = undefined;
-                if (p.player_registrations && p.player_registrations.length > 0) {
-                  const reg = p.player_registrations[0];
-                  district = reg.district?.name || undefined;
-                  category = reg.age_category?.name || undefined;
-                }
+                const reg = p.player_registrations && p.player_registrations.length > 0 ? p.player_registrations[0] : null;
+                const district = p.district || reg?.district?.name || 'Jabalpur';
+                const category = p.category || reg?.age_category?.name || 'Senior';
                 
                 const batting = batStats.find(s => s.player_id === p.id) || null;
                 const bowling = bowlStats.find(s => s.player_id === p.id) || null;

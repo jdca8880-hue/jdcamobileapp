@@ -1,17 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
-import { 
-  Shield, 
-  Users, 
-  Award, 
-  MapPin, 
-  Trophy, 
-  Search, 
-  Filter, 
-  ChevronRight, 
-  Printer, 
-  Download, 
-  CheckCircle2, 
+import {
+  Shield,
+  Users,
+  Award,
+  MapPin,
+  Trophy,
+  Search,
+  Filter,
+  ChevronRight,
+  Printer,
+  Download,
+  CheckCircle2,
   ExternalLink,
   X,
   UserCheck,
@@ -19,7 +19,12 @@ import {
   Activity,
   Layers,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Crown,
+  Zap,
+  Plus,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useCricket } from '../../context/CricketContext';
@@ -47,19 +52,44 @@ const CATEGORIES = [
 ];
 
 export default function TeamsScreen() {
-  const { navigateTo, setSelectedPlayer, players: contextPlayers = [], teams: contextTeams = [], userRole } = useCricket();
+  const { navigateTo, setSelectedPlayer, players: contextPlayers = [], teams: contextTeams = [], userRole, selectorPermissions } = useCricket();
 
   const [activeTab, setActiveTab] = useState('All Categories');
-  const [viewScope, setViewScope] = useState('representative'); // 'representative' | 'districts'
+  const [viewScope, setViewScope] = useState('representative'); // 'representative' | 'districts' | 'jdca_division'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGender, setSelectedGender] = useState('All'); // 'All' | 'Men' | 'Women'
   const [activeRosterTeam, setActiveRosterTeam] = useState(null);
   const [printSuccessToast, setPrintSuccessToast] = useState(false);
   const [showOverviewStats, setShowOverviewStats] = useState(false);
   const [isTeamManagerOpen, setIsTeamManagerOpen] = useState(false);
-  const isAdmin = userRole === 'Admin' || userRole === 'SUPER_ADMIN';
+  const isAdmin = userRole === 'Admin' || userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN';
+  const isSelector = userRole === 'SELECTOR';
+
+  // JDCA Division Teams state
+  const [jdcaDivisionTeams, setJdcaDivisionTeams] = useState([]);
+  const [isLoadingJdcaTeams, setIsLoadingJdcaTeams] = useState(false);
+  const [jdcaCategoryFilter, setJdcaCategoryFilter] = useState('All');
 
   const [isRebuildingTeams, setIsRebuildingTeams] = useState(false);
+
+  // Load JDCA Division teams when that tab is selected
+  useEffect(() => {
+    if (viewScope === 'jdca_division') {
+      const loadJdcaTeams = async () => {
+        setIsLoadingJdcaTeams(true);
+        try {
+          const { api } = await import('../../lib/api');
+          const teams = await api.getJdcaDivisionTeams();
+          setJdcaDivisionTeams(teams || []);
+        } catch (err) {
+          console.error('Failed to load JDCA Division teams:', err);
+        } finally {
+          setIsLoadingJdcaTeams(false);
+        }
+      };
+      loadJdcaTeams();
+    }
+  }, [viewScope]);
 
   const handleRebuildTeams = async () => {
     if (!window.confirm("Are you sure you want to rebuild missing teams for all districts and categories? This may take a moment.")) return;
@@ -320,32 +350,44 @@ export default function TeamsScreen() {
         />
       </div>
 
-      {/* View Scope Switcher: Official Representative Teams vs District Inter-Zonal League */}
+      {/* View Scope Switcher: Representative | Districts | JDCA Division */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl w-full sm:w-auto">
+        <div className="grid grid-cols-3 p-1 bg-slate-100 rounded-xl w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setViewScope('representative')}
-            className={`px-2.5 sm:px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${
+            className={`px-2 sm:px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
               viewScope === 'representative'
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Shield className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="truncate">Representative ({mappedTeams.length})</span>
+            <span className="truncate">Representative</span>
           </button>
           <button
             type="button"
             onClick={() => setViewScope('districts')}
-            className={`px-2.5 sm:px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 ${
+            className={`px-2 sm:px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
               viewScope === 'districts'
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span className="truncate">Districts ({mappedTeams.length})</span>
+            <span className="truncate">Districts</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewScope('jdca_division')}
+            className={`px-2 sm:px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
+              viewScope === 'jdca_division'
+                ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-indigo-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Crown className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            <span className="truncate">JDCA Division</span>
           </button>
         </div>
 
@@ -371,7 +413,7 @@ export default function TeamsScreen() {
       </div>
 
       {/* Main Content Area */}
-      {viewScope === 'representative' ? (
+      {viewScope === 'representative' && (
         <div className="space-y-4">
           {/* Category Filter Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -577,7 +619,9 @@ export default function TeamsScreen() {
             </div>
           )}
         </div>
-      ) : (
+      )}
+
+      {viewScope === 'districts' && (
         /* DISTRICT INTER-ZONAL LEAGUE TEAMS */
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-slate-500 px-1">
@@ -650,6 +694,230 @@ export default function TeamsScreen() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ────────────────────────────────────────────────────────────── */}
+      {/* JDCA DIVISION LEVEL TEAMS (Isolated Tab) */}
+      {/* ────────────────────────────────────────────────────────────── */}
+      {viewScope === 'jdca_division' && (
+        <div className="space-y-4">
+          {/* JDCA Division Header Banner */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 p-5 sm:p-6 text-white shadow-lg">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="w-6 h-6 text-amber-400" />
+                  <span className="text-xs font-black uppercase tracking-widest text-indigo-300">JDCA Division Level</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight">Division Representative Teams</h2>
+                <p className="text-sm text-indigo-200 mt-1">
+                  Jabalpur Division Cricket Association &middot; Official Division-Level Squads
+                </p>
+              </div>
+              {(isAdmin || isSelector) && (
+                <button
+                  type="button"
+                  onClick={() => navigateTo('selection')}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white text-xs font-bold transition cursor-pointer shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Build Division Team</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Category Filter for JDCA Division */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {['All', 'Senior', 'Under 23', 'Under 19', 'Under 17', 'Under 15', 'Under 13'].map((cat) => {
+              const isActive = jdcaCategoryFilter === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setJdcaCategoryFilter(cat)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200'
+                  }`}
+                >
+                  {cat === 'All' ? 'All Categories' : cat}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* JDCA Teams Grid */}
+          {isLoadingJdcaTeams ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs">
+              <Loader2 className="w-8 h-8 text-indigo-400 mx-auto animate-spin" />
+              <p className="text-sm text-slate-500 mt-3 font-semibold">Loading Division Teams...</p>
+            </div>
+          ) : (() => {
+            const filteredJdcaTeams = jdcaDivisionTeams.filter(team => {
+              if (jdcaCategoryFilter !== 'All') {
+                const catName = team.age_category?.name || '';
+                if (catName !== jdcaCategoryFilter) return false;
+              }
+              if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const matchesName = (team.name || '').toLowerCase().includes(q);
+                if (!matchesName) return false;
+              }
+              return true;
+            });
+
+            return filteredJdcaTeams.length === 0 ? (
+              <div className="bg-white border border-indigo-100 rounded-2xl p-12 text-center space-y-3 shadow-xs">
+                <Crown className="w-10 h-10 text-indigo-200 mx-auto" />
+                <h4 className="text-base font-bold text-slate-800">No Division Teams Yet</h4>
+                <p className="text-sm text-slate-500">
+                  {isAdmin || isSelector
+                    ? 'Go to Team Selection to build your first JDCA Division-level team.'
+                    : 'JDCA Division teams will appear here once created by selectors.'}
+                </p>
+                {(isAdmin || isSelector) && (
+                  <button
+                    type="button"
+                    onClick={() => navigateTo('selection')}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer shadow-sm mx-auto"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span>Start Selection</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {filteredJdcaTeams.map((team) => {
+                  const teamPlayers = (team.team_players || []).map(tp => tp.player).filter(Boolean);
+                  const catName = team.age_category?.name || 'Unknown';
+                  const composition = { batters: 0, bowlers: 0, allRounders: 0, wicketKeepers: 0 };
+                  teamPlayers.forEach(p => {
+                    if (p.primary_role?.includes('Batter')) composition.batters++;
+                    else if (p.primary_role?.includes('Bowler')) composition.bowlers++;
+                    else if (p.primary_role?.includes('All-Rounder')) composition.allRounders++;
+                    else if (p.primary_role?.includes('Wicket')) composition.wicketKeepers++;
+                  });
+
+                  return (
+                    <div
+                      key={team.id}
+                      className="bg-white rounded-2xl border-2 border-indigo-100 p-5 shadow-xs hover:shadow-md hover:border-indigo-200 transition flex flex-col justify-between relative overflow-hidden"
+                    >
+                      {/* Indigo accent stripe */}
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-600" />
+
+                      {/* Team Header */}
+                      <div className="flex items-start justify-between gap-3 mb-4 pt-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-700 to-purple-700 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
+                            <Crown className="w-6 h-6 text-amber-300" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                {catName} {team.gender || ''}
+                              </span>
+                              <span className="text-xs font-bold text-indigo-400">JDCA Division</span>
+                            </div>
+                            <h3 className="text-base font-bold text-slate-900 mt-1">{team.name}</h3>
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg shrink-0">
+                          <Zap className="w-3.5 h-3.5 text-indigo-500" />
+                          <span>Division</span>
+                        </span>
+                      </div>
+
+                      {/* Squad Balance */}
+                      <div className="space-y-1.5 mb-4">
+                        <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                          <span>Squad: <strong className="text-slate-900">{teamPlayers.length} Players</strong></span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                          <div className="bg-amber-500 h-full" style={{ width: `${teamPlayers.length ? (composition.batters / teamPlayers.length) * 100 : 0}%` }} />
+                          <div className="bg-blue-500 h-full" style={{ width: `${teamPlayers.length ? (composition.bowlers / teamPlayers.length) * 100 : 0}%` }} />
+                          <div className="bg-purple-500 h-full" style={{ width: `${teamPlayers.length ? (composition.allRounders / teamPlayers.length) * 100 : 0}%` }} />
+                          <div className="bg-teal-500 h-full" style={{ width: `${teamPlayers.length ? (composition.wicketKeepers / teamPlayers.length) * 100 : 0}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> {composition.batters} Bat</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {composition.bowlers} Bowl</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> {composition.allRounders} AR</span>
+                          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-500 inline-block" /> {composition.wicketKeepers} WK</span>
+                        </div>
+                      </div>
+
+                      {/* Player Avatars */}
+                      <div className="flex items-center gap-2 mb-4 pt-2 border-t border-indigo-50 overflow-x-auto no-scrollbar py-1">
+                        {teamPlayers.slice(0, 7).map((player) => (
+                          <div
+                            key={player.id}
+                            onClick={() => handlePlayerClick(player)}
+                            className="group relative cursor-pointer flex flex-col items-center shrink-0"
+                            title={player.full_name}
+                          >
+                            <CloudinaryAvatar
+                              src={player.avatar_url}
+                              alt={player.full_name}
+                              className="w-8 h-8 rounded-full object-cover border border-indigo-200 group-hover:border-indigo-500 transition"
+                            />
+                            <span className="text-[9px] font-medium text-slate-500 truncate w-10 text-center mt-0.5">
+                              {player.full_name?.split(' ')[0]}
+                            </span>
+                          </div>
+                        ))}
+                        {teamPlayers.length > 7 && (
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600 shrink-0">
+                            +{teamPlayers.length - 7}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="pt-3 border-t border-indigo-50 flex items-center justify-between gap-2">
+                        <span className="text-xs text-indigo-400 font-semibold">
+                          JDCA Representative Team
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveRosterTeam({
+                            ...team,
+                            name: team.name,
+                            category: catName,
+                            gender: team.gender,
+                            season: team.season || '2026',
+                            homeVenue: 'JDCA Division Ground',
+                            headCoach: '-',
+                            captain: teamPlayers[0]?.full_name || '-',
+                            viceCaptain: teamPlayers[1]?.full_name || '-',
+                            wicketKeeper: teamPlayers.find(p => p.primary_role?.includes('Wicket'))?.full_name || '-',
+                            leadSelector: '-',
+                            squad: teamPlayers.map(p => ({
+                              ...p,
+                              district: p.district || '-',
+                            })),
+                            squadSize: 20,
+                            status: team.is_active ? 'Active' : 'Inactive',
+                            level: 'JDCA Division Representative',
+                          })}
+                          className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm cursor-pointer"
+                        >
+                          <span>View Squad</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 

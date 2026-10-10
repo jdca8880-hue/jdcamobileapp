@@ -1,13 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User, CheckCircle2, Bookmark, X, Star, Calendar, 
-  MapPin, Shield, Activity, Award
+  MapPin, Shield, Activity, Award, Trophy, ChevronRight, History
 } from 'lucide-react';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
+import { api } from '../../lib/api';
 
 export default function PlayerDetail({ 
   player, team, onClose, onToggleConsider, onToggleSelect, isConsidered, isSelected 
 }) {
+  const [matchHistory, setMatchHistory] = useState(player?.matchHistory || []);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (player && (!player.matchHistory || player.matchHistory.length === 0)) {
+      setIsLoadingHistory(true);
+      api.getPlayerMatchHistory(player.id).then(history => {
+        setMatchHistory(history);
+        setIsLoadingHistory(false);
+      });
+    } else {
+      setMatchHistory(player?.matchHistory || []);
+    }
+  }, [player]);
+
   if (!player) return null;
 
   const SectionHeading = ({ icon: Icon, title }) => (
@@ -54,8 +70,8 @@ export default function PlayerDetail({
     );
   };
 
-  const battingTrend = player.matchHistory.map(m => m.batting?.runs || 0).reverse();
-  const bowlingTrend = player.matchHistory.map(m => m.bowling?.wickets || 0).reverse();
+  const battingTrend = matchHistory.map(m => m.batting?.runs || 0).reverse();
+  const bowlingTrend = matchHistory.map(m => m.bowling?.wickets || 0).reverse();
 
   return (
     <div className="flex flex-col h-full bg-white font-sans overflow-hidden">
@@ -182,7 +198,7 @@ export default function PlayerDetail({
         <section>
           <SectionHeading icon={Activity} title="Recent Form (Last 5 Matches)" />
           <div className="flex gap-2">
-            {player.matchHistory.slice(0, 5).map((m, i) => (
+            {matchHistory.slice(0, 5).map((m, i) => (
               <div key={i} className="flex-1 bg-slate-50 border border-slate-200 rounded py-2 text-center">
                 <div className="text-sm sm:text-base font-bold text-slate-800">
                   {player.primary_role === 'Bowler' 
@@ -199,7 +215,7 @@ export default function PlayerDetail({
         <section>
           <SectionHeading icon={CheckCircle2} title="Best Performances" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[...player.matchHistory]
+            {[...matchHistory]
               .sort((a, b) => {
                 const scoreA = (a.batting?.runs || 0) + (a.bowling?.wickets || 0) * 20;
                 const scoreB = (b.batting?.runs || 0) + (b.bowling?.wickets || 0) * 20;
@@ -223,8 +239,8 @@ export default function PlayerDetail({
         <section>
           <SectionHeading icon={Calendar} title="Match History" />
           <div className="border border-slate-200 rounded-md overflow-hidden bg-slate-50">
-            {player.matchHistory.map((m, i) => (
-              <div key={m.id} className={`flex items-center p-3 cursor-pointer bg-white hover:bg-slate-50 transition-colors ${i !== player.matchHistory.length - 1 ? 'border-b border-slate-200' : ''}`}>
+            {matchHistory.map((m, i) => (
+              <div key={m.id} className={`flex items-center p-3 cursor-pointer bg-white hover:bg-slate-50 transition-colors ${i !== matchHistory.length - 1 ? 'border-b border-slate-200' : ''}`}>
                 <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center shrink-0 mr-4 border border-slate-200">
                   <Trophy className="w-4 h-4 text-slate-400" />
                 </div>

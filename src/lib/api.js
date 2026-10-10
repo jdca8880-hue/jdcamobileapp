@@ -412,6 +412,130 @@ export const api = {
       if (error) throw error;
     }
   },
+
+  async getSelectorAgeCategory(selectorId) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('selector_age_category_id, selector_age_category:selector_age_category_id(id, name, short_name, rank_level)')
+      .eq('id', selectorId)
+      .single();
+    if (error) throw error;
+    return data?.selector_age_category || null;
+  },
+
+  async updateSelectorAgeCategory(selectorId, ageCategoryId) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ selector_age_category_id: ageCategoryId || null })
+      .eq('id', selectorId);
+    if (error) throw error;
+  },
+
+  async getAgeCategories() {
+    const { data, error } = await supabase
+      .from('age_categories')
+      .select('id, name, short_name, rank_level, minimum_age, maximum_age')
+      .eq('is_active', true)
+      .order('rank_level', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getJdcaDivisionTeams() {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('*, district:district_id(*), age_category:age_category_id(*), team_players(player_id, player:player_id(id, full_name, primary_role, avatar_url, batting_style, bowling_style, date_of_birth))')
+      .eq('team_type', 'JDCA_REPRESENTATIVE')
+      .is('deleted_at', null);
+    if (error) throw error;
+    return data || [];
+  },
+
+  async createJdcaDivisionTeam(teamData) {
+    const { data, error } = await supabase
+      .from('teams')
+      .insert({
+        name: teamData.name,
+        short_name: teamData.short_name || teamData.name.substring(0, 5).toUpperCase(),
+        season: teamData.season,
+        season_id: teamData.season_id,
+        age_category_id: teamData.age_category_id,
+        gender: teamData.gender || 'Men',
+        team_type: 'JDCA_REPRESENTATIVE',
+        is_active: true
+      })
+      .select('*, age_category:age_category_id(*)')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async addPlayersToTeam(teamId, playerIds) {
+    const inserts = playerIds.map(pid => ({ team_id: teamId, player_id: pid }));
+    const { error } = await supabase.from('team_players').insert(inserts);
+    if (error) throw error;
+  },
+
+  async removePlayerFromTeam(teamId, playerId) {
+    const { error } = await supabase
+      .from('team_players')
+      .delete()
+      .eq('team_id', teamId)
+      .eq('player_id', playerId);
+    if (error) throw error;
+  },
+
+  async saveRepresentativeSquad(teamData, playerIds = [], roles = {}) {
+    let teamId = teamData.id;
+    const isTempId = !teamId || String(teamId).startsWith('team_');
+
+    if (isTempId) {
+      let query = supabase
+        .from('teams')
+        .select('id')
+        .eq('team_type', 'JDCA_REPRESENTATIVE')
+        .is('deleted_at', null);
+
+      if (teamData.age_category_id) {
+        query = query.eq('age_category_id', teamData.age_category_id).eq('gender', teamData.gender || 'Men');
+      } else {
+        query = query.eq('name', teamData.name);
+      }
+
+      const { data: existing } = await query.maybeSingle();
+
+      if (existing) {
+        teamId = existing.id;
+      } else {
+        const created = await this.createJdcaDivisionTeam(teamData);
+        teamId = created.id;
+      }
+    }
+
+    try {
+      await supabase
+        .from('teams')
+        .update({
+          captain_id: roles.captainId || null,
+          vice_captain_id: roles.viceCaptainId || null,
+          is_active: true
+        })
+        .eq('id', teamId);
+    } catch (e) {
+      // Column might not exist in some legacy schemas
+    }
+
+    // Refresh roster
+    await supabase.from('team_players').delete().eq('team_id', teamId);
+    if (playerIds && playerIds.length > 0) {
+      const inserts = playerIds.map(pid => ({ team_id: teamId, player_id: pid }));
+      const { error: insErr } = await supabase.from('team_players').insert(inserts);
+      if (insErr) console.warn('[saveRepresentativeSquad] team_players insert error:', insErr);
+    }
+
+    return teamId;
+  },
+
   async rebuildTeams() {
     const { data: districts } = await supabase.from('districts').select('id, name').eq('is_active', true);
     const { data: ageCategories } = await supabase.from('age_categories').select('id, name, short_name').eq('is_active', true);
@@ -2245,6 +2369,73 @@ export const api = {
     }
 
     return true;
+  },
+
+  async getPlayerMatchHistory(playerId) {
+    if (!playerId) return [];
+    try {
+      const [batRes, bowlRes, fieldRes] = await Promise.all([
+        supabase.from('v_player_match_batting').select('match_id, runs_scored, balls_faced, is_dismissed').eq('player_id', playerId),
+        supabase.from('v_player_match_bowling').select('match_id, wickets_taken, runs_conceded, balls_bowled').eq('player_id', playerId),
+        supabase.from('v_player_match_fielding').select('match_id, catches, run_outs, stumpings').eq('player_id', playerId)
+      ]);
+
+      const batMap = new Map((batRes.data || []).map(d => [d.match_id, d]));
+      const bowlMap = new Map((bowlRes.data || []).map(d => [d.match_id, d]));
+      const fieldMap = new Map((fieldRes.data || []).map(d => [d.match_id, d]));
+
+      const matchIds = [...new Set([...batMap.keys(), ...bowlMap.keys(), ...fieldMap.keys()])];
+      
+      if (matchIds.length === 0) return [];
+
+      const { data: matches } = await supabase
+        .from('matches')
+        .select(`
+          id, 
+          scheduled_at, 
+          tournaments (name), 
+          home_team:teams!matches_home_team_id_fkey(name), 
+          away_team:teams!matches_away_team_id_fkey(name)
+        `)
+        .in('id', matchIds)
+        .order('scheduled_at', { ascending: false });
+
+      if (!matches) return [];
+
+      return matches.map(m => {
+        const bat = batMap.get(m.id);
+        const bowl = bowlMap.get(m.id);
+        const field = fieldMap.get(m.id);
+        const homeName = m.home_team?.name || 'Home';
+        const awayName = m.away_team?.name || 'Away';
+        
+        return {
+          id: m.id,
+          date: m.scheduled_at ? new Date(m.scheduled_at).toLocaleDateString() : 'Unknown Date',
+          tournament: m.tournaments?.name || 'Friendly',
+          opponent: `${homeName} vs ${awayName}`,
+          batting: bat ? {
+            runs: bat.runs_scored,
+            balls: bat.balls_faced,
+            notOut: bat.is_dismissed === 0
+          } : undefined,
+          bowling: bowl ? {
+            wickets: bowl.wickets_taken,
+            runs: bowl.runs_conceded,
+            overs: bowl.balls_bowled > 0 ? Math.floor(bowl.balls_bowled / 6) + (bowl.balls_bowled % 6) / 10 : 0
+          } : undefined,
+          fielding: field ? {
+            catches: field.catches || 0,
+            stumpings: field.stumpings || 0,
+            runOuts: field.run_outs || 0
+          } : undefined
+        };
+      });
+
+    } catch (err) {
+      console.error('Error fetching player match history:', err);
+      return [];
+    }
   }
 };
 

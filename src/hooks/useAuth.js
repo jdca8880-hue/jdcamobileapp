@@ -32,8 +32,10 @@ export function useAuth({ setActiveMatchId }) {
             can_add: p.can_add,
             can_edit: p.can_edit,
             can_delete: p.can_delete,
+            is_active: p.is_active,
             status: p.is_active ? 'Active' : 'Inactive',
-            district: p.district?.name || 'All Districts'
+            district: p.district?.name || 'All Districts',
+            selector_age_category_id: p.selector_age_category_id || null
           }));
           setRegisteredUsers(mapped);
         } catch (e) {
