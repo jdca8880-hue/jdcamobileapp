@@ -5,6 +5,30 @@ class LiveSubscriptionManager {
     this.subscriptions = new Map();
     this.listeners = new Map();
     this._listenerIdSeq = 0;
+
+    if (typeof window !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this._reconnectAllStale();
+        }
+      });
+      window.addEventListener('online', () => this._reconnectAllStale());
+    }
+  }
+
+  _reconnectAllStale() {
+    for (const [matchId, sub] of this.subscriptions) {
+      if (sub.destroyed) continue;
+      const ch = sub.channel;
+      const state = ch?.state;
+      if (state === 'joined' || state === 'joining') continue;
+      console.log(`[LiveSub] Tab visible / online — reconnecting stale channel for match ${matchId} (state: ${state})`);
+      if (sub.retryTimer) clearTimeout(sub.retryTimer);
+      sub.retryTimer = null;
+      const nextRetry = sub.retryCount + 1;
+      this._destroyChannel(matchId);
+      this._createChannel(matchId, nextRetry);
+    }
   }
 
   subscribe(matchId, callback) {

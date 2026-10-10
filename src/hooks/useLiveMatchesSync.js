@@ -22,12 +22,22 @@ export function useLiveMatchesSync() {
     let matchesSub = null;
     let bc = null;
     let isMounted = true;
+    let retryTimer = null;
+    let retryCount = 0;
 
     if (!supabase) return;
 
-    // 1. Matches & Tournaments Realtime Channel (Only for fixture updates, creations, deletions)
-    matchesSub = supabase.channel('public:matches_catalog')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
+    function createCatalogChannel() {
+      if (matchesSub) {
+        try { supabase.removeChannel(matchesSub); } catch {}
+      }
+      matchesSub = buildCatalogChannel();
+    }
+
+    function buildCatalogChannel() {
+      const ch = supabase.channel('public:matches_catalog');
+
+      ch.on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, async (payload) => {
         if (!isMounted) return;
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const matchData = payload.new;
@@ -90,7 +100,31 @@ export function useLiveMatchesSync() {
           setTournamentsRef.current(prev => prev.filter(t => t.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          retryCount = 0;
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          if (!isMounted) return;
+          console.warn(`[useLiveMatchesSync] Catalog channel ${status}. Scheduling reconnect.`);
+          scheduleCatalogReconnect();
+        }
+      });
+
+      return ch;
+    }
+
+    function scheduleCatalogReconnect() {
+      if (retryTimer || !isMounted) return;
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+      retryCount++;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (!isMounted) return;
+        createCatalogChannel();
+      }, delay);
+    }
+
+    createCatalogChannel();
 
     // 2. Local Browser BroadcastChannel (Instant local cross-tab sync without remote network overhead)
     try {
@@ -167,12 +201,20 @@ export function useLiveMatchesSync() {
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
         pollMatches();
+        if (matchesSub) {
+          const state = matchesSub.state;
+          if (state !== 'joined' && state !== 'joining') {
+            console.log(`[useLiveMatchesSync] Tab visible — catalog channel stale (${state}), reconnecting.`);
+            createCatalogChannel();
+          }
+        }
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
       if (matchesSub) supabase.removeChannel(matchesSub);
       if (bc) bc.close();
       clearInterval(pollInterval);

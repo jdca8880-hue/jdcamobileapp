@@ -220,7 +220,13 @@ class SyncService {
              }
           } else if (!navigator.onLine || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError') || error.code === 'NETWORK_ERROR') {
              isNetworkError = true;
-          } else if (error.code === '401' || error.code === '42501' || error.message?.includes('JWT') || error.message?.includes('Auth')) {
+          } else if (error.code === '42501') {
+             // RLS policy denial — the action itself is blocked by a missing
+             // server-side policy, NOT a session/auth issue. Mark permanent for
+             // THIS action so the queue keeps draining other matches.
+             console.error(`[SyncService] RLS denial (42501) on action ${action.id}. This is a server policy issue, not auth.`);
+             isPermanentError = true;
+          } else if (error.code === '401' || error.message?.includes('JWT expired') || error.message?.includes('Invalid Refresh Token') || error.message?.includes('Auth session missing')) {
              isAuthError = true;
           } else if (error.message?.includes('State Transition Error') || error.message?.includes('already finalized') || error.message?.includes('immutable') || error.message?.includes('check_match_immutable')) {
              isPermanentError = true;
