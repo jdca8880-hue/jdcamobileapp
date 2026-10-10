@@ -21,7 +21,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const { currentScreen, navigateTo, userRole, userEmail, logout, isDarkMode, setIsDarkMode, notificationsEnabled, toggleNotifications } = useCricket();
+  const { currentScreen, navigateTo, userRole, userPermissions, userEmail, logout, isDarkMode, setIsDarkMode, notificationsEnabled, toggleNotifications } = useCricket();
 
   const visible = NAV_ITEMS.map(item => {
     if (userRole === 'SCORER' && item.id === 'administration') {
@@ -31,6 +31,7 @@ export default function Sidebar() {
   }).filter(item => {
     if (item.adminOnly && !['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole)) return false;
     if (userRole === 'SUPER_ADMIN' && item.id === 'scoring') return false;
+    if (item.id === 'scoring' && userPermissions?.can_score) return true;
     if (userRole === 'SCORER') return ['matches', 'scoring', 'teams', 'tournaments', 'administration'].includes(item.id);
     if (userRole === 'SELECTOR') return ['home', 'players', 'selection', 'teams', 'tournaments', 'news'].includes(item.id);
     if (userRole === 'VIEWER') return ['home', 'matches', 'players', 'teams', 'tournaments', 'news'].includes(item.id);

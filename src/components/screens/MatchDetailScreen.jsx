@@ -26,7 +26,7 @@ const MatchTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function MatchDetailScreen() {
-  const { matches = [], setMatches, activeMatchId, navigateTo, goBack, userRole, registeredUsers = [], isPaused, resumeMatch } = useCricket();
+  const { matches = [], setMatches, activeMatchId, navigateTo, goBack, userRole, userPermissions, registeredUsers = [], isPaused, resumeMatch } = useCricket();
   const [activeTab, setActiveTab] = useState('info');
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedScorer, setSelectedScorer] = useState('');
@@ -366,7 +366,7 @@ export default function MatchDetailScreen() {
                       onChange={(e) => setSelectedScorer(e.target.value)}
                     >
                       <option value="">-- Select Scorer --</option>
-                      {registeredUsers.filter(u => ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase())).map(u => (
+                      {registeredUsers.filter(u => u.can_score || ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase())).map(u => (
                         <option key={u.id} value={u.name || u.email}>{u.name || u.email}</option>
                       ))}
                     </select>
@@ -383,7 +383,7 @@ export default function MatchDetailScreen() {
             </div>
 
             {(() => {
-              const isAuthorizedScorer = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
+              const isAuthorizedScorer = userPermissions?.can_score || ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
               const upcoming = match.status === 'SCHEDULED' || match.status === 'UPCOMING';
 
               return (

@@ -13,7 +13,7 @@ export function useAuth({ setActiveMatchId }) {
   const [userName, setUserName] = useState('');
   const [userId, setUserId] = useState(null);
   const [userRole, setUserRole] = useState('VIEWER'); // SUPER_ADMIN, DISTRICT_ADMIN, SCORER, SELECTOR, VIEWER
-  const [userPermissions, setUserPermissions] = useState({ can_add: false, can_edit: false, can_delete: false });
+  const [userPermissions, setUserPermissions] = useState({ can_add: false, can_edit: false, can_delete: false, can_score: false });
 
   // Registered Users (Super Admin access)
   const [registeredUsers, setRegisteredUsers] = useState([]);
@@ -32,6 +32,7 @@ export function useAuth({ setActiveMatchId }) {
             can_add: p.can_add,
             can_edit: p.can_edit,
             can_delete: p.can_delete,
+            can_score: p.can_score,
             is_active: p.is_active,
             status: p.is_active ? 'Active' : 'Inactive',
             district: p.district?.name || 'All Districts',
@@ -52,7 +53,7 @@ export function useAuth({ setActiveMatchId }) {
       setIsAuthenticated(false);
       setUserEmail('');
       setUserRole('VIEWER');
-      setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
+      setUserPermissions({ can_add: false, can_edit: false, can_delete: false, can_score: false });
       if (setActiveMatchId) setActiveMatchId(null);
       
       navigate('/');

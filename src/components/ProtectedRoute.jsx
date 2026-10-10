@@ -41,8 +41,14 @@ export const ROLE_HOME = {
   VIEWER: '/home',
 };
 
+// Routes unlocked by the can_score capability flag, regardless of role.
+const SCORING_CAPABILITY_ROUTES = [
+  '/scoring', '/match-setup', '/innings-break', '/match-result', '/scorecard'
+];
+
 // ─── Helper: does a role have access to a given path? ────────────────────
-export function roleCanAccess(role, path) {
+export function roleCanAccess(role, path, canScore = false) {
+  if (canScore && SCORING_CAPABILITY_ROUTES.includes(path)) return true;
   const allowed = ROLE_PERMISSIONS[role];
   if (!allowed) return false;
   if (allowed === '*') return true;
@@ -51,11 +57,11 @@ export function roleCanAccess(role, path) {
 
 // ─── ProtectedRoute Component ────────────────────────────────────────────
 export default function ProtectedRoute({ path, element }) {
-  const { isAuthenticated, userRole } = useCricket();
+  const { isAuthenticated, userRole, userPermissions } = useCricket();
 
   if (!isAuthenticated) return <Navigate to="/" replace />;
 
-  if (!roleCanAccess(userRole, path)) {
+  if (!roleCanAccess(userRole, path, userPermissions?.can_score)) {
     return <Navigate to={ROLE_HOME[userRole] || '/home'} replace />;
   }
 

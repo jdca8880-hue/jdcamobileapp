@@ -5,7 +5,7 @@ import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
 
 export function LiveMatchCard({ match, variant = 'card', className = '', onClick }) {
-  const { setActiveMatchId, activeMatchId, navigateTo, userRole, userId, userName, userEmail, isPaused, resumeMatch } = useCricket();
+  const { setActiveMatchId, activeMatchId, navigateTo, userRole, userPermissions, userId, userName, userEmail, isPaused, resumeMatch } = useCricket();
   const haptics = useHaptics();
 
   if (!match) return null;
@@ -37,7 +37,7 @@ export function LiveMatchCard({ match, variant = 'card', className = '', onClick
 
   // Check if current user is the assigned scorer or an admin
   const isAssignedScorer = userRole === 'SUPER_ADMIN' || userRole === 'DISTRICT_ADMIN' || (
-    userRole === 'SCORER' && (
+    (userRole === 'SCORER' || userPermissions?.can_score) && (
       match.scorer_id === userId ||
       (match.scorer_name && userName && match.scorer_name.trim().toLowerCase() === userName.trim().toLowerCase()) ||
       (match.scorer_name && userEmail && match.scorer_name.trim().toLowerCase() === userEmail.trim().toLowerCase())

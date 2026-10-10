@@ -8,7 +8,7 @@ import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
 
 export default function MatchResultScreen() {
-  const { matches = [], setMatches, refreshAdminData, activeMatchId, navigateTo, userRole, resetScoringSession } = useCricket();
+  const { matches = [], setMatches, refreshAdminData, activeMatchId, navigateTo, userRole, userPermissions, resetScoringSession } = useCricket();
   const [matchData, setMatchData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedMotm, setSelectedMotm] = useState('');
@@ -155,7 +155,7 @@ export default function MatchResultScreen() {
     );
   }
 
-  const canAssignMotm = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
+  const canAssignMotm = userPermissions?.can_score || ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole);
   const isMatchPermanentlyLocked = matchData.status === 'COMPLETED' && (!activeMatchId || activeMatchId !== matchData.id);
 
   const handleAssignMotm = async (e) => {

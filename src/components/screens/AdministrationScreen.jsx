@@ -27,7 +27,7 @@ const TABS = [
 
 const ROLES = [
   'Super Admin',
-  'District Admin',
+  'Admin',
   'Tournament Admin',
   'Scorer',
   'Umpire',
@@ -98,6 +98,7 @@ export default function AdministrationScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [newFullName, setNewFullName] = useState('');
   const [newRole, setNewRole] = useState('VIEWER');
+  const [newCanScore, setNewCanScore] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -138,6 +139,13 @@ export default function AdministrationScreen() {
         // The trigger creates the profile. Update the role instantly with the main client's auth session.
         try { await api.updateUserRole(data.user.id, newRole); } catch (updateError) { console.warn("Failed to instantly set role, possibly missing Postgres trigger", updateError); }
 
+        // Grant the scoring capability on creation if requested (new users default to can_view only).
+        if (newCanScore) {
+          try {
+            await api.updateUserPermissions(data.user.id, { can_view: true, can_add: false, can_edit: false, can_delete: false, can_score: true });
+          } catch (scoreError) { console.warn("Failed to set can_score on new user", scoreError); }
+        }
+
         // Refresh registered users locally
         const profiles = await api.getProfiles();
         const mapped = profiles.map(p => ({
@@ -145,6 +153,11 @@ export default function AdministrationScreen() {
           name: p.full_name,
           email: p.email || 'N/A',
           role: p.role,
+          can_view: p.can_view,
+          can_add: p.can_add,
+          can_edit: p.can_edit,
+          can_delete: p.can_delete,
+          can_score: p.can_score,
           is_active: p.is_active,
           status: p.is_active ? 'Active' : 'Inactive',
           district: p.district?.name || 'All Districts',
@@ -157,6 +170,7 @@ export default function AdministrationScreen() {
         setNewPassword('');
         setNewFullName('');
         setNewRole('VIEWER');
+        setNewCanScore(false);
       }
     } catch (err) {
       console.error(err);
@@ -176,6 +190,7 @@ export default function AdministrationScreen() {
         can_add: user.can_add,
         can_edit: user.can_edit,
         can_delete: user.can_delete,
+        can_score: user.can_score,
         [field]: newValue
       };
       // Optimistic update
@@ -195,6 +210,7 @@ export default function AdministrationScreen() {
         can_add: p.can_add,
         can_edit: p.can_edit,
         can_delete: p.can_delete,
+        can_score: p.can_score,
         is_active: p.is_active,
         status: p.is_active ? 'Active' : 'Inactive',
         district: p.district?.name || 'All Districts',
@@ -316,7 +332,7 @@ export default function AdministrationScreen() {
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">Authorised Association Users</h3>
-                <p className="text-xs text-slate-500">Super Admins, District Admins, Scorers, Selectors and Committee Members</p>
+                <p className="text-xs text-slate-500">Super Admins, Admins, Scorers, Selectors and Committee Members</p>
               </div>
               <span className="badge badge-upcoming text-xs font-bold">
                 {registeredUsers.length} Users
@@ -334,6 +350,7 @@ export default function AdministrationScreen() {
                     <th>Can Add</th>
                     <th>Can Edit</th>
                     <th>Can Delete</th>
+                    <th>Can Score</th>
                     <th style={{ textAlign: 'right' }}>Status</th>
                     <th style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
@@ -359,7 +376,7 @@ export default function AdministrationScreen() {
                                 className="text-xs border border-slate-200 rounded p-1"
                               >
                                 <option value="SUPER_ADMIN">Super Admin</option>
-                                <option value="DISTRICT_ADMIN">District Admin</option>
+                                <option value="DISTRICT_ADMIN">Admin</option>
                                 <option value="SELECTOR">Selector</option>
                                 <option value="SCORER">Scorer</option>
                                 <option value="UMPIRE">Umpire</option>
@@ -367,6 +384,15 @@ export default function AdministrationScreen() {
                               </select>
                             ) : (
                               <RoleBadge role={usr.role} />
+                            )}
+                            {usr.can_score && !['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(usr.role?.toUpperCase()) && (
+                              <span
+                                className="badge"
+                                style={{ background: 'rgba(249, 115, 22, 0.15)', color: '#F97316', borderColor: 'rgba(249, 115, 22, 0.35)' }}
+                                title="Also allowed to score matches"
+                              >
+                                Can Score
+                              </span>
                             )}
                             {usr.role === 'SELECTOR' && userRole === 'SUPER_ADMIN' && (
                               <div className="flex items-center gap-1.5 flex-wrap">
@@ -418,6 +444,15 @@ export default function AdministrationScreen() {
                           ) : (
                             <span className={usr.can_delete ? "inline-flex items-center text-xs font-semibold text-[#F05A47]" : "inline-flex items-center text-xs font-semibold text-slate-400"}>
                               {usr.can_delete ? <Check size={14} className="mr-1" /> : <X size={14} className="mr-1" />} {usr.can_delete ? 'Yes' : 'No'}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {userRole === 'SUPER_ADMIN' ? (
+                            <input type="checkbox" checked={!!usr.can_score} onChange={(e) => handlePermissionChange(usr.id, 'can_score', e.target.checked)} />
+                          ) : (
+                            <span className={usr.can_score ? "inline-flex items-center text-xs font-semibold text-[#0FA968]" : "inline-flex items-center text-xs font-semibold text-slate-400"}>
+                              {usr.can_score ? <Check size={14} className="mr-1" /> : <X size={14} className="mr-1" />} {usr.can_score ? 'Yes' : 'No'}
                             </span>
                           )}
                         </td>
@@ -615,10 +650,22 @@ export default function AdministrationScreen() {
                     <option value="SCORER">Scorer</option>
                     <option value="UMPIRE">Umpire</option>
                     <option value="SELECTOR">Selector</option>
-                    <option value="DISTRICT_ADMIN">District Admin</option>
+                    <option value="DISTRICT_ADMIN">Admin</option>
                     <option value="SUPER_ADMIN">Super Admin</option>
                   </select>
                 </div>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newCanScore}
+                    onChange={(e) => setNewCanScore(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="block text-xs font-semibold text-slate-700">Can Score</span>
+                    <span className="block text-[11px] text-slate-500">Also allow this person to score matches and appear in the scorer list, regardless of their role.</span>
+                  </span>
+                </label>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">

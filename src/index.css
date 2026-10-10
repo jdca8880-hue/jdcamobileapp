@@ -356,6 +356,23 @@ html.dark [role="dialog"],
 }
 
 /* ═══════════════════════════════════════════════════════
+   CROSS-PLATFORM DROPDOWN (<select>) OPTION READABILITY
+   Native <option> popups on Windows/Android inherit the
+   <select>'s text color. Selects styled with light text on a
+   dark background (e.g. bg-slate-800 text-white) would then
+   render light-on-white options — invisible. iOS/Safari uses
+   its own native wheel so it is unaffected. Forcing explicit
+   option colors keeps every dropdown readable on all three.
+   ═══════════════════════════════════════════════════════ */
+select option {
+  background-color: #FFFFFF;
+  color: #0A0A0A;
+}
+select option:disabled {
+  color: #94A3B8;
+}
+
+/* ═══════════════════════════════════════════════════════
    BADGES
    ═══════════════════════════════════════════════════════ */
 

@@ -175,7 +175,7 @@ export default function MatchOfficialsScreen() {
                     <option value="SCORER">Scorer</option>
                     <option value="UMPIRE">Umpire</option>
                     <option value="VIEWER">Viewer (Read Only)</option>
-                    <option value="DISTRICT_ADMIN">District Admin</option>
+                    <option value="DISTRICT_ADMIN">Admin</option>
                     <option value="SUPER_ADMIN">Super Admin</option>
                   </select>
                 </div>

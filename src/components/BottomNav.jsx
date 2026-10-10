@@ -4,7 +4,7 @@ import { Home, Calendar, Radio, Shield, MoreHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function BottomNav() {
-  const { currentScreen, navigateTo, userRole, drawerOpen, setDrawerOpen } = useCricket();
+  const { currentScreen, navigateTo, userRole, userPermissions, drawerOpen, setDrawerOpen } = useCricket();
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function BottomNav() {
     return allItems.filter(item => {
       if (item.id === 'more' || item.id === 'teams') return true;
       if (item.id === 'home') return userRole !== 'SCORER';
-      if (item.id === 'scoring') return ['DISTRICT_ADMIN', 'SCORER'].includes(userRole);
+      if (item.id === 'scoring') return userPermissions?.can_score || ['DISTRICT_ADMIN', 'SCORER'].includes(userRole);
       if (item.id === 'matches') return ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER', 'VIEWER'].includes(userRole);
       return true;
     });

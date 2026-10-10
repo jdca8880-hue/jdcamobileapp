@@ -341,7 +341,7 @@ export default function MatchSetupScreen() {
   ];
 
   const filteredPlayers = activeXI.filter((p) => (p.full_name || p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
-  const availableScorers = registeredUsers.filter(u => ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()));
+  const availableScorers = registeredUsers.filter(u => u.can_score || ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()));
   const availableUmpires = registeredUsers.filter(u => ['UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()));
 
   /* ─── Step validation before advancing ─── */

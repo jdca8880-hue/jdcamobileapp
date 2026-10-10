@@ -59,7 +59,7 @@ export function useDataSync({ auth, ui }) {
             setIsAuthenticated(true);
             const { data: profile } = await supabase
               .from('profiles')
-              .select('role, is_active, can_add, can_edit, can_delete, full_name, selector_age_category_id, selector_age_category:selector_age_category_id(id, name, short_name, rank_level)')
+              .select('role, is_active, can_add, can_edit, can_delete, can_score, full_name, selector_age_category_id, selector_age_category:selector_age_category_id(id, name, short_name, rank_level)')
               .eq('id', session.user.id)
               .single();
             if (profile) {
@@ -71,7 +71,8 @@ export function useDataSync({ auth, ui }) {
                 setUserPermissions({
                   can_add: profile.can_add,
                   can_edit: profile.can_edit,
-                  can_delete: profile.can_delete
+                  can_delete: profile.can_delete,
+                  can_score: profile.can_score
                 });
                 if (profile.role === 'SELECTOR' && profile.selector_age_category) {
                   const cat = profile.selector_age_category;
@@ -95,7 +96,7 @@ export function useDataSync({ auth, ui }) {
               setIsAuthenticated(true);
               const { data: profile } = await supabase
                 .from('profiles')
-                .select('role, is_active, can_add, can_edit, can_delete, full_name, selector_age_category_id, selector_age_category:selector_age_category_id(id, name, short_name, rank_level)')
+                .select('role, is_active, can_add, can_edit, can_delete, can_score, full_name, selector_age_category_id, selector_age_category:selector_age_category_id(id, name, short_name, rank_level)')
                 .eq('id', session.user.id)
                 .single();
               if (profile) {
@@ -107,7 +108,8 @@ export function useDataSync({ auth, ui }) {
                   setUserPermissions({
                     can_add: profile.can_add,
                     can_edit: profile.can_edit,
-                    can_delete: profile.can_delete
+                    can_delete: profile.can_delete,
+                    can_score: profile.can_score
                   });
                   if (profile.role === 'SELECTOR' && profile.selector_age_category) {
                     const cat = profile.selector_age_category;
@@ -126,7 +128,7 @@ export function useDataSync({ auth, ui }) {
               setIsAuthenticated(false);
               setUserEmail('');
               setUserRole('VIEWER');
-              setUserPermissions({ can_add: false, can_edit: false, can_delete: false });
+              setUserPermissions({ can_add: false, can_edit: false, can_delete: false, can_score: false });
               if (setActiveMatchId) setActiveMatchId(null);
             }
           });

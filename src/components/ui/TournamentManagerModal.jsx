@@ -476,7 +476,7 @@ export default function TournamentManagerModal({ isOpen, onClose, initialData = 
                           >
                             <option value="">Select Scorer</option>
                             {registeredUsers
-                              .filter(u => ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()))
+                              .filter(u => u.can_score || ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()))
                               .map(u => (
                                 <option key={u.id} value={u.name}>{u.name}</option>
                               ))}

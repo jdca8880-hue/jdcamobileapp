@@ -146,7 +146,8 @@ alter table profiles
   add column if not exists can_view boolean not null default true,
   add column if not exists can_add boolean not null default false,
   add column if not exists can_edit boolean not null default false,
-  add column if not exists can_delete boolean not null default false;
+  add column if not exists can_delete boolean not null default false,
+  add column if not exists can_score boolean not null default false;
 
 -- ============================================================
 -- AGE CATEGORIES
@@ -1060,6 +1061,19 @@ as $$
     ('SUPER_ADMIN','DISTRICT_ADMIN','SELECTOR','SCORER'), false);
 $$;
 
+-- True when the current user may write scoring data: their role
+-- already allows it, or they hold the can_score capability flag.
+create or replace function can_user_score()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER'), false)
+      or coalesce((select can_score from profiles where id = auth.uid()), false);
+$$;
+
 create or replace function is_selector_authorized_for_player(p_player_id uuid, p_user_id uuid)
 returns boolean
 language plpgsql
@@ -1195,10 +1209,10 @@ for select using (
 drop policy if exists rosters_scorer_write on match_rosters;
 create policy rosters_scorer_write on match_rosters
 for all using (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
 )
 with check (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
 );
 
 drop policy if exists innings_public_read on innings;
@@ -1438,11 +1452,11 @@ with check (
 drop policy if exists matches_scorer_update on matches;
 create policy matches_scorer_update on matches
 for update using (
-  current_app_role() = 'SCORER'
+  can_user_score()
   and status not in ('COMPLETED', 'ABANDONED', 'CANCELLED')
 )
 with check (
-  current_app_role() = 'SCORER'
+  can_user_score()
 );
 
 -- ============================================================
@@ -1454,7 +1468,7 @@ with check (
 drop policy if exists innings_scorer_write on innings;
 create policy innings_scorer_write on innings
 for insert with check (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
   and exists (
     select 1 from matches m
     where m.id = match_id
@@ -1465,7 +1479,7 @@ for insert with check (
 drop policy if exists innings_scorer_update on innings;
 create policy innings_scorer_update on innings
 for update using (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
   and exists (
     select 1 from matches m
     where m.id = match_id
@@ -1473,13 +1487,13 @@ for update using (
   )
 )
 with check (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
 );
 
 drop policy if exists deliveries_scorer_insert on deliveries;
 create policy deliveries_scorer_insert on deliveries
 for insert with check (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
   and created_by = auth.uid()
   and exists (
     select 1 from matches m
@@ -1491,7 +1505,7 @@ for insert with check (
 drop policy if exists deliveries_scorer_update on deliveries;
 create policy deliveries_scorer_update on deliveries
 for update using (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
   and exists (
     select 1 from matches m
     where m.id = match_id
@@ -1499,7 +1513,7 @@ for update using (
   )
 )
 with check (
-  current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN','SCORER')
+  can_user_score()
 );
 
 -- Deliberately no normal DELETE policy for deliveries.

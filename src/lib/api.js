@@ -1855,8 +1855,9 @@ export const api = {
       .update({ 
         can_view: permissions.can_view, 
         can_add: permissions.can_add, 
-        can_edit: permissions.can_edit, 
-        can_delete: permissions.can_delete 
+        can_edit: permissions.can_edit,
+        can_delete: permissions.can_delete,
+        can_score: permissions.can_score
       })
       .eq('id', userId)
       .select()

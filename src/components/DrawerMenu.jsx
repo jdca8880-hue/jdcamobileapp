@@ -33,7 +33,7 @@ const ACTIVE_MAP = {
 };
 
 export default function DrawerMenu() {
-  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userEmail, logout, isDarkMode, setIsDarkMode, notificationsEnabled, toggleNotifications } = useCricket();
+  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userPermissions, userEmail, logout, isDarkMode, setIsDarkMode, notificationsEnabled, toggleNotifications } = useCricket();
 
   const activeId = ACTIVE_MAP[currentScreen] || currentScreen;
 
@@ -45,6 +45,7 @@ export default function DrawerMenu() {
   }).filter(item => {
     if (item.adminOnly && !['SUPER_ADMIN', 'DISTRICT_ADMIN', 'SCORER'].includes(userRole)) return false;
     if (userRole === 'SUPER_ADMIN' && item.id === 'scoring') return false;
+    if (item.id === 'scoring' && userPermissions?.can_score) return true;
     if (userRole === 'SCORER') return ['matches', 'scoring', 'teams', 'tournaments', 'administration'].includes(item.id);
     if (userRole === 'SELECTOR') return ['home', 'players', 'selection', 'teams', 'tournaments', 'news'].includes(item.id);
     if (userRole === 'VIEWER') return ['home', 'matches', 'players', 'teams', 'tournaments', 'news'].includes(item.id);

@@ -30,7 +30,7 @@ export function Badge({ variant = 'completed', children, dot = false, className 
 export function RoleBadge({ role }) {
   const config = {
     SUPER_ADMIN:     { label: 'Super Admin',      bg: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: 'rgba(239, 68, 68, 0.35)' },
-    DISTRICT_ADMIN:  { label: 'District Admin',   bg: 'rgba(163, 230, 53, 0.15)', color: '#A3E635', border: 'rgba(163, 230, 53, 0.35)' },
+    DISTRICT_ADMIN:  { label: 'Admin',            bg: 'rgba(163, 230, 53, 0.15)', color: '#A3E635', border: 'rgba(163, 230, 53, 0.35)' },
     SCORER:          { label: 'Scorer',           bg: 'rgba(249, 115, 22, 0.15)', color: '#F97316', border: 'rgba(249, 115, 22, 0.35)' },
     UMPIRE:          { label: 'Match Umpire',     bg: 'rgba(168, 85, 247, 0.15)', color: '#C084FC', border: 'rgba(168, 85, 247, 0.35)' },
     SELECTOR:        { label: 'Selection Staff',  bg: 'rgba(6, 182, 212, 0.15)', color: '#22D3EE', border: 'rgba(6, 182, 212, 0.35)' },
@@ -39,7 +39,7 @@ export function RoleBadge({ role }) {
     // Legacy fallback just in case
     SuperAdmin:      { label: 'Super Admin',      bg: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: 'rgba(239, 68, 68, 0.35)' },
     Admin:           { label: 'Admin',            bg: 'rgba(163, 230, 53, 0.15)', color: '#A3E635', border: 'rgba(163, 230, 53, 0.35)' },
-    'District Admin':{ label: 'District Admin',   bg: 'rgba(163, 230, 53, 0.15)', color: '#A3E635', border: 'rgba(163, 230, 53, 0.35)' },
+    'District Admin':{ label: 'Admin',            bg: 'rgba(163, 230, 53, 0.15)', color: '#A3E635', border: 'rgba(163, 230, 53, 0.35)' },
     Umpire:          { label: 'Match Umpire',     bg: 'rgba(168, 85, 247, 0.15)', color: '#C084FC', border: 'rgba(168, 85, 247, 0.35)' },
     Player:          { label: 'Player',           bg: 'rgba(100, 116, 139, 0.15)', color: '#94A3B8', border: 'rgba(100, 116, 139, 0.25)' },
   };
