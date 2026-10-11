@@ -169,6 +169,24 @@ create table if not exists age_categories (
   )
 );
 
+-- Backfill columns for pre-existing age_categories tables. `create table if
+-- not exists` above is a no-op when the table already exists, so an older table
+-- missing these columns would make the seed insert fail (42703). Added nullable
+-- so this succeeds even if the table already holds rows; the seed populates them.
+alter table age_categories
+  add column if not exists name varchar(80),
+  add column if not exists short_name varchar(30),
+  add column if not exists rank_level integer,
+  add column if not exists gender gender_category,
+  add column if not exists minimum_age integer,
+  add column if not exists maximum_age integer,
+  add column if not exists cutoff_date_rule varchar(200),
+  add column if not exists is_active boolean not null default true;
+
+-- The seed below upserts on short_name, which needs a unique constraint/index.
+create unique index if not exists age_categories_short_name_key
+  on age_categories(short_name);
+
 -- Selector Scope Mapping Tables
 create table if not exists selector_age_access (
   selector_id uuid references profiles(id) on delete cascade,
@@ -759,6 +777,20 @@ for each row execute function validate_delivery();
 -- ============================================================
 -- DERIVED MATCH BATTING
 -- ============================================================
+
+-- Drop views before recreating. CREATE OR REPLACE VIEW can only append
+-- columns at the end; it cannot drop, rename, reorder, or retype an existing
+-- column, so re-running a changed definition fails with 42P16. Dependents are
+-- dropped before the base views they read (cascade covers anything missed).
+drop view if exists v_player_career_batting cascade;
+drop view if exists v_player_career_bowling cascade;
+drop view if exists v_player_career_fielding cascade;
+drop view if exists v_player_tournament_batting cascade;
+drop view if exists v_player_tournament_bowling cascade;
+drop view if exists v_player_match_batting cascade;
+drop view if exists v_player_match_bowling cascade;
+drop view if exists v_player_match_fielding cascade;
+drop view if exists v_match_summary cascade;
 
 create or replace view v_player_match_batting as
 select
@@ -1592,30 +1624,33 @@ exception when duplicate_object then null; end $$;
 -- Adjust names/rules to the official JDCA/MPCA competition rules.
 -- ============================================================
 
-insert into age_categories
-  (name, short_name, rank_level, gender, minimum_age, maximum_age, cutoff_date_rule)
-values
-  ('Under 13 Boys','U-13 Boys', 1, 'Men', null, 12, 'Eligibility determined from official competition cutoff date'),
-  ('Under 14 Boys','U-14 Boys', 2, 'Men', null, 13, 'Eligibility determined from official competition cutoff date'),
-  ('Under 15 Boys','U-15 Boys', 3, 'Men', null, 14, 'Eligibility determined from official competition cutoff date'),
-  ('Under 16 Boys','U-16 Boys', 4, 'Men', null, 15, 'Eligibility determined from official competition cutoff date'),
-  ('Under 18 Boys','U-18 Boys', 5, 'Men', null, 17, 'Eligibility determined from official competition cutoff date'),
-  ('Under 19 Boys','U-19 Boys', 6, 'Men', null, 18, 'Eligibility determined from official competition cutoff date'),
-  ('Under 22 Men','U-22 Men', 7, 'Men', null, 21, 'Eligibility determined from official competition cutoff date'),
-  ('Under 23 Men','U-23 Men', 8, 'Men', null, 22, 'Eligibility determined from official competition cutoff date'),
-  ('Senior Men','Senior Men', 9, 'Men', 23, null, 'Senior/open eligibility according to competition rules'),
-  ('Under 15 Girls','U-15 Girls', 10, 'Women', null, 14, 'Eligibility determined from official competition cutoff date'),
-  ('Under 18 Girls','U-18 Girls', 11, 'Women', null, 17, 'Eligibility determined from official competition cutoff date'),
-  ('Under 19 Girls','U-19 Girls', 12, 'Women', null, 18, 'Eligibility determined from official competition cutoff date'),
-  ('Under 23 Women','U-23 Women', 13, 'Women', null, 22, 'Eligibility determined from official competition cutoff date'),
-  ('Senior Women','Senior Women', 14, 'Women', 23, null, 'Senior/open eligibility according to competition rules')
-on conflict (short_name) do update set
-  name = excluded.name,
-  rank_level = excluded.rank_level,
-  gender = excluded.gender,
-  minimum_age = excluded.minimum_age,
-  maximum_age = excluded.maximum_age,
-  cutoff_date_rule = excluded.cutoff_date_rule;
+-- Seed only when the table is empty. An already-populated DB may use a
+-- different short_name/rank_level taxonomy than this seed; upserting on
+-- short_name would then miss the existing rows and collide on the rank_level
+-- unique constraint (23505). Guarding on emptiness keeps re-runs safe and
+-- never clobbers the live age-category data the app already depends on.
+do $$
+begin
+  if not exists (select 1 from age_categories) then
+    insert into age_categories
+      (name, short_name, rank_level, gender, minimum_age, maximum_age, cutoff_date_rule)
+    values
+      ('Under 13 Boys','U-13 Boys', 1, 'Men', null, 12, 'Eligibility determined from official competition cutoff date'),
+      ('Under 14 Boys','U-14 Boys', 2, 'Men', null, 13, 'Eligibility determined from official competition cutoff date'),
+      ('Under 15 Boys','U-15 Boys', 3, 'Men', null, 14, 'Eligibility determined from official competition cutoff date'),
+      ('Under 16 Boys','U-16 Boys', 4, 'Men', null, 15, 'Eligibility determined from official competition cutoff date'),
+      ('Under 18 Boys','U-18 Boys', 5, 'Men', null, 17, 'Eligibility determined from official competition cutoff date'),
+      ('Under 19 Boys','U-19 Boys', 6, 'Men', null, 18, 'Eligibility determined from official competition cutoff date'),
+      ('Under 22 Men','U-22 Men', 7, 'Men', null, 21, 'Eligibility determined from official competition cutoff date'),
+      ('Under 23 Men','U-23 Men', 8, 'Men', null, 22, 'Eligibility determined from official competition cutoff date'),
+      ('Senior Men','Senior Men', 9, 'Men', 23, null, 'Senior/open eligibility according to competition rules'),
+      ('Under 15 Girls','U-15 Girls', 10, 'Women', null, 14, 'Eligibility determined from official competition cutoff date'),
+      ('Under 18 Girls','U-18 Girls', 11, 'Women', null, 17, 'Eligibility determined from official competition cutoff date'),
+      ('Under 19 Girls','U-19 Girls', 12, 'Women', null, 18, 'Eligibility determined from official competition cutoff date'),
+      ('Under 23 Women','U-23 Women', 13, 'Women', null, 22, 'Eligibility determined from official competition cutoff date'),
+      ('Senior Women','Senior Women', 14, 'Women', 23, null, 'Senior/open eligibility according to competition rules');
+  end if;
+end $$;
 
 -- ============================================================
 -- PUSH NOTIFICATIONS
