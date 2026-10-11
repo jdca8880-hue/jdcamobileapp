@@ -1426,9 +1426,6 @@ with check (
   )
 );
 
--- ============================================================
--- TOURNAMENT / MATCH ADMINISTRATION
--- ============================================================
 
 drop policy if exists tournaments_admin_write on tournaments;
 create policy tournaments_admin_write on tournaments
@@ -1458,12 +1455,6 @@ for update using (
 with check (
   can_user_score()
 );
-
--- ============================================================
--- SCORER WRITE
--- Only scorers/admins can create/update live innings/deliveries.
--- Historical data must be corrected through controlled operations.
--- ============================================================
 
 drop policy if exists innings_scorer_write on innings;
 create policy innings_scorer_write on innings
@@ -1516,12 +1507,6 @@ with check (
   can_user_score()
 );
 
--- Deliberately no normal DELETE policy for deliveries.
--- Corrections should use a controlled correction workflow.
-
--- ============================================================
--- AUDIT READ
--- ============================================================
 
 drop policy if exists audit_admin_read on audit_logs;
 create policy audit_admin_read on audit_logs
@@ -1529,9 +1514,6 @@ for select using (
   current_app_role() in ('SUPER_ADMIN','DISTRICT_ADMIN')
 );
 
--- ============================================================
--- AUDIT TRIGGER
--- ============================================================
 
 create or replace function write_audit_log()
 returns trigger
