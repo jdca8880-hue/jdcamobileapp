@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { X, Calculator, Share2, Copy, CheckCircle2, Sparkles, Info } from 'lucide-react';
+import { X, Calculator, Share2, Image as ImageIcon, CheckCircle2, Sparkles, Info, Clock } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useCricket } from '../../context/CricketContext';
-import { calculateRevisedTarget, formatVJDResult } from '../../engine/vjdMethod';
+import { calculateRevisedTarget } from '../../engine/vjdMethod';
+import { shareVjdCardImage } from '../../lib/share';
 
 /**
  * Standalone VJD (V. Jayadevan) Method calculator.
@@ -30,7 +31,12 @@ export default function VjdCalculatorModal() {
   const [team1Overs, setTeam1Overs] = useState('');
   const [team1Wickets, setTeam1Wickets] = useState('');
   const [revisedOvers, setRevisedOvers] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  // Optional time-lost → revised-overs helper
+  const [useTimeCalc, setUseTimeCalc] = useState(false);
+  const [minutesLost, setMinutesLost] = useState('');
 
   const maxOvers = useMemo(() => {
     const p = FORMAT_PRESETS.find(f => f.id === preset);
@@ -39,48 +45,69 @@ export default function VjdCalculatorModal() {
     return isNaN(c) || c <= 0 ? null : c;
   }, [preset, customOvers]);
 
+  // Standard over-rate (minutes per over) used to convert lost time into overs.
+  const minsPerOver = preset === 'ODI' ? 4.2 : 4.25;
+
+  // When the time-lost helper is on, the revised overs are derived from minutes
+  // lost; otherwise the scorer types them directly.
+  const timeCalc = useMemo(() => {
+    if (!useTimeCalc || !maxOvers) return null;
+    const mins = parseFloat(minutesLost);
+    if (isNaN(mins) || mins < 0) return null;
+    const oversLost = Math.floor(mins / minsPerOver);
+    return { oversLost, revisedOvers: Math.max(0, maxOvers - oversLost) };
+  }, [useTimeCalc, minutesLost, maxOvers, minsPerOver]);
+
+  const effectiveRevisedOvers = useTimeCalc
+    ? (timeCalc ? timeCalc.revisedOvers : NaN)
+    : parseFloat(revisedOvers);
+
   const result = useMemo(() => {
     if (!maxOvers) return null;
     const t1Score = parseInt(team1Score, 10);
     const t1Overs = parseFloat(team1Overs);
     const t1Wkts = parseInt(team1Wickets, 10);
-    const revOvers = parseFloat(revisedOvers);
+    const revOvers = effectiveRevisedOvers;
     if ([t1Score, t1Overs, t1Wkts, revOvers].some(v => isNaN(v))) return null;
     if (t1Score < 0 || t1Overs <= 0 || t1Wkts < 0 || t1Wkts > 10 || revOvers <= 0) return null;
     if (revOvers > maxOvers || t1Overs > maxOvers) return null;
     return { ...calculateRevisedTarget(t1Score, t1Overs, t1Wkts, revOvers, 10, maxOvers), t1Score, t1Overs, t1Wkts, revOvers };
-  }, [maxOvers, team1Score, team1Overs, team1Wickets, revisedOvers]);
+  }, [maxOvers, team1Score, team1Overs, team1Wickets, effectiveRevisedOvers]);
 
   if (!vjdCalcOpen) return null;
 
-  const close = () => { setVjdCalcOpen(false); setCopied(false); };
+  const close = () => { setVjdCalcOpen(false); setShared(false); };
 
   const handleShare = async () => {
-    if (!result) return;
-    const text = formatVJDResult({
-      team1Name: team1Name || 'Team 1',
-      team1Score: result.t1Score,
-      team1Overs: result.t1Overs,
-      team1Wickets: result.t1Wkts,
-      team2Name: team2Name || 'Team 2',
-      revisedOvers: result.revOvers,
-      revisedTarget: result.revisedTarget,
-      parScore: result.parScore,
-      r1: result.r1,
-      r2: result.r2,
-      maxOvers,
-    });
+    if (!result || sharing) return;
+    setSharing(true);
     try {
-      if (navigator.share) await navigator.share({ title: 'VJD Calculation', text });
-      else throw new Error('no share');
-    } catch {
-      try {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch { /* silent */ }
+      const outcome = await shareVjdCardImage({
+        team1Name: team1Name || 'Team 1',
+        team1Score: result.t1Score,
+        team1Wickets: result.t1Wkts,
+        team1Overs: result.t1Overs,
+        team2Name: team2Name || 'Team 2',
+        revisedTarget: result.revisedTarget,
+        revisedOvers: result.revOvers,
+        parScore: result.parScore,
+        r1: result.r1,
+        r2: result.r2,
+        maxOvers,
+        wicketsInHand: 10,
+      });
+      if (outcome === 'shared' || outcome === 'downloaded') {
+        setShared(true);
+        setTimeout(() => setShared(false), 2500);
+      }
+    } catch (e) {
+      console.error('[VJD] share failed', e);
+    } finally {
+      setSharing(false);
     }
   };
+
+  const maxBowlerOvers = result ? Math.floor(result.revOvers / 5) : 0;
 
   const inputCls = "w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-violet-500 focus:outline-none transition-colors";
   const labelCls = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2";
@@ -169,9 +196,43 @@ export default function VjdCalculatorModal() {
             </div>
           </div>
 
+          {/* Revised overs — manual, or derived from time lost (optional) */}
           <div>
-            <label className={labelCls}>Revised Overs for Team 2</label>
-            <input type="number" min="1" step="1" value={revisedOvers} onChange={e => setRevisedOvers(e.target.value)} className={inputCls} placeholder="e.g. 15" />
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Revised Overs for Team 2</label>
+              <button
+                type="button"
+                onClick={() => setUseTimeCalc(v => !v)}
+                className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${
+                  useTimeCalc
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/15'
+                }`}
+              >
+                <Clock size={12} /> From time lost
+              </button>
+            </div>
+
+            {useTimeCalc ? (
+              <div className="space-y-2">
+                <input
+                  type="number" min="0" value={minutesLost}
+                  onChange={e => setMinutesLost(e.target.value)}
+                  className={inputCls}
+                  placeholder="Minutes lost (e.g. 45)"
+                />
+                <div className="flex items-center justify-between px-1 text-xs text-slate-500 dark:text-slate-400">
+                  <span>Rate: {minsPerOver} min/over</span>
+                  {timeCalc && (
+                    <span className="font-bold text-violet-600 dark:text-violet-300">
+                      −{timeCalc.oversLost} ov → {timeCalc.revisedOvers} overs
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <input type="number" min="1" step="1" value={revisedOvers} onChange={e => setRevisedOvers(e.target.value)} className={inputCls} placeholder="e.g. 15" />
+            )}
           </div>
 
           {result ? (
@@ -189,20 +250,27 @@ export default function VjdCalculatorModal() {
                   <div className="text-2xl font-black leading-none mt-1">{result.parScore}</div>
                 </div>
               </div>
-              <p className="text-sm font-bold">
-                {team2Name || 'Team 2'} needs <strong>{result.revisedTarget}</strong> in <strong>{result.revOvers}</strong> overs
-              </p>
+              <div className="bg-white/10 rounded-xl p-3 text-sm font-bold leading-relaxed">
+                {team2Name || 'Team 2'} need <strong className="text-white">{result.revisedTarget}</strong> runs
+                in <strong className="text-white">{result.revOvers}</strong> overs
+                with <strong className="text-white">10</strong> wickets in hand
+                <span className="block text-xs font-semibold text-violet-200 mt-1">
+                  Max {maxBowlerOvers} over{maxBowlerOvers !== 1 ? 's' : ''}/bowler · Full match {maxOvers} overs/side
+                </span>
+              </div>
               <div className="border-t border-white/20 mt-3 pt-3 grid grid-cols-2 gap-2 text-xs text-violet-100">
                 <span>Team 1 resources: <strong className="text-white">{result.r1}%</strong></span>
                 <span className="text-right">Team 2 resources: <strong className="text-white">{result.r2}%</strong></span>
               </div>
               <button
                 onClick={handleShare}
-                className="w-full mt-4 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                disabled={sharing}
+                className="w-full mt-4 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                {copied ? (<><CheckCircle2 size={16} /> Copied!</>)
-                  : navigator.share ? (<><Share2 size={16} /> Share Result</>)
-                  : (<><Copy size={16} /> Copy Result</>)}
+                {sharing ? (<><ImageIcon size={16} className="animate-pulse" /> Preparing image…</>)
+                  : shared ? (<><CheckCircle2 size={16} /> Shared!</>)
+                  : navigator.share ? (<><Share2 size={16} /> Share as image</>)
+                  : (<><ImageIcon size={16} /> Download image</>)}
               </button>
             </div>
           ) : (

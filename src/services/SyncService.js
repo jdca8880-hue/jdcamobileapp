@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
-import { getPendingActions, clearAction, updateAction } from '../lib/db';
+import { getPendingActions, clearAction, updateAction, db } from '../lib/db';
 import { normalizeDelivery } from '../engine/deliveryContract.js';
 import { captureException, captureMessage } from '../lib/sentry';
 
@@ -105,6 +105,7 @@ class SyncService {
     this.syncInProgress = true;
     this.setStatus('SYNCING');
     let actions = [];
+    let anyActionSucceeded = false;
     try {
       try {
         actions = await getPendingActions();
@@ -129,7 +130,8 @@ class SyncService {
         inningsCache: new Map(),
         inningsDetailsCache: new Map(),
         lastSequenceCache: new Map(),
-        rosterCache: new Map()
+        rosterCache: new Map(),
+        rosterEnsured: new Set()
       };
 
       for (const action of actions) {
@@ -195,6 +197,7 @@ class SyncService {
                context?.inningsCache?.clear();
                context?.inningsDetailsCache?.clear();
                context?.rosterCache?.clear();
+               context?.rosterEnsured?.clear();
                isPermanentError = false;
                isNetworkError = false;
              } else {
@@ -274,6 +277,7 @@ class SyncService {
 
         if (success) {
           progressMade = true;
+          anyActionSucceeded = true;
           delete this.retryCounts[action.id];
           await clearAction(action.id);
         } else {
@@ -292,9 +296,20 @@ class SyncService {
         await this.updatePendingCount(); 
         this.setStatus(this.isOnline ? 'ONLINE' : 'OFFLINE');
         
-        // Auto-drain: if more actions were queued while syncing, start again shortly.
-        // But if we're looping without progress (e.g. hitting persistent network/auth errors), back off to 5 seconds.
-        if (this.pendingCount > 0 && this.isOnline) {
+        // Auto-drain: keep going only while there's something we can actually
+        // make progress on. Pending actions stuck BEHIND a permanently-blocked
+        // match can never drain, so rescheduling for them just spins the queue
+        // forever (spamming the console). Count only actions that are not behind
+        // a blocked match; if none are drainable and nothing succeeded this pass,
+        // stop and wait for a real trigger (new ball, Retry, reconnect).
+        const drainablePending = Array.isArray(actions)
+          ? actions.filter(a =>
+              a.status !== 'FAILED_PERMANENT' &&
+              !this.blockedMatches.has(a.payload?.matchId)
+            ).length
+          : 0;
+
+        if (this.isOnline && (anyActionSucceeded || drainablePending > 0)) {
           const initialCount = Array.isArray(actions) ? actions.length : 0;
           const delay = this.pendingCount === initialCount ? 5000 : 500;
           setTimeout(() => {
@@ -304,6 +319,8 @@ class SyncService {
               });
             }
           }, delay);
+        } else if (this.blockedMatches.size > 0) {
+          console.warn(`[SyncService] Queue paused: ${this.pendingCount} action(s) waiting behind ${this.blockedMatches.size} blocked match(es). Will resume on retry or next recorded ball.`);
         }
       } catch (countErr) {
         console.error('[SyncService] Error updating pending count in finally:', countErr);
@@ -312,7 +329,7 @@ class SyncService {
   }
 
   notifySessionExpired(matchId, action) {
-    const msg = `Session expired / please sign in again to continue syncing.`;
+    const msg = `You've been signed out. Please sign in again so your scoring can keep saving.`;
     const event = new CustomEvent('sync-permanent-failure', {
       detail: { matchId, actionId: action.id, message: msg, action, isAuthError: true }
     });
@@ -321,9 +338,7 @@ class SyncService {
 
   notifyPermanentFailure(matchId, action) {
     const seq = action.payload?.deliverySequence || '?';
-    const errCode = action.error?.code ? ` [${action.error.code}]` : '';
-    const errDesc = action.error?.message || 'Data integrity mismatch';
-    const msg = `Match sync stopped at delivery ${seq}${errCode}: ${errDesc}. Match and innings data are inconsistent.`;
+    const msg = `Ball ${seq} hasn't saved to the server yet. This usually fixes itself when you try again.`;
 
     // Report to Sentry so we can see cross-user patterns, not just the one
     // scorer in front of us. Scrub the action payload a little before sending.
@@ -334,7 +349,7 @@ class SyncService {
         actionType: action.action,
         deliverySequence: seq,
         errorCode: action.error?.code,
-        errorMessage: errDesc
+        errorMessage: action.error?.message || 'Data integrity mismatch'
       });
     } catch { /* never let telemetry break sync */ }
 
@@ -370,6 +385,78 @@ class SyncService {
     await this.updatePendingCount();
     if (this.isOnline) {
       await this.processQueue();
+    }
+  }
+
+  /**
+   * Guarantee the match's playing XI exists on the server before we push balls
+   * for it. The roster is written once at match setup, but that write is a
+   * best-effort, non-retried call (see api.startMatch) — if it failed (offline,
+   * timeout, half-completed), every delivery is then rejected by the
+   * validate_delivery trigger with "Striker is not in the batting playing XI".
+   *
+   * Deliveries, unlike the roster, retry forever through this queue. So we
+   * rebuild the roster here from the locally-persisted match state and upsert it
+   * (never delete) — making the XI as durable as the balls that depend on it.
+   * Idempotent, cached per match per drain, and safe to no-op when we can't heal
+   * (e.g. the ball is being synced from a device without the local snapshot).
+   */
+  async ensureRosterSynced(matchId, context = null) {
+    if (!supabase || !matchId) return;
+    if (context?.rosterEnsured?.has(matchId)) return;
+    // Mark first so a failure here doesn't make every ball re-run the heal.
+    context?.rosterEnsured?.add(matchId);
+
+    let snapshot = null;
+    try {
+      snapshot = await db.match_state.get(matchId);
+    } catch (readErr) {
+      console.warn('[SyncService] Could not read local match state for roster heal:', readErr);
+      return;
+    }
+
+    const setup = snapshot?.matchSetup;
+    if (!setup || !Array.isArray(setup.teamAXI) || setup.teamAXI.length === 0) {
+      // No local XI to heal from — leave it to the normal error path.
+      return;
+    }
+
+    const isUUID = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+    const buildRows = (xi, teamId) =>
+      (Array.isArray(xi) ? xi : [])
+        .filter(p => p && isUUID(p.id) && isUUID(teamId))
+        .map((p, i) => ({
+          match_id: matchId,
+          team_id: teamId,
+          player_id: p.id,
+          is_playing_xi: true,
+          is_captain: !!p.isCaptain,
+          is_wicketkeeper: p.role === 'Wicket Keeper',
+          batting_order: i + 1
+        }));
+
+    const rows = [...buildRows(setup.teamAXI, setup.teamAId), ...buildRows(setup.teamBXI, setup.teamBId)];
+    if (rows.length === 0) return;
+
+    // Deduplicate by player_id (a player can only hold one roster slot).
+    const seen = new Set();
+    const deduped = rows.filter(r => (seen.has(r.player_id) ? false : seen.add(r.player_id)));
+
+    try {
+      const { error } = await supabase
+        .from('match_rosters')
+        .upsert(deduped, { onConflict: 'match_id, player_id' });
+      if (error) {
+        // Let the heal re-run on the next attempt rather than sticking.
+        context?.rosterEnsured?.delete(matchId);
+        console.warn('[SyncService] Roster heal upsert failed; will retry:', error.message);
+      } else {
+        console.log(`[SyncService] Playing XI ensured on server for match ${matchId} (${deduped.length} players).`);
+      }
+    } catch (upsertErr) {
+      context?.rosterEnsured?.delete(matchId);
+      console.warn('[SyncService] Roster heal threw; will retry:', upsertErr);
     }
   }
 
@@ -553,7 +640,12 @@ class SyncService {
       rawPayload: rawPayload
     });
 
-    // Player assignments must be established prior to sync. No roster auto-repair.
+    // Make sure the playing XI exists on the server before pushing a real ball,
+    // so the validate_delivery trigger doesn't reject it for a missing roster.
+    // (Special events carry null players and are skipped by that trigger.)
+    if (!isSpecialEvent) {
+      await this.ensureRosterSynced(payload.matchId, context);
+    }
 
     const { error } = await supabase.from('deliveries').insert({
       match_id: payload.matchId,

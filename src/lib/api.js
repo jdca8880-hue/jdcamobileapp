@@ -2035,19 +2035,34 @@ export const api = {
       }
     }
 
-    // 4. Remote Sync (non-blocking errors)
+    // 4. Remote Sync (best-effort; the ball sync self-heals the roster later if
+    // this misses — see SyncService.ensureRosterSynced). Upsert FIRST so a
+    // timeout or failure can never leave the match with NO playing XI (which
+    // makes validate_delivery reject every delivery). Only prune stale players
+    // AFTER a confirmed-successful upsert.
     try {
-      await withTimeout(supabase.from('match_rosters').delete().eq('match_id', matchId), 3000);
       if (deduplicatedRoster.length > 0) {
-        await withTimeout(
+        const { error: upsertErr } = await withTimeout(
           supabase
             .from('match_rosters')
             .upsert(deduplicatedRoster, { onConflict: 'match_id, player_id' }),
           3000
         );
+        if (upsertErr) throw upsertErr;
+
+        // Remove any players no longer in the XI, now that the new XI is saved.
+        const keepIds = deduplicatedRoster.map(r => r.player_id);
+        await withTimeout(
+          supabase
+            .from('match_rosters')
+            .delete()
+            .eq('match_id', matchId)
+            .not('player_id', 'in', `(${keepIds.join(',')})`),
+          3000
+        );
       }
     } catch (e) {
-      console.warn('Could not sync rosters to Supabase immediately:', e);
+      console.warn('Could not sync rosters to Supabase immediately (ball sync will self-heal):', e);
     }
 
     try {

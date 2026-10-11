@@ -476,6 +476,94 @@ export async function shareResultCardImage(match = {}, highlights = {}) {
   });
 }
 
+// ── VJD revised-target card (branded PNG) ───────────────────────────────
+// Renders a shareable WhatsApp/Instagram square card for a VJD calculation,
+// carrying the full chase equation (target, overs, wickets) and JDCA branding.
+export async function shareVjdCardImage(data = {}) {
+  const {
+    team1Name = 'Team 1', team1Score = 0, team1Wickets = 0, team1Overs = 0,
+    team2Name = 'Team 2', revisedTarget = 0, revisedOvers = 0, parScore = 0,
+    r1 = 0, r2 = 0, maxOvers = 0, wicketsInHand = 10,
+  } = data;
+
+  const S = 2;
+  const w = 1080, h = 1080;
+  const canvas = document.createElement('canvas');
+  canvas.width = w * S; canvas.height = h * S;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(S, S);
+
+  const center = w / 2;
+  const maxBowler = revisedOvers ? Math.floor(revisedOvers / 5) : 0;
+
+  // Background: navy gradient + accent
+  const g = ctx.createLinearGradient(0, 0, w, h);
+  g.addColorStop(0, '#0B1628'); g.addColorStop(1, '#13233f');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#7C3AED'; ctx.fillRect(0, 0, w, 14); // violet accent for VJD
+
+  const txt = (s, x, yy, { size = 40, weight = 'bold', color = '#fff', align = 'center', spacing } = {}) => {
+    ctx.fillStyle = color;
+    ctx.font = `${weight} ${size}px Helvetica, Arial, sans-serif`;
+    ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+    if (spacing) {
+      const chars = s.split(''); let cx = x - (measureSpaced(ctx, s, spacing) / 2);
+      ctx.textAlign = 'left';
+      for (const c of chars) { ctx.fillText(c, cx, yy); cx += ctx.measureText(c).width + spacing; }
+      ctx.textAlign = align;
+    } else {
+      ctx.fillText(s, x, yy);
+    }
+  };
+
+  // Logo + association
+  const logo = await loadLogoDataUrl();
+  if (logo) {
+    try { const img = await loadImage(logo); ctx.drawImage(img, center - 60, 58, 120, 120); } catch { /* ignore */ }
+  }
+  txt('JABALPUR DIVISION CRICKET ASSOCIATION', center, 214, { size: 19, color: '#8FA6C8', spacing: 3 });
+  txt('VJD METHOD — REVISED TARGET', center, 256, { size: 26, color: '#A78BFA', spacing: 2 });
+
+  // Team 1 innings summary
+  txt(fit(ctx, team1Name, 900, 40, 'bold'), center, 330, { size: 40, color: '#fff' });
+  txt(`${team1Score}/${team1Wickets}  (${team1Overs} ov)`, center, 384, { size: 34, color: '#9DBFF5' });
+
+  // Big revised target
+  txt('REVISED TARGET', center, 470, { size: 22, color: '#64748B', spacing: 3 });
+  txt(String(revisedTarget), center, 600, { size: 150, color: '#fff', weight: 'bold' });
+
+  // Chase equation pill
+  const chase = `${team2Name} need ${revisedTarget} in ${revisedOvers} overs`;
+  const cLines = wrapText(ctx, chase, 900, 36, 'bold');
+  const pillH = 36 + cLines.length * 46;
+  const pillY = 650;
+  roundRect(ctx, center - 470, pillY, 940, pillH, 18);
+  ctx.fillStyle = '#7C3AED'; ctx.fill();
+  cLines.forEach((ln, i) => txt(ln, center, pillY + 52 + i * 46, { size: 36, color: '#fff' }));
+
+  // Sub line: wickets + per bowler
+  txt(`${wicketsInHand} wickets in hand  •  max ${maxBowler} overs/bowler`, center, pillY + pillH + 46, { size: 24, color: '#9DBFF5' });
+
+  // Stat row: par score + resources
+  const rowY = pillY + pillH + 120;
+  const col = (label, value, cx) => {
+    txt(label, cx, rowY, { size: 18, color: '#64748B', spacing: 2 });
+    txt(value, cx, rowY + 42, { size: 34, color: '#fff' });
+  };
+  col('PAR SCORE', String(parScore), center - 300);
+  col('TEAM 1 RES.', `${r1}%`, center);
+  col('TEAM 2 RES.', `${r2}%`, center + 300);
+
+  txt(`Full match: ${maxOvers} overs per side`, center, h - 46, { size: 22, color: '#64748B', weight: 'normal' });
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 0.95));
+  if (!blob) throw new Error('Could not render VJD card');
+  return shareOrDownload(blob, `vjd-${slug(team2Name)}-target-${revisedTarget}.png`, {
+    title: 'VJD Revised Target',
+    text: `${chase} (${wicketsInHand} wkts in hand). Par ${parScore}. — JDCA`,
+  });
+}
+
 // ── tiny helpers ────────────────────────────────────────────────────────
 const n = (v) => (v === 0 || v ? String(v) : '0');
 

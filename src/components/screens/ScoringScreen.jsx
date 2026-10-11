@@ -464,67 +464,56 @@ export default function ScoringScreen() {
       <div className="max-w-md mx-auto relative bg-white border-x border-slate-200 min-h-screen pb-[100px] shadow-2xl">
 
         {syncError && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-sm text-sm z-50">
+          <div className="bg-amber-50 border border-amber-200 text-slate-700 p-4 m-4 rounded-lg shadow-sm text-sm z-50">
             <div className="flex justify-between items-start mb-1">
-              <strong className="font-bold">Sync Failed</strong>
-              <button onClick={() => setSyncError(null)} className="text-red-500 hover:text-red-700">
+              <strong className="font-semibold text-slate-800">We couldn't save the last ball yet</strong>
+              <button onClick={() => setSyncError(null)} className="text-slate-400 hover:text-slate-600" aria-label="Dismiss">
                 <X size={16} />
               </button>
             </div>
-            <span className="block mb-3">{syncError.message}</span>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => {
-                  const errorDump = `Sync Error: ${syncError.message}\nAction ID: ${syncError.actionId}\nPayload: ${JSON.stringify(syncError.action?.payload, null, 2)}\nError Details: ${JSON.stringify(syncError.action?.error, null, 2)}`;
-                  navigator.clipboard.writeText(errorDump);
-                  alert("Error details copied to clipboard!");
-                }}
-                className="bg-slate-800 text-white py-1.5 px-3 rounded hover:bg-slate-900 font-medium text-xs transition-colors cursor-pointer flex items-center gap-1"
-              >
-                <FileText size={12} /> Copy Error
-              </button>
+            <span className="block text-slate-600">{syncError.message}</span>
+            <span className="block mt-1 mb-3 text-slate-500 text-xs">
+              Your scoring is safe on this device. You can keep scoring — we'll keep trying to save in the background.
+            </span>
+            <div className="flex flex-wrap gap-2 items-center">
               <button
                 onClick={async () => {
                   await syncService.autoHealAndResume();
                   setSyncError(null);
                 }}
-                className="bg-emerald-600 text-white py-1.5 px-4 rounded hover:bg-emerald-700 font-bold text-xs transition-colors flex items-center gap-1 shadow-sm cursor-pointer"
+                className="bg-blue-600 text-white py-1.5 px-4 rounded-md hover:bg-blue-700 font-semibold text-xs transition-colors shadow-sm cursor-pointer"
               >
-                <span>⚡ Auto-Heal & Resume All</span>
+                Try saving again
               </button>
               <button
                 onClick={() => {
                   syncService.retryFailedAction(syncError.actionId);
                   setSyncError(null);
                 }}
-                className="bg-red-600 text-white py-1.5 px-3 rounded hover:bg-red-700 font-medium text-xs transition-colors cursor-pointer"
+                className="bg-white border border-slate-300 text-slate-700 py-1.5 px-3 rounded-md hover:bg-slate-50 font-medium text-xs transition-colors cursor-pointer"
               >
-                Retry
+                Retry this ball
               </button>
               <button
                 onClick={() => {
-                  if (window.confirm("Are you sure you want to delete this corrupt delivery from the offline queue? Next deliveries will resume syncing.")) {
+                  const errorDump = `Sync Error: ${syncError.message}\nAction ID: ${syncError.actionId}\nPayload: ${JSON.stringify(syncError.action?.payload, null, 2)}\nError Details: ${JSON.stringify(syncError.action?.error, null, 2)}`;
+                  navigator.clipboard.writeText(errorDump);
+                  alert("Details copied. You can share these with JDCA support.");
+                }}
+                className="bg-white border border-slate-300 text-slate-700 py-1.5 px-3 rounded-md hover:bg-slate-50 font-medium text-xs transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <FileText size={12} /> Copy details for support
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm("Skip this one ball and let the rest of the scoring save?\n\nThis ball will stay in your scorecard on this device, but it won't be saved to the server. Only skip it if saving keeps failing.")) {
                     syncService.deleteFailedAction(syncError.actionId);
                     setSyncError(null);
                   }
                 }}
-                className="bg-white border border-red-200 text-red-600 py-1.5 px-3 rounded hover:bg-red-50 font-medium text-xs transition-colors cursor-pointer"
+                className="text-slate-500 underline underline-offset-2 py-1.5 px-2 hover:text-slate-700 font-medium text-xs transition-colors cursor-pointer ml-auto"
               >
-                Delete Corrupt Ball & Resume
-              </button>
-              <button
-                onClick={async () => {
-                  if (window.confirm("DANGER: This will delete ALL pending offline deliveries for ALL matches. Only do this if your queue is permanently corrupted!")) {
-                    const { db } = await import('../../lib/db.js');
-                    await db.sync_queue.clear();
-                    syncService.updatePendingCount();
-                    setSyncError(null);
-                    alert("Queue cleared!");
-                  }
-                }}
-                className="bg-white border border-red-200 text-red-600 py-1.5 px-4 rounded hover:bg-red-50 font-medium transition-colors ml-auto text-xs"
-              >
-                Purge All
+                Skip this ball
               </button>
             </div>
           </div>
