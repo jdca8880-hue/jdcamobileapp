@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, UserPlus, CheckCircle2, Shield, Calendar, MapPin, Activity, Award, Camera } from 'lucide-react';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
 import { useCricket } from '../../context/CricketContext';
@@ -11,7 +11,8 @@ const BATTING_STYLES = ['Right-Hand Bat', 'Left-Hand Bat'];
 const BOWLING_STYLES = ['None (Pure Batter)', 'Right-Arm Fast', 'Right-Arm Medium Fast', 'Right-Arm Off Spin', 'Right-Arm Leg Spin', 'Left-Arm Fast', 'Left-Arm Orthodox Spin', 'Left-Arm Chinaman'];
 
 export default function PlayerRegistrationScreen() {
-  const { registerPlayer, goBack } = useCricket();
+  const { registerPlayer, updatePlayer, editingPlayer, setEditingPlayer, goBack } = useCricket();
+  const isEditing = !!editingPlayer;
 
   const [full_name, setFullName] = useState('');
   const [primary_role, setPrimaryRole] = useState('Batter');
@@ -25,6 +26,25 @@ export default function PlayerRegistrationScreen() {
   const [phone, setPhone] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
+
+  // Prefill the form when opened in edit mode. Handles both the snake_case
+  // (fresh sync) and camelCase (just-registered) player shapes.
+  useEffect(() => {
+    if (!editingPlayer) return;
+    const p = editingPlayer;
+    setFullName(p.full_name || p.name || '');
+    setPrimaryRole(p.primary_role || p.primaryRole || 'Batter');
+    setBattingStyle(p.batting_style || p.battingStyle || 'Right-Hand Bat');
+    setBowlingStyle(p.bowling_style || p.bowlingStyle || 'None (Pure Batter)');
+    setDob(p.date_of_birth ? String(p.date_of_birth).slice(0, 10) : '');
+    setGender(p.gender === 'Women' ? 'Women' : 'Men');
+    setAvatarUrl(p.avatar_url || p.avatar || '');
+    setPhone(p.phone || '');
+  }, [editingPlayer]);
+
+  // Leaving the screen must clear edit mode so the next open is a fresh
+  // registration, not a stale edit.
+  useEffect(() => () => { if (setEditingPlayer) setEditingPlayer(null); }, [setEditingPlayer]);
 
   const filteredCategories = AGE_CATEGORIES.filter(c => {
     if (gender === 'Women') {
@@ -88,9 +108,13 @@ export default function PlayerRegistrationScreen() {
     }
 
     try {
-      await registerPlayer(validation.data);
+      if (isEditing) {
+        await updatePlayer(editingPlayer.id, validation.data);
+      } else {
+        await registerPlayer(validation.data);
+      }
       setRegisteredSuccess(true);
-      setTimeout(() => { goBack(); }, 1500);
+      setTimeout(() => { goBack(); }, 1200);
     } catch (err) {
       // Error is alerted by context, but we prevent success UI
       console.error(err);
@@ -110,15 +134,15 @@ export default function PlayerRegistrationScreen() {
           <div className="w-12 h-12 bg-[#eef2fd] text-[#2457D6] rounded-full flex items-center justify-center mx-auto mb-3">
             <UserPlus size={24} />
           </div>
-          <h1 className="text-[24px] font-black text-[#101827] leading-tight mb-1">New Player</h1>
-          <p className="text-[13px] text-[#8a99b0] max-w-[250px] mx-auto">Register a cricketer into the JDCA Central Registry</p>
+          <h1 className="text-[24px] font-black text-[#101827] leading-tight mb-1">{isEditing ? 'Edit Player' : 'New Player'}</h1>
+          <p className="text-[13px] text-[#8a99b0] max-w-[250px] mx-auto">{isEditing ? 'Update this cricketer’s details' : 'Register a cricketer into the JDCA Central Registry'}</p>
         </div>
       </div>
 
       {registeredSuccess && (
         <div className="m-4 p-4 rounded-[16px] bg-[#0FA968] text-white flex flex-col items-center text-center shadow-lg animate-slide-up">
           <CheckCircle2 size={32} className="mb-2" />
-          <div className="font-black text-[16px]">Player Registered!</div>
+          <div className="font-black text-[16px]">{isEditing ? 'Player Updated!' : 'Player Registered!'}</div>
           <div className="text-[12px] font-medium text-white/80">Redirecting to directory...</div>
         </div>
       )}
@@ -185,7 +209,8 @@ export default function PlayerRegistrationScreen() {
             </div>
           </div>
 
-          {/* Affiliation */}
+          {/* Affiliation — season registration data; managed at registration only */}
+          {!isEditing && (
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
             <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><MapPin size={14} /> Affiliation</h2>
             <div className="space-y-4">
@@ -203,6 +228,7 @@ export default function PlayerRegistrationScreen() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Specialisation */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
@@ -232,7 +258,7 @@ export default function PlayerRegistrationScreen() {
           </div>
 
           <button type="submit" className="w-full bg-[#2457D6] text-white rounded-[16px] py-4 font-bold text-[16px] shadow-md active:bg-[#1b41a8] transition-colors">
-            Register Player
+            {isEditing ? 'Save Changes' : 'Register Player'}
           </button>
         </form>
       )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, Star, MapPin, Award, Activity, TrendingUp, Sliders, Calendar, ShieldCheck, CheckCircle2, Trash2
+  ArrowLeft, Star, MapPin, Award, Activity, TrendingUp, Sliders, Calendar, ShieldCheck, CheckCircle2, Trash2, Pencil
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
@@ -23,7 +23,8 @@ const ProfileTabs = ({ tabs, active, onChange }) => (
 );
 
 export default function PlayerProfileScreen() {
-  const { selectedPlayer, goBack, shortlistedIds, toggleShortlist, userRole, setPlayers } = useCricket();
+  const { selectedPlayer, goBack, shortlistedIds, toggleShortlist, userRole, setPlayers, setEditingPlayer, navigateTo } = useCricket();
+  const canEditPlayer = ['SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(userRole);
   const [activeTab, setActiveTab] = useState('Overview');
   const [isDeleting, setIsDeleting] = useState(false);
   const [matchStats, setMatchStats] = useState({ batting: [], bowling: [] });
@@ -123,6 +124,16 @@ export default function PlayerProfileScreen() {
               title="Delete Player"
             >
               <Trash2 size={16} />
+            </button>
+          )}
+
+          {canEditPlayer && (
+            <button
+              onClick={() => { setEditingPlayer(player); navigateTo('player-registration'); }}
+              className="absolute top-0 right-[88px] w-9 h-9 flex items-center justify-center rounded-lg border bg-white border-blue-200 text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition cursor-pointer"
+              title="Edit Player"
+            >
+              <Pencil size={15} />
             </button>
           )}
 

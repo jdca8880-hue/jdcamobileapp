@@ -36,6 +36,9 @@ export function CricketProvider({ children }) {
       else localStorage.removeItem('jdca-active-match-id');
     } catch {}
   };
+
+  // When set, the player-registration screen runs in "edit" mode for this player.
+  const [editingPlayer, setEditingPlayer] = useState(null);
   
   const auth = useAuth({ setActiveMatchId });
   const {
@@ -170,6 +173,40 @@ export function CricketProvider({ children }) {
     }
   };
 
+  // Update an existing player's details (name, role, styles, photo, phone).
+  const updatePlayer = async (id, playerData) => {
+    try {
+      const p = await api.updatePlayer(id, playerData);
+      const patch = {
+        full_name: p.full_name,
+        name: p.full_name,
+        avatar_url: p.avatar_url || '',
+        avatar: p.avatar_url || '',
+        date_of_birth: p.date_of_birth,
+        primary_role: p.primary_role,
+        role: p.primary_role,
+        primaryRole: p.primary_role,
+        batting_style: p.batting_style,
+        battingStyle: p.batting_style,
+        bowling_style: p.bowling_style,
+        bowlingStyle: p.bowling_style,
+        gender: p.gender,
+        phone: p.phone || '',
+      };
+      setPlayers((prev) => prev.map((pl) => (String(pl.id) === String(id) ? { ...pl, ...patch } : pl)));
+      setSelectedPlayer((prev) => (prev && String(prev.id) === String(id) ? { ...prev, ...patch } : prev));
+      try {
+        const existing = await db.players.get(id);
+        if (existing) await db.players.put({ ...existing, ...patch });
+      } catch {}
+      return p;
+    } catch (e) {
+      console.error('Failed to update player:', e);
+      alert('Failed to update player. Please check your connection and permissions.');
+      throw e;
+    }
+  };
+
   return (
     <CricketContext.Provider
       value={{
@@ -180,9 +217,12 @@ export function CricketProvider({ children }) {
         scoring,
         activeMatchId,
         setActiveMatchId,
+        editingPlayer,
+        setEditingPlayer,
         toggleShortlist,
         finalizeSelectionProcess,
         registerPlayer,
+        updatePlayer,
         officials: [],
         districtStats: [],
         selectionHistory: [],

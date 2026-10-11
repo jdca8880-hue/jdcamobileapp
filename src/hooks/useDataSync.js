@@ -284,6 +284,7 @@ export function useDataSync({ auth, ui }) {
                   primary_role: p.primary_role,
                   batting_style: p.batting_style,
                   bowling_style: p.bowling_style,
+                  phone: p.phone || '',
                   // Preserve the squad link so Match Setup can show only the
                   // relevant team's players. Without this the Add-Player list
                   // falls back to showing every player (both teams mixed).

@@ -238,6 +238,34 @@ export const api = {
     return true;
   },
 
+  async updatePlayer(id, playerData) {
+    if (!id) throw new Error('Player id is required to update.');
+    // Only the players-table fields are edited here. District / age category
+    // live on player_registrations (season data) and are managed separately.
+    const patch = {};
+    if (playerData.full_name !== undefined) patch.full_name = playerData.full_name;
+    if (playerData.date_of_birth !== undefined) patch.date_of_birth = playerData.date_of_birth;
+    if (playerData.gender !== undefined) patch.gender = playerData.gender === 'Women' ? 'Women' : 'Men';
+    if (playerData.primary_role !== undefined) patch.primary_role = playerData.primary_role;
+    if (playerData.batting_style !== undefined) patch.batting_style = playerData.batting_style;
+    if (playerData.bowling_style !== undefined) patch.bowling_style = playerData.bowling_style;
+    if (playerData.avatar_url !== undefined) patch.avatar_url = playerData.avatar_url || null;
+    if (playerData.phone !== undefined) patch.phone = playerData.phone || null;
+
+    const { data, error } = await supabase
+      .from('players')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[api] Failed to update player:', error);
+      throw error;
+    }
+    return data;
+  },
+
   async deletePlayer(id) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase
