@@ -1653,6 +1653,30 @@ begin
 end $$;
 
 -- ============================================================
+-- SEED DISTRICTS (Jabalpur Division)
+-- Seed only when the table is empty, mirroring the age_categories guard above:
+-- an already-populated DB may use different names/codes, and `name` and `code`
+-- both carry unique constraints, so a blind insert on a live table would
+-- collide (23505). Without this seed the districts table starts empty, which
+-- leaves the team-registration district dropdown blank and makes team inserts
+-- fail with an invalid-uuid error (empty string sent for district_id).
+do $$
+begin
+  if not exists (select 1 from districts) then
+    insert into districts (name, code) values
+      ('Jabalpur',    'JBP'),
+      ('Katni',       'KTN'),
+      ('Narsinghpur', 'NSP'),
+      ('Seoni',       'SEO'),
+      ('Mandla',      'MDL'),
+      ('Balaghat',    'BLG'),
+      ('Chhindwara',  'CWA'),
+      ('Dindori',     'DND'),
+      ('Pandhurna',   'PDH');
+  end if;
+end $$;
+
+-- ============================================================
 -- PUSH NOTIFICATIONS
 -- ============================================================
 create table if not exists push_subscriptions (

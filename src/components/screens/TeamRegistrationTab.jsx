@@ -145,7 +145,16 @@ export default function TeamRegistrationTab({ userRole }) {
   const handleCreateTeam = async (e) => {
     e.preventDefault();
     if (!newTeamName) return;
-    
+
+    if (!newTeamDistrict) {
+      alert('No districts are available. Please seed the Districts table (run the districts seed in supabase_schema.sql) before registering a team.');
+      return;
+    }
+    if (!newTeamCategory) {
+      alert('No age categories are available. Please seed the Age Categories table before registering a team.');
+      return;
+    }
+
     try {
       const defaults = await api.getDefaults();
       
@@ -171,12 +180,13 @@ export default function TeamRegistrationTab({ userRole }) {
         .from('selection_processes')
         .insert([{
           name: newTeamName + ' Selection',
-          season_id: 1, // Default to first season or similar
+          season: new Date().getFullYear().toString(),
           age_category_id: newTeamCategory,
           gender: newTeamGender,
           target_squad_size: 20,
-          status: 'UPCOMING',
+          status: 'OPEN',
           process_type: 'DISTRICT_TEAM',
+          district_id: newTeamDistrict,
           target_district_id: newTeamDistrict
         }])
         .select()
