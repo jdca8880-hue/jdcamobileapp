@@ -6,6 +6,8 @@ export default function RecycleBinTab({ userRole, userId }) {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null);
+  // Scorers may restore their own soft-deletes but never permanently delete.
+  const canHardDelete = userRole !== 'SCORER';
 
   const loadItems = async () => {
     setIsLoading(true);
@@ -134,13 +136,15 @@ export default function RecycleBinTab({ userRole, userId }) {
                         >
                           <RotateCcw size={14} /> Restore
                         </button>
-                        <button
-                          onClick={() => handleHardDelete(item.type, item.id)}
-                          disabled={processingId === item.id}
-                          className="px-3 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded hover:bg-rose-100 transition disabled:opacity-50 flex items-center gap-1"
-                        >
-                          <Trash2 size={14} /> Delete Forever
-                        </button>
+                        {canHardDelete && (
+                          <button
+                            onClick={() => handleHardDelete(item.type, item.id)}
+                            disabled={processingId === item.id}
+                            className="px-3 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded hover:bg-rose-100 transition disabled:opacity-50 flex items-center gap-1"
+                          >
+                            <Trash2 size={14} /> Delete Forever
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
