@@ -175,6 +175,13 @@ export default function PlayerRegistrationScreen() {
                   </select>
                 </div>
               </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Phone Number <span className="text-[#b6c0ce] normal-case">(optional)</span></label>
+                <input
+                  type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 98765 43210"
+                  className={`w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border focus:border-[#2457D6] ${formErrors.phone ? 'border-[#F05A47]' : 'border-transparent'}`}
+                />
+              </div>
             </div>
           </div>
 
