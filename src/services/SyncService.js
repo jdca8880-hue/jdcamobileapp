@@ -514,6 +514,7 @@ class SyncService {
     // A ball recorded while offline is queued with inningsId=null (the innings
     // row could not be created without a connection). On sync we resolve/create
     // it here instead of failing permanently and blocking the whole match.
+    let inningsResolveErr = null;
     if (!inningsId && payload.matchId) {
       try {
         const inn = await api.getOrCreateInnings(payload.matchId, inningsNum);
@@ -523,13 +524,47 @@ class SyncService {
           context?.inningsCache?.set(cacheKey, inningsId);
         }
       } catch (resolveErr) {
+        inningsResolveErr = resolveErr;
         console.warn('[SyncService] Could not resolve innings during sync:', resolveErr);
       }
     }
 
     if (!inningsId) {
-      // The innings couldn't be resolved. Distinguish a REAL dead-end from a
-      // temporary hiccup:
+      // The innings row could not be created/fetched. If the *reason* was a
+      // PERMANENT one — an RLS denial on the innings table, a bad FK/constraint,
+      // or an expired session — surface it now. Previously ANY failure here fell
+      // through to the generic NETWORK_ERROR below, so a real permission/schema
+      // problem was retried silently every few seconds forever: the match shows
+      // LIVE (its status update is a separate, successful call) while not a
+      // single ball ever uploads and nothing in the UI explains why. Classify it
+      // instead, so it either blocks the match (clearable in Sync Repair, with
+      // the real Postgres code logged) or prompts re-auth.
+      if (inningsResolveErr) {
+        const code = inningsResolveErr.code;
+        const msg = String(inningsResolveErr.message || inningsResolveErr.details || '');
+        const isTransient = !navigator.onLine
+          || code === 'NETWORK_ERROR'
+          || msg.includes('Failed to fetch')
+          || msg.includes('NetworkError');
+        const isAuth = code === '401'
+          || msg.includes('JWT expired')
+          || msg.includes('Invalid Refresh Token')
+          || msg.includes('Auth session missing');
+        const isPermanent = code === '42501' || code === '23503' || code === '23514' || code === '22P02'
+          || msg.includes('row-level security')
+          || msg.includes('permission denied')
+          || msg.includes('violates foreign key')
+          || msg.includes('violates check constraint')
+          || msg.includes('invalid input syntax');
+        if (!isTransient && (isAuth || isPermanent)) {
+          const err = new Error(`Could not create innings ${inningsNum} for match ${payload.matchId}: ${msg || code || 'rejected by server'}`);
+          err.code = isAuth ? '401' : (code || '42501');
+          err.details = inningsResolveErr.details || msg;
+          throw err;
+        }
+      }
+
+      // Otherwise distinguish a REAL dead-end from a temporary hiccup:
       //   - match row missing (deleted) or finalized  → permanent. Retrying can
       //     never succeed, and leaving it "network" made it loop forever at the
       //     head of the FIFO. Quarantine it so it surfaces (clearable) and stops
