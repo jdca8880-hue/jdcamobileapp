@@ -355,7 +355,10 @@ export default function MatchSetupScreen() {
 
   const filteredPlayers = activeXI.filter((p) => (p.full_name || p.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()));
   const availableScorers = registeredUsers.filter(u => u.can_score || ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()));
-  const availableUmpires = registeredUsers.filter(u => ['UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()));
+  // There is no dedicated UMPIRE role in app_role, so an umpire can be any
+  // registered official (scorer / selector / admin / can_score), plus a literal
+  // UMPIRE role if one is ever added.
+  const availableUmpires = registeredUsers.filter(u => ['UMPIRE', 'SCORER', 'SELECTOR', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()) || u.can_score);
 
   /* ─── Step validation before advancing ─── */
   const canAdvance = () => {

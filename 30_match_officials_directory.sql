@@ -44,8 +44,11 @@ as $$
          coalesce(p.can_score, false) as can_score
   from profiles p
   where coalesce(p.is_active, true) = true
+    -- Compare as text: the app_role enum has no UMPIRE value, so comparing the
+    -- enum directly to 'UMPIRE' errors out. Casting to text keeps this robust
+    -- even if an UMPIRE role (or a text role column) is introduced later.
     and (
-      p.role in ('SCORER', 'UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN')
+      p.role::text in ('SCORER', 'SELECTOR', 'UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN')
       or coalesce(p.can_score, false) = true
     )
   order by p.full_name;
