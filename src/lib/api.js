@@ -1,5 +1,15 @@
 import { supabase } from './supabase';
 
+// True when a Supabase/PostgREST error means the players.phone column is absent
+// (migration 13_add_player_phone.sql not applied). Postgres undefined_column is
+// 42703; PostgREST also surfaces it as PGRST204 for an unknown column.
+const isMissingPhoneColumn = (error) => {
+  if (!error) return false;
+  const code = error.code;
+  const text = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase();
+  return (code === '42703' || code === 'PGRST204') && text.includes('phone');
+};
+
 export const calculatePlayerAge = (dob, referenceDate = new Date()) => {
   if (!dob) return 99;
   const birthDate = new Date(dob);
@@ -252,12 +262,25 @@ export const api = {
     if (playerData.avatar_url !== undefined) patch.avatar_url = playerData.avatar_url || null;
     if (playerData.phone !== undefined) patch.phone = playerData.phone || null;
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('players')
       .update(patch)
       .eq('id', id)
       .select()
       .single();
+
+    // Same phone-column fallback as registerPlayer: if migration 13 hasn't been
+    // applied, retry the update without the phone field.
+    if (error && isMissingPhoneColumn(error)) {
+      console.warn('[api] players.phone column missing; updating without phone. Apply migration 13_add_player_phone.sql.');
+      const { phone, ...patchNoPhone } = patch;
+      ({ data, error } = await supabase
+        .from('players')
+        .update(patchNoPhone)
+        .eq('id', id)
+        .select()
+        .single());
+    }
 
     if (error) {
       console.error('[api] Failed to update player:', error);
@@ -1964,11 +1987,25 @@ export const api = {
       phone: playerData.phone || null
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('players')
       .insert(p)
       .select()
       .single();
+
+    // The `phone` column is added by migration 13_add_player_phone.sql. If that
+    // migration hasn't been applied to this database yet, the insert fails with
+    // "column players.phone does not exist" (42703). Rather than block all
+    // registration, retry once without phone so players can still be added.
+    if (error && isMissingPhoneColumn(error)) {
+      console.warn('[api] players.phone column missing; registering without phone. Apply migration 13_add_player_phone.sql.');
+      const { phone, ...pNoPhone } = p;
+      ({ data, error } = await supabase
+        .from('players')
+        .insert(pNoPhone)
+        .select()
+        .single());
+    }
 
     if (error) {
       console.error('[api] Failed to register player:', error);

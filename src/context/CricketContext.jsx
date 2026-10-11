@@ -118,6 +118,32 @@ export function CricketProvider({ children }) {
     }
   };
 
+  // Turn a Supabase/PostgREST (or network) failure into a message that actually
+  // tells the user what went wrong, instead of blaming the network for every
+  // error. Supabase errors carry a Postgres `code`; a genuine connectivity
+  // failure is a fetch TypeError with no code.
+  const describePlayerError = (e, verb = 'register') => {
+    const code = e?.code;
+    const msg = String(e?.message || '');
+
+    // RLS denial — the signed-in user isn't an admin.
+    if (code === '42501' || /row-level security/i.test(msg)) {
+      return `You don't have permission to ${verb} players. Only an Admin (District or Super Admin) can do this. Please sign in with an admin account.`;
+    }
+    // Missing column — a schema migration hasn't been applied to the database.
+    if (code === '42703' || /column .* does not exist/i.test(msg)) {
+      return `The database is missing a required column (${msg}). A pending migration needs to be run on Supabase.`;
+    }
+    // District lookup failure we raise ourselves.
+    if (/was not found/i.test(msg)) return msg;
+    // Genuine offline / unreachable server.
+    if (e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(msg)) {
+      return `Could not reach the server. Please check your network connection and try again.`;
+    }
+    // Fall back to the real error so it's at least diagnosable.
+    return `Failed to ${verb} player: ${msg || 'unknown error'}`;
+  };
+
   // Register new player
   const registerPlayer = async (playerData) => {
     try {
@@ -168,7 +194,7 @@ export function CricketProvider({ children }) {
       navigateTo('player-profile');
     } catch (e) {
       console.error('Failed to register player:', e);
-      alert('Failed to register player. Please check network connection.');
+      alert(describePlayerError(e, 'register'));
       throw e;
     }
   };
@@ -202,7 +228,7 @@ export function CricketProvider({ children }) {
       return p;
     } catch (e) {
       console.error('Failed to update player:', e);
-      alert('Failed to update player. Please check your connection and permissions.');
+      alert(describePlayerError(e, 'update'));
       throw e;
     }
   };
