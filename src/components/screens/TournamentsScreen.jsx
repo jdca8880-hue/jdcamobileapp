@@ -639,7 +639,11 @@ export default function TournamentsScreen() {
               }
             } catch (err) {
               console.error('Failed to save tournament:', err);
-              alert('Error saving tournament: ' + err.message);
+              if (err.code === 'DUPLICATE_TOURNAMENT') {
+                alert('A tournament with the same name, season, age category, and gender already exists. Change one of these, or restore/permanently delete the existing one from the Recycle Bin if it was deleted.');
+              } else {
+                alert('Error saving tournament: ' + (err.message || 'Unknown error'));
+              }
             }
           }}
         />

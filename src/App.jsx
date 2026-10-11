@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CricketProvider, useCricket } from './context/CricketContext';
 import { AnimatePresence, motion } from 'motion/react';
@@ -8,36 +8,44 @@ import VjdCalculatorModal from './components/ui/VjdCalculatorModal';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute, { ROLE_HOME } from './components/ProtectedRoute';
 import AnimatedPage from './components/AnimatedPage';
-import LiveMatchesShowcase from './components/ui/LiveMatchesShowcase';
 import NotificationPrompt from './components/NotificationPrompt';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 // ── Screens ────────────────────────────────────────────────────
+// AuthScreen and HomeScreen stay eager so the login screen and the default
+// landing page paint instantly. Every other screen is code-split with
+// React.lazy, so its JS only downloads when the user actually visits it —
+// this is the main lever keeping the initial bundle (and startup) small.
 import AuthScreen from './components/screens/AuthScreen';
 import HomeScreen from './components/screens/HomeScreen';
-import MatchesScreen from './components/screens/MatchesScreen';
-import MatchSetupScreen from './components/screens/MatchSetupScreen';
-import ScoringScreen from './components/screens/ScoringScreen';
-import ScorecardScreen from './components/screens/ScorecardScreen';
-import MatchOverviewScreen from './components/screens/MatchOverviewScreen';
-import MatchDetailScreen from './components/screens/MatchDetailScreen';
-import InningsBreakScreen from './components/screens/InningsBreakScreen';
-import MatchResultScreen from './components/screens/MatchResultScreen';
-import TournamentsScreen from './components/screens/TournamentsScreen';
-import TeamsScreen from './components/screens/TeamsScreen';
-import PlayersScreen from './components/screens/PlayersScreen';
-import PlayerProfileScreen from './components/screens/PlayerProfileScreen';
-import PlayerRegistrationScreen from './components/screens/PlayerRegistrationScreen';
-import SelectionScreen from './components/selection/SelectionWorkspace';
-import AdministrationScreen from './components/screens/AdministrationScreen';
-import MatchOfficialsScreen from './components/screens/MatchOfficialsScreen';
-import NewsScreen from './components/screens/NewsScreen';
-import PlayerComparisonModal from './components/screens/PlayerComparisonModal';
 
-// Legacy / still in use
-import ScoutingHubScreen from './components/screens/ScoutingHubScreen';
-import SelectorsScreen from './components/screens/SelectorsScreen';
-import AccessControlScreen from './components/screens/AccessControlScreen';
+const MatchesScreen = lazy(() => import('./components/screens/MatchesScreen'));
+const MatchSetupScreen = lazy(() => import('./components/screens/MatchSetupScreen'));
+const ScoringScreen = lazy(() => import('./components/screens/ScoringScreen'));
+const ScorecardScreen = lazy(() => import('./components/screens/ScorecardScreen'));
+const MatchOverviewScreen = lazy(() => import('./components/screens/MatchOverviewScreen'));
+const MatchDetailScreen = lazy(() => import('./components/screens/MatchDetailScreen'));
+const InningsBreakScreen = lazy(() => import('./components/screens/InningsBreakScreen'));
+const MatchResultScreen = lazy(() => import('./components/screens/MatchResultScreen'));
+const TournamentsScreen = lazy(() => import('./components/screens/TournamentsScreen'));
+const TeamsScreen = lazy(() => import('./components/screens/TeamsScreen'));
+const PlayersScreen = lazy(() => import('./components/screens/PlayersScreen'));
+const PlayerProfileScreen = lazy(() => import('./components/screens/PlayerProfileScreen'));
+const PlayerRegistrationScreen = lazy(() => import('./components/screens/PlayerRegistrationScreen'));
+const SelectionScreen = lazy(() => import('./components/selection/SelectionWorkspace'));
+const AdministrationScreen = lazy(() => import('./components/screens/AdministrationScreen'));
+const MatchOfficialsScreen = lazy(() => import('./components/screens/MatchOfficialsScreen'));
+const NewsScreen = lazy(() => import('./components/screens/NewsScreen'));
+const PlayerComparisonModal = lazy(() => import('./components/screens/PlayerComparisonModal'));
+
+// Lightweight fallback shown while a lazily-loaded screen's chunk downloads.
+function ScreenFallback() {
+  return (
+    <div className="flex items-center justify-center py-24">
+      <div className="w-8 h-8 rounded-full border-2 border-t-transparent border-blue-600 animate-spin" />
+    </div>
+  );
+}
 
 // Auth-aware root redirect
 function RootRedirect() {
@@ -138,6 +146,7 @@ function MainApp() {
 
         {/* Main content area */}
         <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden relative pb-28 lg:pb-8">
+          <Suspense fallback={<ScreenFallback />}>
           <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>
               {/* Public */}
@@ -173,6 +182,7 @@ function MainApp() {
               <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>
           </AnimatePresence>
+          </Suspense>
         </main>
       </div>
 
@@ -186,7 +196,9 @@ function MainApp() {
       {!isAuth && <VjdCalculatorModal />}
 
       {/* Player comparison modal */}
-      <PlayerComparisonModal />
+      <Suspense fallback={null}>
+        <PlayerComparisonModal />
+      </Suspense>
 
       {/* Push Notification Prompt */}
       {!isAuth && <NotificationPrompt />}

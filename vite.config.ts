@@ -91,5 +91,20 @@ export default defineConfig(() => {
     esbuild: {
       drop: ['console', 'debugger'],
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // Split large third-party libraries into their own chunks so they are
+          // cached independently of app code and of each other. A chart-heavy
+          // screen no longer forces the charting lib into the main bundle.
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-charts': ['recharts'],
+            'vendor-motion': ['motion'],
+            'vendor-supabase': ['@supabase/supabase-js'],
+          },
+        },
+      },
+    },
   };
 });
