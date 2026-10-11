@@ -212,11 +212,15 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
                 className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
               >
                 <option value="">Select Umpire</option>
-                {registeredUsers
-                  .filter(u => ['UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()))
-                  .map(u => (
-                    <option key={u.id} value={u.name}>{u.name}</option>
-                  ))}
+                {(() => {
+                  const list = registeredUsers
+                    .filter(u => u.is_active !== false && ['UMPIRE', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()))
+                    .map(u => u.name || u.email)
+                    .filter(Boolean);
+                  // Preserve a previously-saved umpire even if they are no longer in the list.
+                  if (umpireName && !list.includes(umpireName)) list.unshift(umpireName);
+                  return list.map(label => <option key={label} value={label}>{label}</option>);
+                })()}
               </select>
             </div>
           </div>
@@ -229,11 +233,15 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
               className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-blue-500 focus:outline-none"
             >
               <option value="">Select Scorer</option>
-              {registeredUsers
-                .filter(u => u.can_score || ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase()))
-                .map(u => (
-                  <option key={u.id} value={u.name}>{u.name}</option>
-                ))}
+              {(() => {
+                const list = registeredUsers
+                  .filter(u => u.is_active !== false && (u.can_score || ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(u.role?.toUpperCase())))
+                  .map(u => u.name || u.email)
+                  .filter(Boolean);
+                // Preserve a previously-saved scorer even if they are no longer in the list.
+                if (scorerName && !list.includes(scorerName)) list.unshift(scorerName);
+                return list.map(label => <option key={label} value={label}>{label}</option>);
+              })()}
             </select>
           </div>
           

@@ -50,15 +50,25 @@ export default function MatchOfficialsScreen() {
           console.warn("Failed to set role immediately:", updateError);
         }
 
-        // Refresh registered users in context
+        // Refresh registered users in context.
+        // IMPORTANT: keep this mapping in sync with useAuth.js — it must carry the
+        // full permission set (can_score etc.), otherwise the Scorer/Umpire
+        // dropdowns in MatchCreationModal lose the fields they filter on.
         const profiles = await api.getProfiles();
         const mapped = profiles.map(p => ({
           id: p.id,
           name: p.full_name,
           email: p.email || 'N/A',
           role: p.role,
+          can_view: p.can_view,
+          can_add: p.can_add,
+          can_edit: p.can_edit,
+          can_delete: p.can_delete,
+          can_score: p.can_score,
+          is_active: p.is_active,
           status: p.is_active ? 'Active' : 'Inactive',
-          district: p.district?.name || 'All Districts'
+          district: p.district?.name || 'All Districts',
+          selector_age_category_id: p.selector_age_category_id || null
         }));
         setRegisteredUsers(mapped);
 

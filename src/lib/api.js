@@ -364,7 +364,12 @@ export const api = {
 
     const { data, error } = await supabase.from(table).delete().eq('id', id).select();
     if (error) throw error;
-    if (!data || data.length === 0) throw new Error("Permission denied. You can only permanently delete items that you deleted.");
+    if (!data || data.length === 0) {
+      // Zero rows + no error means RLS filtered the DELETE out (or the row was
+      // already removed). It is NOT necessarily an ownership issue — a Super Admin
+      // should be able to delete anything, so don't claim otherwise.
+      throw new Error("Couldn't permanently delete this item. It may already have been removed, or your account doesn't have permission for it.");
+    }
 
     // After successful hard delete, remove photo from Cloudinary if supported securely
     if (avatarUrlToDelete) {

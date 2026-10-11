@@ -12,21 +12,26 @@ export default function RecycleBinTab({ userRole, userId }) {
     try {
       const data = await api.getRecycleBinItems();
       let filteredData = data || [];
-      if (userRole === 'SCORER') {
+      console.log(`[RecycleBin] Fetched ${filteredData.length} soft-deleted item(s) from the server.`);
+      // Scorers only see what they themselves deleted. Guard against running this
+      // filter before the user id has loaded (which would wrongly empty the list).
+      if (userRole === 'SCORER' && userId) {
         filteredData = filteredData.filter(item => item.deleted_by === userId);
       }
       setItems(filteredData);
     } catch (err) {
-      console.error(err);
-      alert("Failed to load recycle bin items");
+      console.error('[RecycleBin] Failed to load items:', err);
+      alert(err.message || "Failed to load recycle bin items");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Reload when the user context arrives/changes, not just on first mount —
+  // otherwise a refresh can load before userRole/userId are known and show empty.
   useEffect(() => {
     loadItems();
-  }, []);
+  }, [userRole, userId]);
 
   const handleRestore = async (type, id) => {
     if (!window.confirm("Are you sure you want to restore this item?")) return;
