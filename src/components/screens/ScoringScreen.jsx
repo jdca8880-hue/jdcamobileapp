@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   RotateCcw, FileText, ShieldAlert, AlertTriangle, X,
   ChevronRight, RefreshCw, Radio, CircleHelp, WifiOff,
-  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock, Pause, Play, CornerUpRight, CloudRain
+  MoreHorizontal, Users, Trophy, Calendar, ChevronDown, Clock, Pause, Play, CornerUpRight
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -15,7 +15,6 @@ import { syncService } from '../../services/SyncService';
 import InningsInitScreen from './InningsInitScreen';
 import { MatchCard } from '../ui/MatchCard';
 import MatchInterruptionModal from '../ui/MatchInterruptionModal';
-import VjdTab from './VjdTab';
 
 const DISMISSALS = ['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket', 'Other'];
 const QUICK_RUNS = [0, 1, 2, 3, 4, 6];
@@ -64,7 +63,6 @@ export default function ScoringScreen() {
   const [syncError, setSyncError] = useState(null);
   const [selectedTournament, setSelectedTournament] = useState('');
   const [interruptionModalOpen, setInterruptionModalOpen] = useState(false);
-  const [scoringTab, setScoringTab] = useState('scoring'); // 'scoring' | 'vjd'
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
   const currentTotalOvers = matchSetup?.totalOvers || activeMatch?.max_overs || totalMatchOvers || 20;
@@ -523,34 +521,12 @@ export default function ScoringScreen() {
 
         {/* HEADER */}
         <div className="px-4 pt-[60px] pb-4 bg-slate-50 border-b border-slate-100">
-          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              {/* Tab Selector */}
-              <div className="inline-flex bg-slate-200/80 dark:bg-slate-800 p-1 rounded-full border border-slate-300/60 dark:border-slate-700">
-                <button
-                  onClick={() => setScoringTab('scoring')}
-                  className={`px-3 py-1 rounded-full font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-                    scoringTab === 'scoring'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${scoringTab === 'scoring' ? 'bg-jade animate-pulse' : 'bg-slate-400'}`} />
-                  <span>Live Console</span>
-                </button>
-                <button
-                  onClick={() => setScoringTab('vjd')}
-                  className={`px-3 py-1 rounded-full font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-                    scoringTab === 'vjd'
-                      ? 'bg-violet-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-violet-600'
-                  }`}
-                >
-                  <CloudRain size={13} />
-                  <span>VJD & Timing</span>
-                </button>
-              </div>
-
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-jade-50 text-jade-700 border border-jade-100 text-xs font-bold uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />
+                LIVE SCORING
+              </span>
               {/* Sync Indicator */}
               <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-full shadow-sm">
                 {syncState.status === 'ONLINE' ? (
@@ -566,25 +542,7 @@ export default function ScoringScreen() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setScoringTab(prev => prev === 'scoring' ? 'vjd' : 'scoring')}
-                className={`px-3 h-10 rounded-full flex items-center justify-center font-bold text-xs gap-1.5 transition-colors cursor-pointer ${
-                  scoringTab === 'vjd'
-                    ? 'bg-slate-900 text-white hover:bg-slate-800'
-                    : 'bg-violet-50 text-violet-700 border border-violet-200/70 hover:bg-violet-100'
-                }`}
-                title="Switch between Live Scoring Console and VJD Rain Calculation Tab"
-              >
-                {scoringTab === 'vjd' ? (
-                  <>
-                    <RotateCcw size={14} /> Back to Live
-                  </>
-                ) : (
-                  <>
-                    <CloudRain size={15} /> VJD / Rain
-                  </>
-                )}
-              </button>
+              <button onClick={() => setInterruptionModalOpen(true)} className="px-3 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs gap-1 hover:bg-red-100 transition-colors"><Clock size={16} /> End/Interrupt</button>
               <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18} /></button>
               {isPaused ? (
                 <button
@@ -638,39 +596,7 @@ export default function ScoringScreen() {
           </div>
         )}
 
-        {scoringTab === 'vjd' ? (
-          <VjdTab
-            activeMatch={activeMatch}
-            tournament={matchTournament}
-            matchSetup={matchSetup}
-            innings={innings}
-            currentRuns={runs}
-            currentWickets={wickets}
-            currentBalls={balls}
-            target={target}
-            totalMatchOvers={currentTotalOvers}
-            onApplyRevisedOvers={async (revisedOvers, revisedTarget) => {
-              try {
-                await applyRevisedOvers(revisedOvers, revisedTarget);
-                alert(revisedTarget
-                  ? `Overs revised to ${revisedOvers}, target revised to ${revisedTarget}`
-                  : `Match overs revised to ${revisedOvers}`);
-              } catch (err) {
-                alert("Failed to revise overs: " + err.message);
-              }
-            }}
-            onEndMatchEarly={async (resultInfo) => {
-              try {
-                await endMatchEarly(resultInfo);
-              } catch (err) {
-                alert("Failed to end match: " + err.message);
-              }
-            }}
-            onBackToConsole={() => setScoringTab('scoring')}
-          />
-        ) : (
-          <>
-            {/* SCORE AREA */}
+        {/* SCORE AREA */}
         <div className="px-4 py-6 bg-white">
           <div className="text-center">
             <div className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2">
@@ -928,8 +854,6 @@ export default function ScoringScreen() {
             </motion.button>
           </div>
         </div>
-          </>
-        )}
 
         {/* MODALS */}
         {dismissalOpen && (
