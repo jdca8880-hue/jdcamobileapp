@@ -42,6 +42,9 @@ export function useGlobalUI() {
   // Drawer State
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // VJD Calculator (standalone scorer tool, opened from the drawer)
+  const [vjdCalcOpen, setVjdCalcOpen] = useState(false);
+
   // Dark Mode Theme State (Black + Neon Sports Theme)
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
@@ -138,6 +141,7 @@ export function useGlobalUI() {
     systemSettings, setSystemSettings,
     notificationsEnabled, toggleNotifications,
     drawerOpen, setDrawerOpen,
+    vjdCalcOpen, setVjdCalcOpen,
     navigateTo,
     goBack
   };

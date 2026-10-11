@@ -1,10 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Calculator, ShieldAlert, AlertCircle, Clock, Share2, Copy, CheckCircle2 } from 'lucide-react';
-import {
-  calculateRevisedTarget,
-  calculateParScoreAtPoint,
-  formatVJDResult,
-} from '../../engine/vjdMethod';
+import { X, Calculator, ShieldAlert, Clock } from 'lucide-react';
 import { formatOvers } from '../../engine/cricketStateMachine';
 
 export default function MatchInterruptionModal({
@@ -22,17 +17,10 @@ export default function MatchInterruptionModal({
   onApplyRevisedOvers,
   onEndMatchEarly,
 }) {
-  const [tab, setTab] = useState('VJD_CALC');
+  const [tab, setTab] = useState('MANUAL_ADJUST');
   const [totalTimeLost, setTotalTimeLost] = useState(0);
   const [extraTime, setExtraTime] = useState(0);
   const [intervalTimeMadeUp, setIntervalTimeMadeUp] = useState(0);
-
-  // VJD calculator inputs
-  const [vjdTeam1Score, setVjdTeam1Score] = useState('');
-  const [vjdTeam1Overs, setVjdTeam1Overs] = useState('');
-  const [vjdTeam1Wickets, setVjdTeam1Wickets] = useState('');
-  const [vjdRevisedOvers, setVjdRevisedOvers] = useState('');
-  const [vjdCopied, setVjdCopied] = useState(false);
 
   // Manual adjust inputs
   const [manualOvers, setManualOvers] = useState('');
@@ -75,52 +63,6 @@ export default function MatchInterruptionModal({
     }
   };
   const timeLossResults = totalTimeLost > 0 ? calculateRevised() : null;
-
-  // ── VJD calculator ──────────────────────────────────────────────────────
-  const vjdResult = useMemo(() => {
-    const t1Score = parseInt(vjdTeam1Score, 10);
-    const t1Overs = parseFloat(vjdTeam1Overs);
-    const t1Wkts = parseInt(vjdTeam1Wickets, 10);
-    const revOvers = parseFloat(vjdRevisedOvers);
-    if ([t1Score, t1Overs, t1Wkts, revOvers].some(v => isNaN(v))) return null;
-    if (t1Score < 0 || t1Overs <= 0 || t1Wkts < 0 || t1Wkts > 10 || revOvers <= 0) return null;
-
-    const result = calculateRevisedTarget(t1Score, t1Overs, t1Wkts, revOvers, 10, maxOvers);
-    return { ...result, t1Score, t1Overs, t1Wkts, revOvers };
-  }, [vjdTeam1Score, vjdTeam1Overs, vjdTeam1Wickets, vjdRevisedOvers, maxOvers]);
-
-  const handleVJDShare = async () => {
-    if (!vjdResult) return;
-    const text = formatVJDResult({
-      team1Name: isFirstInnings ? battingTeamName : bowlingTeamName,
-      team1Score: vjdResult.t1Score,
-      team1Overs: vjdResult.t1Overs,
-      team1Wickets: vjdResult.t1Wkts,
-      team2Name: isFirstInnings ? bowlingTeamName : battingTeamName,
-      revisedOvers: vjdResult.revOvers,
-      revisedTarget: vjdResult.revisedTarget,
-      parScore: vjdResult.parScore,
-      r1: vjdResult.r1,
-      r2: vjdResult.r2,
-      maxOvers,
-    });
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'VJD Calculation', text });
-      } else {
-        await navigator.clipboard.writeText(text);
-        setVjdCopied(true);
-        setTimeout(() => setVjdCopied(false), 2000);
-      }
-    } catch {
-      try {
-        await navigator.clipboard.writeText(text);
-        setVjdCopied(true);
-        setTimeout(() => setVjdCopied(false), 2000);
-      } catch { /* silent */ }
-    }
-  };
 
   // ── End Match logic ─────────────────────────────────────────────────────
   const endMatchInfo = useMemo(() => {
@@ -175,10 +117,9 @@ export default function MatchInterruptionModal({
 
   // ── Tab definitions ─────────────────────────────────────────────────────
   const tabs = [
-    { id: 'VJD_CALC', label: 'VJD Calc', color: 'bg-violet-500 text-white' },
+    { id: 'MANUAL_ADJUST', label: 'Adjust Overs' },
     { id: 'DELAY_FIRST', label: '1st Inn Calc' },
     { id: 'INTERRUPT_SECOND', label: '2nd Inn Calc' },
-    { id: 'MANUAL_ADJUST', label: 'Adjust Overs' },
     { id: 'END_MATCH', label: 'End Match', color: 'bg-red-500 text-white' },
   ];
 
@@ -217,100 +158,6 @@ export default function MatchInterruptionModal({
               </button>
             ))}
           </div>
-
-          {/* ═══ VJD CALCULATOR TAB ═══ */}
-          {tab === 'VJD_CALC' && (
-            <div className="space-y-4">
-              <div className="bg-violet-50 text-violet-800 p-3 rounded-lg text-xs border border-violet-100">
-                <strong>VJD Method Calculator</strong> — Enter Team 1's innings details and the revised overs for Team 2 to calculate the revised target.
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Team 1 Score (runs)</label>
-                <input
-                  type="number" min="0"
-                  value={vjdTeam1Score}
-                  onChange={e => setVjdTeam1Score(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-violet-500 focus:outline-none"
-                  placeholder="e.g. 180"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Overs Played</label>
-                  <input
-                    type="number" min="0" step="0.1"
-                    value={vjdTeam1Overs}
-                    onChange={e => setVjdTeam1Overs(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-violet-500 focus:outline-none"
-                    placeholder="e.g. 20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Wickets Lost</label>
-                  <input
-                    type="number" min="0" max="10"
-                    value={vjdTeam1Wickets}
-                    onChange={e => setVjdTeam1Wickets(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-violet-500 focus:outline-none"
-                    placeholder="e.g. 6"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Revised Overs for Team 2</label>
-                <input
-                  type="number" min="1" step="1"
-                  value={vjdRevisedOvers}
-                  onChange={e => setVjdRevisedOvers(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-violet-500 focus:outline-none"
-                  placeholder="e.g. 15"
-                />
-              </div>
-
-              {vjdResult && (
-                <div className="mt-4 p-4 bg-violet-50 border border-violet-200 rounded-xl">
-                  <h4 className="text-xs font-black uppercase text-violet-800 tracking-wider mb-3 flex items-center gap-1">
-                    <Calculator size={14} /> VJD Result
-                  </h4>
-                  <div className="space-y-2">
-                    <p className="text-violet-900 text-sm font-medium flex justify-between">
-                      Revised Target: <strong className="text-xl">{vjdResult.revisedTarget}</strong>
-                    </p>
-                    <p className="text-violet-900 text-sm font-medium flex justify-between">
-                      Par Score: <strong>{vjdResult.parScore}</strong>
-                    </p>
-                    <div className="border-t border-violet-200 pt-2 mt-2">
-                      <p className="text-violet-700 text-xs flex justify-between">
-                        Team 1 Resources Used: <span>{vjdResult.r1}%</span>
-                      </p>
-                      <p className="text-violet-700 text-xs flex justify-between">
-                        Team 2 Resources Available: <span>{vjdResult.r2}%</span>
-                      </p>
-                    </div>
-                    <p className="text-violet-900 text-sm font-bold mt-2">
-                      Team 2 needs {vjdResult.revisedTarget} runs in {vjdResult.revOvers} overs
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={handleVJDShare}
-                    className="w-full mt-4 bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-                  >
-                    {vjdCopied ? (
-                      <><CheckCircle2 size={16} /> Copied!</>
-                    ) : navigator.share ? (
-                      <><Share2 size={16} /> Share VJD Result</>
-                    ) : (
-                      <><Copy size={16} /> Copy VJD Result</>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* ═══ MPCA TIME-LOSS TABS (1st & 2nd Innings) ═══ */}
           {(tab === 'DELAY_FIRST' || tab === 'INTERRUPT_SECOND') && (
@@ -390,7 +237,7 @@ export default function MatchInterruptionModal({
           {tab === 'MANUAL_ADJUST' && (
             <div className="space-y-4">
               <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-xs mb-4 border border-amber-100">
-                Manually set the revised overs for the match. If you calculated a revised target using the VJD Calculator, enter it below to update the chase target too.
+                Set the revised overs for the match. Compute the revised target in the <strong>VJD Calculator</strong> (open it from the menu drawer), then enter the result below to update the chase target.
               </div>
 
               <div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  X, Home, Calendar, Trophy, Users, Clipboard, Radio, Settings, LogOut, Shield, Megaphone, Award, Sun, Moon, Bell, BellOff
+  X, Home, Calendar, Trophy, Users, Clipboard, Radio, Settings, LogOut, Shield, Megaphone, Award, Sun, Moon, Bell, BellOff, Calculator
 } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 import { RoleBadge } from './ui/Badge';
@@ -33,9 +33,16 @@ const ACTIVE_MAP = {
 };
 
 export default function DrawerMenu() {
-  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userPermissions, userEmail, logout, isDarkMode, setIsDarkMode, notificationsEnabled, toggleNotifications } = useCricket();
+  const { drawerOpen, setDrawerOpen, navigateTo, currentScreen, userRole, userPermissions, userEmail, logout, isDarkMode, setIsDarkMode, notificationsEnabled, toggleNotifications, setVjdCalcOpen } = useCricket();
 
   const activeId = ACTIVE_MAP[currentScreen] || currentScreen;
+
+  const canUseScorerTools = userPermissions?.can_score || ['SCORER', 'SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(userRole);
+
+  const openVjdCalculator = () => {
+    setDrawerOpen(false);
+    setVjdCalcOpen(true);
+  };
 
   const visible = ALL_NAV.map(item => {
     if (userRole === 'SCORER' && item.id === 'administration') {
@@ -193,6 +200,35 @@ export default function DrawerMenu() {
                   </button>
                 );
               })}
+
+              {canUseScorerTools && (
+                <>
+                  <div
+                    className="px-3 mb-3 mt-5"
+                    style={{ fontSize: 9, color: '#64748B', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+                  >
+                    Scorer Tools
+                  </div>
+                  <button
+                    id="drawer-vjd-calculator"
+                    onClick={openVjdCalculator}
+                    className="relative flex items-center gap-3 w-full cursor-pointer"
+                    style={{
+                      padding: '10px 13px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#A78BFA',
+                      textAlign: 'left',
+                      minHeight: 44,
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
+                  >
+                    <Calculator size={17} strokeWidth={2} className="shrink-0" />
+                    <span className="flex-1" style={{ fontSize: 15, fontWeight: 500 }}>VJD Calculator</span>
+                  </button>
+                </>
+              )}
             </nav>
 
             {/* User footer */}

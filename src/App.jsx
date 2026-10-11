@@ -4,6 +4,7 @@ import { CricketProvider, useCricket } from './context/CricketContext';
 import { AnimatePresence, motion } from 'motion/react';
 import BottomNav from './components/BottomNav';
 import DrawerMenu from './components/DrawerMenu';
+import VjdCalculatorModal from './components/ui/VjdCalculatorModal';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute, { ROLE_HOME } from './components/ProtectedRoute';
 import AnimatedPage from './components/AnimatedPage';
@@ -180,6 +181,9 @@ function MainApp() {
 
       {/* Slide-out drawer (mobile More menu) */}
       <DrawerMenu />
+
+      {/* Standalone VJD calculator (opened from the scorer's drawer) */}
+      {!isAuth && <VjdCalculatorModal />}
 
       {/* Player comparison modal */}
       <PlayerComparisonModal />

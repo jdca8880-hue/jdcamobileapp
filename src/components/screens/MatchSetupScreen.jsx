@@ -882,13 +882,21 @@ export default function MatchSetupScreen() {
           const activeTeamId = activeTeamTab === 'A' ? matchSetup.teamAId : matchSetup.teamBId;
           const otherXI = activeTeamTab === 'A' ? matchSetup.teamBXI : matchSetup.teamAXI;
 
-          // Only players who actually belong to THIS team's squad are eligible,
-          // so the Add-Player list never mixes the two teams' rosters.
-          const squadForActive = players.filter(p => p.team_players?.some(tp => tp.team_id === activeTeamId));
-          const hasSquad = squadForActive.length > 0;
-          const poolForActive = hasSquad ? squadForActive : players; // fallback: ad-hoc teams with no linked squad
+          // Players registered to THIS team's squad are always eligible. If the
+          // team has no registered squad yet (ad-hoc team), fall back to the full
+          // player registry — but never offer players who belong to the OTHER
+          // match team's squad, so the two sides can't get mixed. The id
+          // comparison is String-coerced to stay robust against id type drift.
+          const activeTeamSquad = players.filter(p =>
+            p.team_players?.some(tp => String(tp.team_id) === String(activeTeamId))
+          );
+          const hasRegisteredSquad = activeTeamSquad.length > 0;
+          const otherTeamId = activeTeamTab === 'A' ? matchSetup.teamBId : matchSetup.teamAId;
+          const pool = hasRegisteredSquad
+            ? activeTeamSquad
+            : players.filter(p => !p.team_players?.some(tp => String(tp.team_id) === String(otherTeamId)));
 
-          const availablePlayers = poolForActive.filter(p => {
+          const availablePlayers = pool.filter(p => {
             const inActive = activeXI.some(xi => xi.id === p.id);
             const inOther = otherXI.some(xi => xi.id === p.id);
             const matchesSearch = (p.full_name || p.name || '').toLowerCase().includes((rosterSearchQuery || '').toLowerCase());
@@ -901,7 +909,11 @@ export default function MatchSetupScreen() {
                 <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                   <div>
                     <h3 className="text-[16px] font-black text-[#101827]">Add to {activeTeamName}</h3>
-                    <p className="text-[11px] text-[#596579]">Select players to join the Playing XI</p>
+                    <p className="text-[11px] text-[#596579]">
+                      {hasRegisteredSquad
+                        ? `${activeTeamName}'s registered squad`
+                        : 'No squad registered — showing all registered players'}
+                    </p>
                   </div>
                   <button onClick={() => setIsAddPlayerModalOpen(false)} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center"><X size={16} className="text-[#596579]" /></button>
                 </div>
@@ -909,10 +921,16 @@ export default function MatchSetupScreen() {
                   <input type="text" placeholder={`Search players for ${activeTeamName}...`} value={rosterSearchQuery} onChange={e => setRosterSearchQuery(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] outline-none mb-4" />
                   <div className="max-h-60 overflow-y-auto space-y-2">
                     {availablePlayers.length === 0 && (
-                      <div className="py-6 text-center text-xs text-slate-400">No eligible players found</div>
+                      <div className="py-6 text-center text-xs text-slate-400 px-4">
+                        {pool.length === 0
+                          ? `No registered players are available for ${activeTeamName}.`
+                          : rosterSearchQuery
+                            ? `No players match "${rosterSearchQuery}".`
+                            : `Everyone available is already in a Playing XI.`}
+                      </div>
                     )}
                     {availablePlayers.map(p => {
-                      const isClubMember = p.team_players?.some(tp => tp.team_id === activeTeamId);
+                      const isClubMember = p.team_players?.some(tp => String(tp.team_id) === String(activeTeamId));
                       return (
                         <button key={p.id} onClick={() => { addPlayerToXI(p); setIsAddPlayerModalOpen(false); }} className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-[12px] active:bg-gray-50 hover:border-blue-300 transition-colors">
                           <div className="text-left">

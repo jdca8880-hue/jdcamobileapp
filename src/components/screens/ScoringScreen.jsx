@@ -302,19 +302,39 @@ export default function ScoringScreen() {
   if (needsInitialization) {
     if (battingXI.length === 0 || bowlingXI.length === 0) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] px-4 text-center bg-slate-50">
-          <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
-          <h3 className="text-xl font-black text-gray-800">No Playing XI Found</h3>
-          <p className="text-gray-500 text-sm mt-2 mb-6">
-            This match is marked as in-progress, but no playing XI was found in the database.
-            You need to set up the playing XI before you can start scoring.
-          </p>
-          <button
-            onClick={() => navigateTo('match-setup')}
-            className="px-6 py-3 bg-[#2457D6] text-white rounded-[12px] font-bold shadow-md"
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh] px-5 py-10 bg-gradient-to-b from-slate-50 to-[#EEF2FB] dark:from-[#0B1220] dark:to-[#0B1628]">
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-sm bg-white dark:bg-[#141A20] rounded-[28px] border border-slate-100 dark:border-white/10 shadow-[0_20px_60px_-24px_rgba(36,87,214,0.35)] dark:shadow-[0_20px_60px_-24px_rgba(0,0,0,0.7)] p-8 text-center"
           >
-            Go to Match Setup
-          </button>
+            {/* Icon badge */}
+            <div className="relative mx-auto mb-6 w-20 h-20">
+              <div className="absolute inset-0 rounded-[22px] bg-[#2457D6]/10 dark:bg-[#2457D6]/20" />
+              <div className="absolute inset-0 rounded-[22px] bg-gradient-to-br from-[#2457D6] to-[#1D4ED8] flex items-center justify-center shadow-lg shadow-[#2457D6]/30">
+                <Users className="w-9 h-9 text-white" strokeWidth={2.2} />
+              </div>
+            </div>
+
+            <span className="inline-block text-[11px] font-black uppercase tracking-[0.14em] text-[#2457D6] dark:text-blue-300 bg-[#2457D6]/8 dark:bg-[#2457D6]/20 px-3 py-1 rounded-full mb-3">
+              One last step
+            </span>
+            <h3 className="text-[22px] font-black text-slate-900 dark:text-white leading-tight">
+              Set up your Playing XI
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mt-3 mb-7">
+              Pick both teams&rsquo; eleven and we&rsquo;ll get the match ready to score. It only takes a minute.
+            </p>
+
+            <button
+              onClick={() => navigateTo('match-setup')}
+              className="group w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-br from-[#2457D6] to-[#1D4ED8] text-white rounded-[16px] font-bold text-[15px] shadow-lg shadow-[#2457D6]/25 hover:shadow-xl hover:shadow-[#2457D6]/30 active:scale-[0.98] transition-all"
+            >
+              Set Up Playing XI
+              <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
+            </button>
+          </motion.div>
         </div>
       );
     }

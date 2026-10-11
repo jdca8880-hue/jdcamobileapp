@@ -851,12 +851,21 @@ export function useMatchScoring({
       if (['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(activeMatch.status)) {
         setMatchStatus(activeMatch.status);
       }
-      const effectiveOvers = activeMatch.max_overs || activeMatch.overs || parseOversFromFormat(activeMatch.match_format, null);
-      if (effectiveOvers) {
-        setTotalMatchOvers(effectiveOvers);
+      // `matchSetup.totalOvers` is the single authoritative live over-limit once
+      // setup has hydrated. Only fall back to the match record when it has not
+      // been established yet. Without this guard, the frequent `matches`
+      // refreshes during a live innings (scores streaming in) re-run this effect
+      // and clobber an in-innings over revision (e.g. a VJD/rain overs cut) back
+      // to the original match overs — so the current innings never actually
+      // resizes while a later innings appears to.
+      if (!matchSetup?.totalOvers) {
+        const effectiveOvers = activeMatch.max_overs || activeMatch.overs || parseOversFromFormat(activeMatch.match_format, null);
+        if (effectiveOvers) {
+          setTotalMatchOvers(effectiveOvers);
+        }
       }
     }
-  }, [activeMatchId, matches]);
+  }, [activeMatchId, matches, matchSetup?.totalOvers]);
 
   useEffect(() => {
     if (matchSetup?.totalOvers) {
@@ -1962,6 +1971,14 @@ export function useMatchScoring({
   const applyRevisedOvers = async (revisedOvers, revisedTarget = null) => {
     setMatchSetup(prev => ({ ...prev, maxOvers: revisedOvers, totalOvers: revisedOvers }));
     setTotalMatchOvers(revisedOvers);
+
+    // Keep the in-memory `matches` cache coherent with the revision immediately.
+    // Other readers (and the overs-derivation effect) key off `max_overs`, and
+    // without this the stale cached value would survive until the next full
+    // refetch — re-clobbering the revised overs on the current innings.
+    if (setMatches) {
+      setMatches(prev => prev.map(m => m.id === activeMatchId ? { ...m, max_overs: revisedOvers } : m));
+    }
 
     if (revisedTarget !== null && revisedTarget > 0) {
       setTarget(revisedTarget);

@@ -276,7 +276,7 @@ export function useDataSync({ auth, ui }) {
                 const bowling = bowlStats.find(s => s.player_id === p.id) || null;
                 const fielding = fieldStats.find(s => s.player_id === p.id) || null;
 
-                return { 
+                return {
                   id: p.id,
                   full_name: p.full_name || 'Unknown Player',
                   avatar_url: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Player')}&background=random`,
@@ -284,6 +284,10 @@ export function useDataSync({ auth, ui }) {
                   primary_role: p.primary_role,
                   batting_style: p.batting_style,
                   bowling_style: p.bowling_style,
+                  // Preserve the squad link so Match Setup can show only the
+                  // relevant team's players. Without this the Add-Player list
+                  // falls back to showing every player (both teams mixed).
+                  team_players: p.team_players || [],
                   district, 
                   category, 
                   career_batting: batting, 
