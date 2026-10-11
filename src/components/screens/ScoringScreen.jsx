@@ -26,7 +26,7 @@ export default function ScoringScreen() {
     validationError, setValidationError, matchStatus, recordRuns, recordExtra, recordPenaltyEvent,
     recordWicket, undoLastAction, innings, target, navigateTo, activeMatchId, matches,
     currentBattingTeamId, currentBowlingTeamId,
-    matchSetup, setMatchSetup, applyRevisedOvers, endMatchEarly, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
+    matchSetup, setMatchSetup, applyRevisedOvers, editFailedDelivery, endMatchEarly, replaceStriker, replaceBatter, handleRetireBatter, continueAfterOver, lastOverBowlerId,
     isHydrating, setIsHydrating, hydrationError, setHydrationError, retryHydration,
     deliveryLog = [], scoringFirstRunDone, markScoringFirstRunDone, goBack, startSecondInnings,
     startSuperOver, startSuperOverSecondInnings,
@@ -63,6 +63,10 @@ export default function ScoringScreen() {
   const [syncError, setSyncError] = useState(null);
   const [selectedTournament, setSelectedTournament] = useState('');
   const [interruptionModalOpen, setInterruptionModalOpen] = useState(false);
+  // "Fix this ball" recovery editor (for a single stuck/rejected delivery)
+  const [editBallOpen, setEditBallOpen] = useState(false);
+  const [editBallForm, setEditBallForm] = useState(null);
+  const [editBallSaving, setEditBallSaving] = useState(false);
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
   const currentTotalOvers = matchSetup?.totalOvers || activeMatch?.max_overs || totalMatchOvers || 20;
@@ -463,17 +467,24 @@ export default function ScoringScreen() {
     <div className="bg-cloud min-h-screen">
       <div className="max-w-md mx-auto relative bg-white border-x border-slate-200 min-h-screen pb-[100px] shadow-2xl">
 
-        {syncError && (
+        {syncError && (() => {
+          const errMatchId = syncError.action?.payload?.matchId;
+          const isOtherMatch = errMatchId && activeMatchId && errMatchId !== activeMatchId;
+          return (
           <div className="bg-amber-50 border border-amber-200 text-slate-700 p-4 m-4 rounded-lg shadow-sm text-sm z-50">
             <div className="flex justify-between items-start mb-1">
-              <strong className="font-semibold text-slate-800">We couldn't save the last ball yet</strong>
+              <strong className="font-semibold text-slate-800">
+                {isOtherMatch ? 'A ball from a previous match hasn’t saved' : 'We couldn’t save the last ball yet'}
+              </strong>
               <button onClick={() => setSyncError(null)} className="text-slate-400 hover:text-slate-600" aria-label="Dismiss">
                 <X size={16} />
               </button>
             </div>
             <span className="block text-slate-600">{syncError.message}</span>
             <span className="block mt-1 mb-3 text-slate-500 text-xs">
-              Your scoring is safe on this device. You can keep scoring — we'll keep trying to save in the background.
+              {isOtherMatch
+                ? 'This is from an earlier match, not the one you’re scoring now. Your current match is saving normally — you can fix or skip the old ball whenever you like.'
+                : 'Your scoring is safe on this device. You can keep scoring — we’ll keep trying to save in the background.'}
             </span>
             <div className="flex flex-wrap gap-2 items-center">
               <button
@@ -493,6 +504,25 @@ export default function ScoringScreen() {
                 className="bg-white border border-slate-300 text-slate-700 py-1.5 px-3 rounded-md hover:bg-slate-50 font-medium text-xs transition-colors cursor-pointer"
               >
                 Retry this ball
+              </button>
+              <button
+                onClick={() => {
+                  const p = syncError.action?.payload || {};
+                  setEditBallForm({
+                    strikerId: p.strikerId || '',
+                    nonStrikerId: p.nonStrikerId || '',
+                    bowlerId: p.bowlerId || '',
+                    runsBatter: Number(p.runsBatter ?? p.runs_off_bat ?? 0) || 0,
+                    runsExtras: Number(p.runsExtras ?? p.runs_extras ?? 0) || 0,
+                    extraType: p.extraType || 'NONE',
+                    wicketType: p.wicketType || 'NONE',
+                    dismissedPlayerId: p.dismissedPlayerId || '',
+                  });
+                  setEditBallOpen(true);
+                }}
+                className="bg-blue-600 text-white py-1.5 px-3 rounded-md hover:bg-blue-700 font-semibold text-xs transition-colors shadow-sm cursor-pointer"
+              >
+                Fix this ball
               </button>
               <button
                 onClick={() => {
@@ -517,7 +547,8 @@ export default function ScoringScreen() {
               </button>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* HEADER */}
         <div className="px-4 pt-[60px] pb-4 bg-slate-50 border-b border-slate-100">
@@ -1418,6 +1449,149 @@ export default function ScoringScreen() {
               }
             }}
           />
+        )}
+
+        {editBallOpen && editBallForm && (
+          <Modal title="Fix this ball" onClose={() => { if (!editBallSaving) { setEditBallOpen(false); } }}>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Correct whoever or whatever made this ball fail to save (most often a batter or bowler who isn't in the server playing XI), then save to resume syncing the match. The ball keeps its place in the over.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Striker</label>
+                <select
+                  value={editBallForm.strikerId}
+                  onChange={e => setEditBallForm(f => ({ ...f, strikerId: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                >
+                  <option value="">— Select —</option>
+                  {battingXI.map(p => <option key={p.id} value={p.id}>{p.name || p.full_name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Non-striker</label>
+                <select
+                  value={editBallForm.nonStrikerId}
+                  onChange={e => setEditBallForm(f => ({ ...f, nonStrikerId: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                >
+                  <option value="">— Select —</option>
+                  {battingXI.map(p => <option key={p.id} value={p.id}>{p.name || p.full_name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Bowler</label>
+                <select
+                  value={editBallForm.bowlerId}
+                  onChange={e => setEditBallForm(f => ({ ...f, bowlerId: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                >
+                  <option value="">— Select —</option>
+                  {bowlingXI.map(p => <option key={p.id} value={p.id}>{p.name || p.full_name}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Runs off bat</label>
+                  <input
+                    type="number" min="0" max="6"
+                    value={editBallForm.runsBatter}
+                    onChange={e => setEditBallForm(f => ({ ...f, runsBatter: Number(e.target.value) || 0 }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Extra runs</label>
+                  <input
+                    type="number" min="0" max="7"
+                    value={editBallForm.runsExtras}
+                    onChange={e => setEditBallForm(f => ({ ...f, runsExtras: Number(e.target.value) || 0 }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Extra type</label>
+                <select
+                  value={editBallForm.extraType}
+                  onChange={e => setEditBallForm(f => ({ ...f, extraType: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                >
+                  {['NONE', 'WIDE', 'NO_BALL', 'BYE', 'LEG_BYE'].map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Wicket</label>
+                <select
+                  value={editBallForm.wicketType}
+                  onChange={e => setEditBallForm(f => ({ ...f, wicketType: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                >
+                  {['NONE', 'BOWLED', 'CAUGHT', 'LBW', 'RUN_OUT', 'STUMPED', 'HIT_WICKET', 'OTHER'].map(t => <option key={t} value={t}>{t === 'NONE' ? 'No wicket' : t.replace('_', ' ')}</option>)}
+                </select>
+              </div>
+
+              {editBallForm.wicketType !== 'NONE' && (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">Dismissed batter</label>
+                  <select
+                    value={editBallForm.dismissedPlayerId}
+                    onChange={e => setEditBallForm(f => ({ ...f, dismissedPlayerId: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-[10px] px-3 py-2.5 text-sm font-semibold outline-none focus:border-blue-500"
+                  >
+                    <option value="">— Select —</option>
+                    {battingXI.map(p => <option key={p.id} value={p.id}>{p.name || p.full_name}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button
+                className="flex-1 py-3 rounded-[10px] font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                disabled={editBallSaving}
+                onClick={() => setEditBallOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-1 py-3 rounded-[10px] font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                disabled={editBallSaving || !editBallForm.strikerId || !editBallForm.bowlerId || (editBallForm.wicketType !== 'NONE' && !editBallForm.dismissedPlayerId)}
+                onClick={async () => {
+                  if (!syncError?.actionId || !editFailedDelivery) return;
+                  setEditBallSaving(true);
+                  try {
+                    const res = await editFailedDelivery(syncError.actionId, {
+                      strikerId: editBallForm.strikerId || null,
+                      nonStrikerId: editBallForm.nonStrikerId || null,
+                      bowlerId: editBallForm.bowlerId || null,
+                      runsBatter: editBallForm.runsBatter,
+                      runsExtras: editBallForm.runsExtras,
+                      extraType: editBallForm.extraType,
+                      wicketType: editBallForm.wicketType,
+                      dismissedPlayerId: editBallForm.wicketType !== 'NONE' ? (editBallForm.dismissedPlayerId || null) : null,
+                    });
+                    if (res?.success) {
+                      setEditBallOpen(false);
+                      setSyncError(null);
+                    } else {
+                      alert(res?.error || 'Could not save the corrected ball.');
+                    }
+                  } finally {
+                    setEditBallSaving(false);
+                  }
+                }}
+              >
+                {editBallSaving ? 'Saving…' : 'Save & resume'}
+              </button>
+            </div>
+          </Modal>
         )}
       </div>
     </div>

@@ -76,6 +76,21 @@ export function useMatchScoring({
   const [currentBowlingTeamId, setCurrentBowlingTeamId] = useState(null);
   const [target, setTarget] = useState(null);
 
+  // Durable (per-device) log of match events that aren't physical balls —
+  // reduced-overs revisions, revised targets, etc. The deliveries table has no
+  // column for these, so rather than risk a schema/sync change we persist them
+  // locally keyed by match id and surface them on the scorecard ("Match Notes").
+  const [matchInterruptions, setMatchInterruptions] = useState([]);
+  useEffect(() => {
+    if (!activeMatchId) { setMatchInterruptions([]); return; }
+    try {
+      const raw = localStorage.getItem(`jdca-interruptions-${activeMatchId}`);
+      setMatchInterruptions(raw ? JSON.parse(raw) : []);
+    } catch {
+      setMatchInterruptions([]);
+    }
+  }, [activeMatchId]);
+
   // Hydrate Match State on refresh
   const hydrateMatchState = async (matchId) => {
     try {
@@ -1421,6 +1436,8 @@ export function useMatchScoring({
         fielder_id: payload.fielderId ?? null,
         wicketkeeper_id: payload.wicketkeeperId ?? null,
         is_legal_delivery: payload.isLegalDelivery ?? true,
+        is_overthrow: !!payload.isOverthrow,
+        runs_overthrow: payload.runsOverthrow ?? 0,
         event_type: payload.eventType === 'PENALTY'
           ? 'PENALTY'
           : (['RETIRED_HURT', 'RETIRED_OUT'].includes(payload.wicketType) ? 'RETIREMENT' : 'DELIVERY'),
@@ -1969,6 +1986,51 @@ export function useMatchScoring({
   };
 
   const applyRevisedOvers = async (revisedOvers, revisedTarget = null) => {
+    const prevOvers = totalMatchOvers || matchSetup?.totalOvers || null;
+
+    // Record this revision as a durable match event so the scorecard can show
+    // that the match was reduced (and to what / when / revised target). Stored
+    // both locally (instant, offline-safe) and in the server `match_events`
+    // table (so every device / live viewer sees it too).
+    if (activeMatchId && Number(revisedOvers) !== Number(prevOvers)) {
+      const entry = {
+        id: `int-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: 'OVERS_REVISED',
+        innings,
+        fromOvers: prevOvers,
+        toOvers: revisedOvers,
+        atOver: formatOvers(balls),
+        revisedTarget: (revisedTarget !== null && revisedTarget > 0) ? revisedTarget : null,
+        timestamp: new Date().toISOString(),
+      };
+      setMatchInterruptions(prev => {
+        const next = [...prev, entry];
+        try { localStorage.setItem(`jdca-interruptions-${activeMatchId}`, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      // Best-effort server write (same pattern as the innings update below).
+      // Failure here never blocks the overs revision — the local copy stands.
+      if (supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          await supabase.from('match_events').insert({
+            match_id: activeMatchId,
+            innings_id: currentInningsId || null,
+            innings_number: innings,
+            event_type: 'OVERS_REVISED',
+            from_overs: prevOvers,
+            to_overs: revisedOvers,
+            revised_target: (revisedTarget !== null && revisedTarget > 0) ? revisedTarget : null,
+            at_over: formatOvers(balls),
+            idempotency_key: entry.id,
+            created_by: session?.user?.id || null,
+          });
+        } catch (meErr) {
+          console.warn('[useMatchScoring] match_events insert failed (kept locally):', meErr);
+        }
+      }
+    }
+
     setMatchSetup(prev => ({ ...prev, maxOvers: revisedOvers, totalOvers: revisedOvers }));
     setTotalMatchOvers(revisedOvers);
 
@@ -2020,6 +2082,76 @@ export function useMatchScoring({
           matchStatus: newStatus
         }
       });
+    }
+  };
+
+  // Correct a single stuck/rejected ball and re-queue it for sync. Used by the
+  // "Fix this ball" recovery UI when one poisoned delivery has blocked the whole
+  // match from saving. We keep the ball's identity (idempotency key +
+  // delivery_sequence + innings) intact so nothing is duplicated or re-ordered,
+  // enforce the DB's runs_total = runs_off_bat + runs_extras invariant, patch the
+  // local caches so the on-device scorecard matches, then hand the corrected
+  // payload back to the sync queue and let it drain normally.
+  const editFailedDelivery = async (actionId, patch = {}) => {
+    try {
+      const { db } = await import('../lib/db.js');
+      const action = await db.sync_queue.get(actionId);
+      if (!action?.payload) {
+        return { success: false, error: 'Could not find that ball in the local queue.' };
+      }
+      const old = action.payload;
+
+      const runsBatter = Number(patch.runsBatter ?? old.runsBatter ?? old.runs_off_bat ?? 0) || 0;
+      const runsExtras = Number(patch.runsExtras ?? old.runsExtras ?? old.runs_extras ?? 0) || 0;
+
+      const mergedRaw = {
+        ...old,
+        ...patch,
+        // Keep the DB check constraint satisfied: runs_total must equal the sum.
+        runsBatter,
+        runsExtras,
+        runsTotal: runsBatter + runsExtras,
+        // Preserve identity + ordering so dedupe/sequence invariants hold.
+        id: old.id,
+        deliverySequence: old.deliverySequence,
+        inningsId: old.inningsId,
+        matchId: old.matchId,
+        innings: old.innings,
+        balls: old.balls,
+      };
+
+      const normalized = normalizeDelivery(mergedRaw);
+
+      // Patch the local Dexie delivery row (and blob) so the scorecard rebuilt
+      // from local data reflects the correction immediately.
+      try {
+        await db.deliveries.update(normalized.id, {
+          striker_id: normalized.strikerId ?? null,
+          non_striker_id: normalized.nonStrikerId ?? null,
+          bowler_id: normalized.bowlerId ?? null,
+          runs_off_bat: normalized.runsBatter ?? 0,
+          runs_extras: normalized.runsExtras ?? 0,
+          runs_total: normalized.runsTotal ?? 0,
+          extra_type: normalized.extraType ?? 'NONE',
+          wicket_type: normalized.wicketType ?? 'NONE',
+          dismissed_player_id: normalized.dismissedPlayerId ?? null,
+          fielder_id: normalized.fielderId ?? null,
+          wicketkeeper_id: normalized.wicketkeeperId ?? null,
+          payload_blob: normalized,
+        });
+      } catch (e) {
+        console.warn('[useMatchScoring] Could not patch local delivery during edit:', e);
+      }
+
+      // Reflect the correction in the in-session delivery log (display only).
+      setDeliveryLog((prev) => prev.map((d) => (d.id === normalized.id ? { ...d, ...normalized } : d)));
+
+      await syncService.requeueEditedAction(actionId, normalized);
+      setTimeout(() => saveMatchSnapshot(), 0);
+      return { success: true };
+    } catch (e) {
+      console.error('[useMatchScoring] editFailedDelivery failed:', e);
+      return { success: false, error: e.message || 'Could not edit the ball.' };
     }
   };
 
@@ -2084,6 +2216,8 @@ export function useMatchScoring({
     replaceStriker, replaceBatter, replaceBowler, handleRetireBatter, continueAfterOver,
     validateScoringState, recordRuns, recordExtra, recordPenaltyEvent: recordPenaltyEventAction, recordWicket, undoLastAction,
     applyRevisedOvers,
+    editFailedDelivery,
+    matchInterruptions,
     endMatchEarly,
     MATCH_STATES
   };

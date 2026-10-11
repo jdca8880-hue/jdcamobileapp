@@ -199,7 +199,11 @@ export function normalizeDelivery(rawEvent) {
     runsTotal: event.runsTotal ?? 0,
     runsCompleted: event.runsCompleted ?? 0,
     isBoundary: !!event.isBoundary,
-    
+    // Overthrow detail must survive normalization so it can be persisted
+    // (deliveries.is_overthrow / runs_overthrow) and shown cross-device.
+    isOverthrow: !!event.isOverthrow,
+    runsOverthrow: event.runsOverthrow ?? 0,
+
     extraType: event.extraType ?? 'NONE',
     wicketType: event.wicketType ?? 'NONE',
 

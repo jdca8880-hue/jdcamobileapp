@@ -211,6 +211,19 @@ export async function shareScorecardPdf(scorecard = {}, match = {}, opts = {}) {
     y += 16;
   }
 
+  // Match notes — interruptions / reduced overs (reduced match info on sheet)
+  const matchNotes = Array.isArray(scorecard?.matchNotes) ? scorecard.matchNotes : [];
+  if (matchNotes.length > 0) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...hexToRgb(BRAND.amber));
+    matchNotes.forEach((it) => {
+      const line = `Reduced — Innings ${it.innings ?? '?'}: overs ${it.fromOvers ? `${it.fromOvers} to ` : ''}${it.toOvers}`
+        + `${it.atOver ? ` (at ${it.atOver} ov)` : ''}${it.revisedTarget ? `, revised target ${it.revisedTarget}` : ''}`;
+      doc.text(line, 40, y);
+      y += 12;
+    });
+    y += 4;
+  }
+
   // Match details — tournament / venue / date / officials
   const detailRows = [
     ['Tournament', tournament],
@@ -279,6 +292,61 @@ export async function shareScorecardPdf(scorecard = {}, match = {}, opts = {}) {
       doc.text(lines, 40, y + 8);
       y += 8 + lines.length * 10 + 6;
     }
+  }
+
+  // Key Events — ball-by-ball, but ONLY when something notable happened
+  // (wicket, four, six, wide, no-ball, bye, leg-bye, overthrow). Ordinary
+  // singles / dot balls are intentionally skipped to keep the sheet readable.
+  const allBalls = Array.isArray(scorecard?.ballByBall) ? scorecard.ballByBall : [];
+  const isNotable = (d) => {
+    const r = d.runsTotal ?? 0;
+    const ex = d.extraType || 'NONE';
+    const wk = d.wicketType || 'NONE';
+    return wk !== 'NONE' || ex !== 'NONE' || r === 4 || r === 6 || !!d.isOverthrow;
+  };
+  const describeEvent = (d) => {
+    const r = d.runsTotal ?? 0;
+    const ex = d.extraType || 'NONE';
+    const wk = d.wicketType || 'NONE';
+    const bits = [];
+    if (wk !== 'NONE') {
+      bits.push(wk === 'RETIRED_HURT' ? 'Retired hurt'
+        : wk === 'RETIRED_OUT' ? 'Retired out'
+        : `WICKET (${wk.replace(/_/g, ' ')})`);
+    }
+    if (ex === 'WIDE') bits.push(`Wide${r > 1 ? ` +${r - 1}` : ''}`);
+    else if (ex === 'NO_BALL') bits.push(`No ball${r > 1 ? ` +${r - 1}` : ''}`);
+    else if (ex === 'BYE') bits.push(`${r} bye${r !== 1 ? 's' : ''}`);
+    else if (ex === 'LEG_BYE') bits.push(`${r} leg bye${r !== 1 ? 's' : ''}`);
+    else if (ex === 'PENALTY') bits.push(`Penalty +${r}`);
+    else if (r === 4) bits.push('FOUR');
+    else if (r === 6) bits.push('SIX');
+    if (d.isOverthrow) bits.push(`overthrow${d.runsOverthrow ? ` +${d.runsOverthrow}` : ''}`);
+    return bits.join(' · ') || String(r);
+  };
+
+  const notableBalls = allBalls.filter(isNotable);
+  if (notableBalls.length > 0) {
+    if (y > doc.internal.pageSize.getHeight() - 160) { doc.addPage(); y = 60; }
+    y = sectionTitle(doc, 'Key Events (ball-by-ball)', y + 8) + 6;
+    autoTable(doc, {
+      ...tableTheme(BRAND.amber),
+      startY: y,
+      head: [['Inns', 'Over', 'Event', 'Batter', 'Bowler']],
+      body: notableBalls.map((d) => [
+        d.inningsNumber ?? '—',
+        d.over || '—',
+        describeEvent(d),
+        d.striker || '—',
+        d.bowler || '—',
+      ]),
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 36 },
+        1: { halign: 'center', cellWidth: 44 },
+        2: { fontStyle: 'bold' },
+      },
+    });
+    y = doc.lastAutoTable.finalY + 10;
   }
 
   paintFooter(doc);

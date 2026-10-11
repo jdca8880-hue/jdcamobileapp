@@ -281,11 +281,20 @@ class SyncService {
           delete this.retryCounts[action.id];
           await clearAction(action.id);
         } else {
-          // If a delivery fails (even transiently), we MUST stop processing the queue for this match.
-          // Otherwise, we violate delivery order (pushing D2 before D1).
-          console.warn(`[SyncService] Halting queue for match ${matchId} due to action ${action.id} failure.`);
+          // Per-match FIFO: stop THIS match on its first failure so we never
+          // push D2 before D1 (delivery order within a match is sacred).
+          //
+          // But do NOT stop the WHOLE drain unless the device is genuinely
+          // offline. Previously any network/unknown error did `break`, which
+          // meant one stuck match sitting at the head of the global FIFO (e.g.
+          // an old match whose innings can no longer resolve) starved every
+          // newer match queued behind it forever — the real "old match blocks
+          // new match" bug. While we're online we quarantine just this match
+          // for the current pass (transientBlockedMatches) and keep draining
+          // the others; the stuck match is retried on the next pass.
+          console.warn(`[SyncService] Halting match ${matchId} for this pass due to action ${action.id} failure (online=${this.isOnline}).`);
           if (matchId) transientBlockedMatches.add(matchId);
-          if (isNetworkError) break; // Also break entirely if network is down
+          if (!this.isOnline) break; // only a truly offline device stops the whole drain
         }
       }
     } catch (unexpectedErr) {
@@ -363,6 +372,27 @@ class SyncService {
   async retryFailedAction(actionId) {
     this.blockedMatches.clear();
     await updateAction(actionId, { status: 'PENDING', error: null, failedAt: null });
+    delete this.retryCounts[actionId];
+    await this.updatePendingCount();
+    if (this.isOnline) {
+      this.processQueue();
+    }
+  }
+
+  /**
+   * Replace a stuck ball's payload with a corrected one, then resume the queue.
+   *
+   * This is the recovery path for a single poisoned delivery (e.g. a player who
+   * isn't in the server playing XI, a bad dismissal) that the DB keeps rejecting
+   * and that therefore blocks every later ball for the match (strict per-match
+   * FIFO). The caller corrects the offending fields; we keep the SAME
+   * idempotency key and delivery_sequence so ordering and dedupe are preserved,
+   * unblock the match, and re-drain. Behaves exactly like retryFailedAction
+   * otherwise — no change to the sync loop.
+   */
+  async requeueEditedAction(actionId, newPayload) {
+    this.blockedMatches.clear();
+    await updateAction(actionId, { payload: newPayload, status: 'PENDING', error: null, failedAt: null });
     delete this.retryCounts[actionId];
     await this.updatePendingCount();
     if (this.isOnline) {
@@ -498,8 +528,34 @@ class SyncService {
     }
 
     if (!inningsId) {
-      // Innings genuinely can't be resolved yet. Treat as TRANSIENT so it is
-      // retried on the next drain rather than branded a permanent failure.
+      // The innings couldn't be resolved. Distinguish a REAL dead-end from a
+      // temporary hiccup:
+      //   - match row missing (deleted) or finalized  → permanent. Retrying can
+      //     never succeed, and leaving it "network" made it loop forever at the
+      //     head of the FIFO. Quarantine it so it surfaces (clearable) and stops
+      //     starving the queue.
+      //   - anything else (transient server/innings race) → network, retry.
+      let deadEnd = false;
+      try {
+        const { data: m } = await supabase
+          .from('matches')
+          .select('status')
+          .eq('id', payload.matchId)
+          .maybeSingle();
+        if (!m || ['COMPLETED', 'FINISHED', 'CANCELLED', 'ABANDONED'].includes(m.status)) {
+          deadEnd = true;
+        }
+      } catch (_) {
+        // Couldn't even check — treat as transient (don't quarantine on a
+        // flaky network).
+      }
+
+      if (deadEnd) {
+        const deadErr = new Error(`Cannot resolve innings: match ${payload.matchId} is missing or finalized — ball cannot be saved.`);
+        deadErr.code = 'MATCH_FINALIZED'; // classified as permanent above
+        throw deadErr;
+      }
+
       const missingErr = new Error(`Innings not yet resolved for match ${payload.matchId}; will retry.`);
       missingErr.code = 'NETWORK_ERROR';
       throw missingErr;
@@ -665,6 +721,8 @@ class SyncService {
       fielder_id: fielderId,
       wicketkeeper_id: wicketkeeperId,
       wagon_zone: payload.wagonZone || null,
+      is_overthrow: !!payload.isOverthrow,
+      runs_overthrow: payload.runsOverthrow ?? 0,
       idempotency_key: payload.id, // Unique ID from frontend event
       created_by: userId,
       event_type: eventType

@@ -7,7 +7,7 @@ import { MatchStatusBadge } from '../ui/Badge';
 import { useLiveSubscription } from '../../hooks/useLiveSubscription';
 
 export default function ScorecardScreen() {
-  const { activeMatchId, matches, goBack } = useCricket();
+  const { activeMatchId, matches, goBack, deliveryLog = [], matchInterruptions = [] } = useCricket();
   const [activeInningsTab, setActiveInningsTab] = useState('1st');
   const [fullScorecard, setFullScorecard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,12 +50,75 @@ export default function ScorecardScreen() {
   }, [targetId]);
 
   const activeMatch = matches?.find((m) => m.id === targetId);
+  const isActiveMatch = targetId && targetId === activeMatchId;
+
+  // Cross-device match events (interruptions / reduced overs) from the server.
+  const [serverEvents, setServerEvents] = useState([]);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!targetId) { setServerEvents([]); return; }
+      try {
+        const { api } = await import('../../lib/api');
+        const ev = await api.getMatchEvents(targetId);
+        if (alive) setServerEvents(Array.isArray(ev) ? ev : []);
+      } catch { if (alive) setServerEvents([]); }
+    })();
+    return () => { alive = false; };
+  }, [targetId]);
+
+  // Shared label builder — works for both server ballByBall rows and the
+  // on-device live deliveryLog entries.
+  const describeBall = (d) => {
+    const runs = d.runsTotal ?? d.runs_total ?? ((d.runsBatter ?? 0) + (d.runsExtras ?? 0));
+    const extra = d.extraType ?? d.extra_type ?? 'NONE';
+    const wkt = d.wicketType ?? d.wicket_type ?? 'NONE';
+    const overthrow = d.isOverthrow ?? d.is_overthrow ?? false;
+    const parts = [];
+    if (extra === 'WIDE') parts.push(`Wd${runs > 1 ? `+${runs - 1}` : ''}`);
+    else if (extra === 'NO_BALL') parts.push(`Nb${runs > 1 ? `+${runs - 1}` : ''}`);
+    else if (extra === 'BYE') parts.push(`${runs}b`);
+    else if (extra === 'LEG_BYE') parts.push(`${runs}lb`);
+    else parts.push(String(runs));
+    if (overthrow) parts.push('OT');
+    if (wkt !== 'NONE') parts.push(wkt === 'RETIRED_HURT' || wkt === 'RETIRED_OUT' ? 'Retired' : 'W');
+    return parts.join(' · ');
+  };
+
+  // Ball-by-ball: prefer the server feed (visible on every device), filtered to
+  // the selected innings tab; fall back to the live on-device log for the
+  // active match when the server feed isn't available yet.
+  const ballEvents = React.useMemo(() => {
+    const server = fullScorecard?.ballByBall;
+    if (Array.isArray(server) && server.length > 0) {
+      const wantInnings = activeInningsTab === '1st' ? [1, 3] : [2, 4];
+      return server
+        .filter(d => wantInnings.includes(Number(d.inningsNumber)))
+        .map(d => ({ id: d.id, over: d.over || '', label: describeBall(d), isWicket: (d.wicketType || 'NONE') !== 'NONE' }))
+        .reverse();
+    }
+    if (isActiveMatch && Array.isArray(deliveryLog)) {
+      return deliveryLog
+        .filter(d => d && d.type !== 'innings_start' && d.type !== 'match_start' && !String(d.id || '').startsWith('marker-'))
+        .map(d => ({ id: d.id, over: d.over || '', label: describeBall(d), isWicket: (d.wicketType ?? d.wicket_type ?? 'NONE') !== 'NONE' }))
+        .reverse();
+    }
+    return [];
+  }, [fullScorecard, activeInningsTab, isActiveMatch, deliveryLog]);
+
+  // Match Notes: merge server events with any local-only ones (dedupe by id).
+  const interruptions = React.useMemo(() => {
+    const local = isActiveMatch && Array.isArray(matchInterruptions) ? matchInterruptions : [];
+    const byId = new Map();
+    [...serverEvents, ...local].forEach(e => { if (e && e.id) byId.set(e.id, e); });
+    return [...byId.values()];
+  }, [serverEvents, isActiveMatch, matchInterruptions]);
 
   const handleExport = async (mode) => {
     if (pdfBusy) return;
     setPdfBusy(mode);
     try {
-      await shareScorecardPdf(fullScorecard || {}, activeMatch || {}, { forceDownload: mode === 'save' });
+      await shareScorecardPdf({ ...(fullScorecard || {}), matchNotes: interruptions }, activeMatch || {}, { forceDownload: mode === 'save' });
     } catch (err) {
       console.error('Scorecard PDF failed', err);
       alert('Could not generate the scorecard PDF. Please try again.');
@@ -376,6 +439,50 @@ export default function ScorecardScreen() {
           )}
         </div>
       </div>
+
+      {/* Match Notes — interruptions / reduced overs */}
+      {interruptions.length > 0 && (
+        <div className="jdca-card bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 p-4 mt-5 text-slate-900 dark:text-[#F3F4F6]">
+          <h3 className="font-extrabold text-slate-900 dark:text-[#F3F4F6] text-sm mb-3">Match Notes</h3>
+          <div className="space-y-2">
+            {interruptions.map((it) => (
+              <div key={it.id} className="flex items-start gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-bold uppercase tracking-wider shrink-0">
+                  Reduced
+                </span>
+                <span className="text-slate-600 dark:text-[#CBD5E1] leading-relaxed">
+                  Innings {it.innings}: overs {it.fromOvers ? `reduced ${it.fromOvers} → ` : 'set to '}<strong className="text-slate-900 dark:text-[#F3F4F6]">{it.toOvers}</strong>
+                  {it.atOver ? ` (at ${it.atOver} ov)` : ''}
+                  {it.revisedTarget ? `, revised target ${it.revisedTarget}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ball-by-ball events (live, on the scoring device) */}
+      {ballEvents.length > 0 && (
+        <div className="jdca-card bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 p-4 mt-5 text-slate-900 dark:text-[#F3F4F6]">
+          <h3 className="font-extrabold text-slate-900 dark:text-[#F3F4F6] text-sm mb-3">Ball-by-Ball</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {ballEvents.map((e) => (
+              <span
+                key={e.id}
+                title={e.over ? `${e.over} ov` : ''}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-tabular font-bold border ${
+                  e.isWicket
+                    ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/30'
+                    : 'bg-slate-50 dark:bg-[#1E2226] text-slate-700 dark:text-[#CBD5E1] border-slate-200 dark:border-white/10'
+                }`}
+              >
+                {e.over && <span className="text-[10px] text-slate-400 dark:text-slate-500">{e.over}</span>}
+                {e.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1162,6 +1162,11 @@ export const api = {
             is_legal_delivery: d.isLegalDelivery ?? d.is_legal_delivery ?? true,
             extra_type: d.extraType || d.extra_type || 'NONE',
             wicket_type: d.wicketType || d.wicket_type || 'NONE',
+            is_overthrow: d.isOverthrow ?? d.is_overthrow ?? false,
+            runs_overthrow: d.runsOverthrow ?? d.runs_overthrow ?? 0,
+            over_number: d.overNumber ?? d.over_number ?? (d.balls != null ? Math.floor(d.balls / 6) : 0),
+            ball_number: d.ballNumber ?? d.ball_number ?? (d.balls != null ? (d.balls % 6) + 1 : 1),
+            delivery_sequence: d.deliverySequence ?? d.delivery_sequence ?? 0,
             event_type: d.eventType || d.event_type || (['RETIRED_HURT','RETIRED_OUT'].includes(d.wicketType || d.wicket_type) ? 'RETIREMENT' : 'DELIVERY'),
             dismissed_player_id: d.dismissedPlayerId || d.dismissed_player_id,
             is_pending: true // Marker for UI
@@ -1516,8 +1521,36 @@ export const api = {
 
     const finalResultText = matchData.result_text || matchData.result || matchData.resultText || (matchData.status === 'COMPLETED' ? 'Match Completed' : matchData.status);
 
+    // Flat ball-by-ball feed (cross-device) — ordered by innings then sequence.
+    const inningsNumById = {};
+    innings.forEach(i => { if (i?.id) inningsNumById[i.id] = i.innings_number; });
+    const ballByBall = deliveries
+      .filter(d => (d.event_type || 'DELIVERY') === 'DELIVERY' || d.event_type === 'RETIREMENT' || (d.wicket_type && d.wicket_type !== 'NONE'))
+      .slice()
+      .sort((a, b) => {
+        const ia = inningsNumById[a.innings_id] || 0;
+        const ib = inningsNumById[b.innings_id] || 0;
+        if (ia !== ib) return ia - ib;
+        return (a.delivery_sequence || 0) - (b.delivery_sequence || 0);
+      })
+      .map(d => ({
+        id: d.idempotency_key || d.id,
+        inningsNumber: inningsNumById[d.innings_id] || null,
+        over: (d.over_number != null && d.ball_number != null) ? `${d.over_number}.${d.ball_number}` : '',
+        runsTotal: d.runs_total ?? 0,
+        runsExtras: d.runs_extras ?? 0,
+        extraType: d.extra_type || 'NONE',
+        wicketType: d.wicket_type || 'NONE',
+        isOverthrow: !!d.is_overthrow,
+        runsOverthrow: d.runs_overthrow ?? 0,
+        striker: d.striker?.full_name || d.striker?.name || null,
+        bowler: d.bowler?.full_name || d.bowler?.name || null,
+        isPending: !!d.is_pending,
+      }));
+
     return {
       id: matchData.id,
+      ballByBall,
       tournament: matchData.tournament || matchData.tournament_name || matchData.tournament_id || 'JDCA Tournament',
       venue: matchData.venue_name || matchData.venue || 'JDCA Ground',
       date: matchData.date || (matchData.scheduled_at ? new Date(matchData.scheduled_at).toLocaleDateString() : 'Match Day'),
@@ -1582,6 +1615,37 @@ export const api = {
       topBowler,
       bestPartnership
     };
+  },
+
+  /**
+   * Match events (interruptions / reduced overs) for a match — the cross-device
+   * source for the scorecard "Match Notes". Returns a normalized, camelCase
+   * shape matching the local interruption entries so the UI can merge them.
+   */
+  async getMatchEvents(matchId) {
+    if (!matchId || !supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('match_events')
+        .select('*')
+        .eq('match_id', matchId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data || []).map(e => ({
+        id: e.idempotency_key || e.id,
+        type: e.event_type || 'OVERS_REVISED',
+        innings: e.innings_number ?? null,
+        fromOvers: e.from_overs ?? null,
+        toOvers: e.to_overs ?? null,
+        revisedTarget: e.revised_target ?? null,
+        atOver: e.at_over ?? null,
+        reason: e.reason ?? null,
+        timestamp: e.created_at,
+      }));
+    } catch (e) {
+      console.warn('[api] getMatchEvents failed:', e?.message || e);
+      return [];
+    }
   },
 
   /**

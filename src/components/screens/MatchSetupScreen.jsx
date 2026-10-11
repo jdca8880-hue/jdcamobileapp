@@ -174,6 +174,11 @@ export default function MatchSetupScreen() {
     setTotalMatchOvers
   } = useCricket();
 
+  // Tracks whether the scorer has manually set the overs in this wizard. Once
+  // true, the match-sync effect below must not overwrite their pick with the
+  // match row's (often stale, default) max_overs.
+  const oversTouchedRef = React.useRef(false);
+
   React.useEffect(() => {
     const activeMatch = matches.find(m => m.id === activeMatchId);
     if (activeMatch) {
@@ -184,7 +189,15 @@ export default function MatchSetupScreen() {
         const nextTeamBId = activeMatch.away_team_id || activeMatch.teamB?.id || prev.teamBId;
         const nextScorerId = activeMatch.scorer_id || prev.assignedScorerId;
         const nextScorerName = prev.scorerName || activeMatch.scorer_name || '';
-        const nextOvers = activeMatch.max_overs || prev.totalOvers || 20;
+        // Root cause of the "picked 5, got 20" bug: a scheduled match is created
+        // with a default max_overs (T20 → 20), and this effect re-ran on every
+        // `matches` refresh, unconditionally overwriting the scorer's in-wizard
+        // pick with that stale DB value. Once the scorer has touched the overs
+        // field, THEIR value is authoritative and must win; only seed from the
+        // match's max_overs while they haven't set it yet.
+        const nextOvers = oversTouchedRef.current
+          ? (prev.totalOvers || activeMatch.max_overs || 20)
+          : (activeMatch.max_overs || prev.totalOvers || 20);
         // Prefill umpires from a previously saved "A & B" umpire_name.
         const hasSetupUmpires = prev.umpires?.umpire1 || prev.umpires?.umpire2;
         const savedUmpires = String(activeMatch.umpire_name || '').split(' & ');
@@ -241,7 +254,7 @@ export default function MatchSetupScreen() {
           totalOvers: nextOvers,
         };
       });
-      if (activeMatch.max_overs && setTotalMatchOvers) {
+      if (!oversTouchedRef.current && activeMatch.max_overs && setTotalMatchOvers) {
         setTotalMatchOvers(activeMatch.max_overs);
       }
     }
@@ -762,7 +775,7 @@ export default function MatchSetupScreen() {
                   <input
                     type="number" min="1" max="50"
                     value={matchSetup.totalOvers ?? ''}
-                    onChange={e => setMatchSetup(p => ({ ...p, totalOvers: e.target.value === '' ? '' : Number(e.target.value) }))}
+                    onChange={e => { oversTouchedRef.current = true; setMatchSetup(p => ({ ...p, totalOvers: e.target.value === '' ? '' : Number(e.target.value) })); }}
                     placeholder="Enter overs (e.g. 12, 20, 50)"
                     className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6]"
                   />
@@ -771,7 +784,7 @@ export default function MatchSetupScreen() {
                       <button
                         key={o}
                         type="button"
-                        onClick={() => setMatchSetup(p => ({ ...p, totalOvers: o }))}
+                        onClick={() => { oversTouchedRef.current = true; setMatchSetup(p => ({ ...p, totalOvers: o })); }}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
                           Number(matchSetup.totalOvers) === o
                             ? 'bg-[#2457D6] text-white'
