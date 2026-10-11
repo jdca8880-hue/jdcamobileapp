@@ -44,8 +44,23 @@ export function useAuth({ setActiveMatchId }) {
         }
       };
       fetchProfiles();
+    } else if (isAuthenticated) {
+      // Non-admin (e.g. a SCORER) can't read other profiles directly, but the
+      // match-setup scorer/umpire dropdowns need the officials list. Load the
+      // slim, RLS-safe officials directory so those selects aren't empty.
+      const fetchOfficials = async () => {
+        try {
+          const officials = await api.getMatchOfficials();
+          if (Array.isArray(officials) && officials.length > 0) {
+            setRegisteredUsers(officials);
+          }
+        } catch (e) {
+          console.warn('[useAuth] Failed to load match officials directory', e);
+        }
+      };
+      fetchOfficials();
     }
-  }, [userRole]);
+  }, [userRole, isAuthenticated]);
 
   const logout = async () => {
     try {

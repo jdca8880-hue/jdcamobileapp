@@ -1913,9 +1913,26 @@ export const api = {
       .from('profiles')
       .select('*, district:district_id(name)')
       .order('created_at', { ascending: false });
-    
+
     if (error) throw error;
     return data;
+  },
+
+  // Slim officials directory (scorers + umpires + admins) readable by ANY
+  // signed-in user via a SECURITY DEFINER function — this is what fills the
+  // match-setup scorer/umpire dropdowns for non-admin scorers, who can't read
+  // other profiles directly (profiles RLS = own row only). See migration 30.
+  async getMatchOfficials() {
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc('get_match_officials');
+    if (error) throw error;
+    return (data || []).map(p => ({
+      id: p.id,
+      name: p.full_name,
+      email: p.email || 'N/A',
+      role: p.role,
+      can_score: p.can_score,
+    }));
   },
 
   async updateUserPermissions(userId, permissions) {

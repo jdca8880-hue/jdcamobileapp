@@ -15,6 +15,7 @@ import { syncService } from '../../services/SyncService';
 import InningsInitScreen from './InningsInitScreen';
 import { MatchCard } from '../ui/MatchCard';
 import MatchInterruptionModal from '../ui/MatchInterruptionModal';
+import SyncRepairModal from '../ui/SyncRepairModal';
 
 const DISMISSALS = ['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket', 'Other'];
 const QUICK_RUNS = [0, 1, 2, 3, 4, 6];
@@ -67,6 +68,7 @@ export default function ScoringScreen() {
   const [editBallOpen, setEditBallOpen] = useState(false);
   const [editBallForm, setEditBallForm] = useState(null);
   const [editBallSaving, setEditBallSaving] = useState(false);
+  const [syncRepairOpen, setSyncRepairOpen] = useState(false);
 
   const activeMatch = matches?.find(m => m.id === activeMatchId);
   const currentTotalOvers = matchSetup?.totalOvers || activeMatch?.max_overs || totalMatchOvers || 20;
@@ -686,6 +688,12 @@ export default function ScoringScreen() {
                 <div className="text-[12px] opacity-80 text-left leading-tight mt-2 w-full border-t border-amber-200/50 pt-2">
                   {syncState.pendingCount} pending {syncState.pendingCount === 1 ? 'delivery' : 'deliveries'} not saved to database. Local score may diverge.
                 </div>
+                <button
+                  onClick={() => setSyncRepairOpen(true)}
+                  className="mt-2 text-[11px] font-bold text-amber-800 underline underline-offset-2 hover:text-amber-900"
+                >
+                  Open Sync Repair
+                </button>
               </div>
             )}
 
@@ -697,6 +705,12 @@ export default function ScoringScreen() {
                 <div className="text-[12px] opacity-90 text-center leading-tight mt-1">
                   A previous delivery failed to save and requires your attention. Scoring is paused to prevent chronological errors.
                 </div>
+                <button
+                  onClick={() => setSyncRepairOpen(true)}
+                  className="mt-2 text-[11px] font-bold text-white underline underline-offset-2"
+                >
+                  Open Sync Repair
+                </button>
               </div>
             )}
 
@@ -1450,6 +1464,12 @@ export default function ScoringScreen() {
             }}
           />
         )}
+
+        <SyncRepairModal
+          isOpen={syncRepairOpen}
+          onClose={() => setSyncRepairOpen(false)}
+          matches={matches}
+        />
 
         {editBallOpen && editBallForm && (
           <Modal title="Fix this ball" onClose={() => { if (!editBallSaving) { setEditBallOpen(false); } }}>
