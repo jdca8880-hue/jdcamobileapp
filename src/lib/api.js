@@ -374,6 +374,39 @@ export const api = {
     if (type === 'TEAM') {
       await supabase.from('team_players').delete().eq('team_id', id);
     } else if (type === 'PLAYER') {
+      // A player who has actually been scored (appears in any delivery as batter,
+      // bowler, fielder or keeper) carries match history. Scorecards and stat views
+      // resolve player names by joining on players.id, so physically deleting the
+      // row would blank their name out of every past scorecard and corrupt the
+      // dismissals they were involved in. We refuse to erase such a player and keep
+      // them hidden (soft-deleted) instead. Historical matches/tournaments/scorecards
+      // are preserved untouched. To remove the player entirely, the admin must first
+      // permanently delete the matches they played in (which removes those
+      // deliveries via ON DELETE CASCADE on match_id).
+      const { data: deliveryRefs, error: deliveryErr } = await supabase
+        .from('deliveries')
+        .select('id')
+        .or(
+          `striker_id.eq.${id},non_striker_id.eq.${id},bowler_id.eq.${id},` +
+          `dismissed_player_id.eq.${id},fielder_id.eq.${id},wicketkeeper_id.eq.${id}`
+        )
+        .limit(1);
+      if (deliveryErr) throw deliveryErr;
+      if (deliveryRefs && deliveryRefs.length > 0) {
+        throw new Error(
+          "This player has recorded match scoring history, so they can't be permanently erased — it would damage the scorecards of the matches they played in. They remain hidden from all active lists. To remove them completely, permanently delete those matches first."
+        );
+      }
+
+      // No scoring history: safe to physically remove. Every table below references
+      // players(id) with ON DELETE RESTRICT, so each must be cleared before the row
+      // can be deleted. (matches.man_of_the_match_id is ON DELETE SET NULL and clears
+      // itself.) match_rosters here are only unused XI slots — the player never faced
+      // or bowled a ball in those matches, so no scorecard depends on them.
+      await supabase.from('match_rosters').delete().eq('player_id', id);
+      await supabase.from('selection_candidates').delete().eq('player_id', id);
+      await supabase.from('player_evaluations').delete().eq('player_id', id);
+      await supabase.from('selection_decisions').delete().eq('player_id', id);
       await supabase.from('team_players').delete().eq('player_id', id);
       await supabase.from('player_registrations').delete().eq('player_id', id);
     } else if (type === 'MATCH') {
@@ -1016,32 +1049,77 @@ export const api = {
   // ==========================================
 
   async getPlayerMatchStats(playerId) {
-    if (!playerId) return { batting: [], bowling: [] };
+    const empty = { batting: [], bowling: [], fielding: [] };
+    if (!playerId) return empty;
     try {
-      const [batRes, bowlRes] = await Promise.all([
-        supabase.from('v_player_match_batting').select('*, matches(scheduled_at, home_team:home_team_id(name), away_team:away_team_id(name))').eq('player_id', playerId).order('match_id'),
-        supabase.from('v_player_match_bowling').select('*, matches(scheduled_at, home_team:home_team_id(name), away_team:away_team_id(name))').eq('player_id', playerId).order('match_id')
+      const matchJoin = 'matches(scheduled_at, match_format, home_team:home_team_id(name), away_team:away_team_id(name))';
+      const [batRes, bowlRes, fieldRes] = await Promise.all([
+        supabase.from('v_player_match_batting').select(`*, ${matchJoin}`).eq('player_id', playerId),
+        supabase.from('v_player_match_bowling').select(`*, ${matchJoin}`).eq('player_id', playerId),
+        supabase.from('v_player_match_fielding').select(`*, ${matchJoin}`).eq('player_id', playerId)
       ]);
 
-      const processMatches = (data) => {
-        return (data || []).sort((a, b) => {
-          const dateA = a.matches?.scheduled_at ? new Date(a.matches.scheduled_at) : new Date(0);
-          const dateB = b.matches?.scheduled_at ? new Date(b.matches.scheduled_at) : new Date(0);
-          return dateA - dateB;
-        }).map(stat => ({
-          ...stat,
-          opponent: stat.matches?.home_team?.name || 'Unknown', // Simplification
-          date: stat.matches?.scheduled_at ? new Date(stat.matches.scheduled_at).toLocaleDateString() : 'Unknown'
-        }));
+      // Chronological order (oldest first) so charts read left-to-right in time.
+      const byDate = (a, b) => {
+        const da = a.matches?.scheduled_at ? new Date(a.matches.scheduled_at) : new Date(0);
+        const db = b.matches?.scheduled_at ? new Date(b.matches.scheduled_at) : new Date(0);
+        return da - db;
       };
+      const label = (stat) => {
+        const h = stat.matches?.home_team?.name;
+        const a = stat.matches?.away_team?.name;
+        return h && a ? `${h} v ${a}` : (h || a || 'Match');
+      };
+      const common = (stat) => ({
+        matchup: label(stat),
+        format: stat.matches?.match_format || '-',
+        date: stat.matches?.scheduled_at ? new Date(stat.matches.scheduled_at).toLocaleDateString() : 'Unknown',
+        sortTs: stat.matches?.scheduled_at ? new Date(stat.matches.scheduled_at).getTime() : 0
+      });
 
-      return {
-        batting: processMatches(batRes.data),
-        bowling: processMatches(bowlRes.data)
-      };
+      const batting = (batRes.data || []).sort(byDate).map(s => {
+        const runs = Number(s.runs_scored) || 0;
+        const balls = Number(s.balls_faced) || 0;
+        return {
+          ...s,
+          runs_scored: runs,
+          balls_faced: balls,
+          fours: Number(s.fours) || 0,
+          sixes: Number(s.sixes) || 0,
+          strike_rate: balls > 0 ? Math.round((runs / balls) * 10000) / 100 : 0,
+          not_out: Number(s.is_dismissed) === 0,
+          ...common(s)
+        };
+      });
+
+      const bowling = (bowlRes.data || []).sort(byDate).map(s => {
+        const legal = Number(s.legal_balls) || 0;
+        const conceded = Number(s.runs_conceded) || 0;
+        return {
+          ...s,
+          wickets_taken: Number(s.wickets) || 0,
+          runs_conceded: conceded,
+          legal_balls: legal,
+          maidens: Number(s.maidens) || 0,
+          overs: `${Math.floor(legal / 6)}.${legal % 6}`,
+          economy: legal > 0 ? Math.round((conceded * 6 / legal) * 100) / 100 : 0,
+          ...common(s)
+        };
+      });
+
+      const fielding = (fieldRes.data || []).sort(byDate).map(s => ({
+        ...s,
+        catches: Number(s.catches) || 0,
+        catches_behind: Number(s.catches_behind) || 0,
+        run_outs: Number(s.run_outs) || 0,
+        stumpings: Number(s.stumpings) || 0,
+        ...common(s)
+      }));
+
+      return { batting, bowling, fielding };
     } catch (e) {
       console.error('Error fetching player match stats:', e);
-      return { batting: [], bowling: [] };
+      return empty;
     }
   },
 

@@ -49,7 +49,15 @@ export default function RecycleBinTab({ userRole, userId }) {
   };
 
   const handleHardDelete = async (type, id) => {
-    if (!window.confirm("WARNING: This action is permanent and cannot be undone. Are you absolutely sure you want to permanently delete this item?")) return;
+    let message = "WARNING: This action is permanent and cannot be undone. Are you absolutely sure you want to permanently delete this item?";
+    if (type === 'PLAYER') {
+      message = "WARNING: Permanently delete this player?\n\nTheir past matches, tournaments and scorecards are historical records and will NOT be deleted — only the player is removed.\n\nIf this player has actually been scored in a match, deletion will be blocked to protect those scorecards; permanently delete those matches first.\n\nThis cannot be undone.";
+    } else if (type === 'MATCH') {
+      message = "WARNING: Permanently delete this match?\n\nThis also removes the match's rosters, innings, deliveries and scorecard. This cannot be undone.";
+    } else if (type === 'TOURNAMENT') {
+      message = "WARNING: Permanently delete this tournament?\n\nThis also removes all of its matches and their scorecards. This cannot be undone.";
+    }
+    if (!window.confirm(message)) return;
     setProcessingId(id);
     try {
       await api.hardDeleteItem(type, id);

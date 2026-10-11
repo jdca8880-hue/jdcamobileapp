@@ -291,22 +291,42 @@ export function useDataSync({ auth, ui }) {
                   team_players: p.team_players || [],
                   district, 
                   category, 
-                  career_batting: batting, 
-                  career_bowling: bowling, 
+                  career_batting: batting,
+                  career_bowling: bowling,
                   career_fielding: fielding,
-                  careerRuns: batting ? batting.career_runs : 0,
-                  wickets: bowling ? bowling.wickets : 0,
-                  battingAvg: batting ? batting.average : 0,
-                  strikeRate: batting ? batting.strike_rate : 0,
-                  matches: batting ? batting.total_matches : (bowling ? bowling.total_matches : 0),
-                  highScore: batting ? batting.highest_score : 0,
-                  fours: batting ? batting.total_fours : 0,
-                  sixes: batting ? batting.total_sixes : 0,
-                  fifties: batting ? batting.fifties : 0,
-                  hundreds: batting ? batting.hundreds : 0,
-                  economy: bowling ? bowling.economy : 0,
-                  bestBowling: null,
-                  bowlingAvg: null
+                  // --- Batting (column names must match 32_authoritative_player_stats.sql) ---
+                  careerRuns: batting ? Number(batting.career_runs) || 0 : 0,
+                  battingAvg: batting ? Number(batting.batting_average) || 0 : 0,
+                  strikeRate: batting ? Number(batting.strike_rate) || 0 : 0,
+                  matches: batting ? Number(batting.total_matches) || 0
+                           : (bowling ? Number(bowling.total_matches) || 0 : 0),
+                  inningsBatted: batting ? Number(batting.innings_batted) || 0 : 0,
+                  highScore: batting ? Number(batting.highest_score) || 0 : 0,
+                  fours: batting ? Number(batting.total_fours) || 0 : 0,
+                  sixes: batting ? Number(batting.total_sixes) || 0 : 0,
+                  fifties: batting ? Number(batting.fifties) || 0 : 0,
+                  hundreds: batting ? Number(batting.hundreds) || 0 : 0,
+                  notOuts: batting ? Number(batting.not_outs) || 0 : 0,
+                  careerBalls: batting ? Number(batting.career_balls) || 0 : 0,
+                  // --- Bowling ---
+                  wickets: bowling ? Number(bowling.wickets) || 0 : 0,
+                  economy: bowling ? Number(bowling.economy) || 0 : 0,
+                  bowlingAvg: bowling ? Number(bowling.bowling_average) || 0 : 0,
+                  bowlingStrikeRate: bowling ? Number(bowling.bowling_strike_rate) || 0 : 0,
+                  maidens: bowling ? Number(bowling.maidens) || 0 : 0,
+                  dotBalls: bowling ? Number(bowling.dot_balls) || 0 : 0,
+                  legalBalls: bowling ? Number(bowling.legal_balls) || 0 : 0,
+                  runsConceded: bowling ? Number(bowling.runs_conceded) || 0 : 0,
+                  fiveWicketHauls: bowling ? Number(bowling.five_wicket_hauls) || 0 : 0,
+                  // Best figures formatted as "W/R" (e.g. 3/24), or null if never bowled.
+                  bestBowling: (bowling && bowling.best_wickets != null)
+                    ? `${bowling.best_wickets}/${bowling.best_runs}` : null,
+                  // --- Fielding / wicketkeeping ---
+                  catches: fielding ? Number(fielding.catches) || 0 : 0,
+                  catchesBehind: fielding ? Number(fielding.catches_behind) || 0 : 0,
+                  runOuts: fielding ? Number(fielding.run_outs) || 0 : 0,
+                  stumpings: fielding ? Number(fielding.stumpings) || 0 : 0,
+                  dismissalsTaken: fielding ? Number(fielding.total_dismissals) || 0 : 0
                 };
               });
               await db.players.clear();
