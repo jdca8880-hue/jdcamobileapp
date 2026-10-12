@@ -203,6 +203,28 @@ export function CricketProvider({ children }) {
   const updatePlayer = async (id, playerData) => {
     try {
       const p = await api.updatePlayer(id, playerData);
+
+      // District + age category live on player_registrations (season data), not
+      // on the players table. Persist them separately when the edit form sent
+      // them. Best-effort: the core player fields are already saved, so a
+      // registration-side failure (e.g. no active season) must not discard the
+      // whole edit — just surface it.
+      let regDistrict = playerData.district;
+      let regCategory = playerData.category;
+      if (playerData.district !== undefined || playerData.category !== undefined) {
+        try {
+          const reg = await api.updatePlayerRegistration(id, {
+            district: playerData.district,
+            category: playerData.category,
+          });
+          if (reg?.district_name) regDistrict = reg.district_name;
+          if (reg?.age_category_name) regCategory = reg.age_category_name;
+        } catch (regErr) {
+          console.error('Failed to update player registration (district/category):', regErr);
+          alert(regErr.message || 'Player saved, but district / age category could not be updated.');
+        }
+      }
+
       const patch = {
         full_name: p.full_name,
         name: p.full_name,
@@ -218,6 +240,8 @@ export function CricketProvider({ children }) {
         bowlingStyle: p.bowling_style,
         gender: p.gender,
         phone: p.phone || '',
+        ...(regDistrict !== undefined ? { district: regDistrict } : {}),
+        ...(regCategory !== undefined ? { category: regCategory } : {}),
       };
       setPlayers((prev) => prev.map((pl) => (String(pl.id) === String(id) ? { ...pl, ...patch } : pl)));
       setSelectedPlayer((prev) => (prev && String(prev.id) === String(id) ? { ...prev, ...patch } : prev));

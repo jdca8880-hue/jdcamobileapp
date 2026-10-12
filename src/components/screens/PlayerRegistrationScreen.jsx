@@ -3,6 +3,7 @@ import { ArrowLeft, UserPlus, CheckCircle2, Shield, Calendar, MapPin, Activity, 
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
 import { useCricket } from '../../context/CricketContext';
 import { PlayerRegistrationSchema } from '../../engine/validationSchemas';
+import { api } from '../../lib/api';
 
 const JDCA_DISTRICTS = ['Jabalpur', 'Katni', 'Narsinghpur', 'Seoni', 'Mandla', 'Balaghat', 'Chhindwara', 'Dindori', 'Pandhurna'];
 const AGE_CATEGORIES = ['Senior', 'Under-22', 'Under-18', 'Under-15', 'Under-13', "Women's Senior", "Women's Under-22", "Women's Under-18"];
@@ -26,6 +27,18 @@ export default function PlayerRegistrationScreen() {
   const [phone, setPhone] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
+  // Real age categories from the DB (names like "Under 13 Boys"). Used to drive
+  // the Age Category dropdown in edit mode so the chosen value resolves to an
+  // actual age_categories row when saved.
+  const [ageCategoriesDb, setAgeCategoriesDb] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getAgeCategories()
+      .then(list => { if (!cancelled) setAgeCategoriesDb(Array.isArray(list) ? list : []); })
+      .catch(err => console.warn('[PlayerRegistration] Could not load age categories:', err));
+    return () => { cancelled = true; };
+  }, []);
 
   // Prefill the form when opened in edit mode. Handles both the snake_case
   // (fresh sync) and camelCase (just-registered) player shapes.
@@ -40,6 +53,10 @@ export default function PlayerRegistrationScreen() {
     setGender(p.gender === 'Women' ? 'Women' : 'Men');
     setAvatarUrl(p.avatar_url || p.avatar || '');
     setPhone(p.phone || '');
+    // Affiliation (season data) — now editable. Prefill from the player's
+    // current registration; fall back to the registration defaults.
+    setDistrict(p.district || p.district_name || 'Jabalpur');
+    setCategory(p.category || p.current_age_category_name || p.age_category || 'Senior');
   }, [editingPlayer]);
 
   // Leaving the screen must clear edit mode so the next open is a fresh
@@ -53,6 +70,22 @@ export default function PlayerRegistrationScreen() {
       return c.includes('Men') || c.includes('Boys') || (!c.includes('Women') && !c.includes('Girls'));
     }
   });
+
+  // Category dropdown source: in EDIT mode use the real DB age categories
+  // (filtered by gender) so the chosen value resolves to an age_categories row
+  // on save; NEW registration keeps its existing hardcoded list untouched.
+  // Always keep the player's current value selectable even if the filter hides it.
+  const dbCategoryNames = ageCategoriesDb
+    .filter(c => {
+      const g = String(c.gender || '').toLowerCase();
+      return gender === 'Women' ? g === 'women' : g === 'men';
+    })
+    .map(c => c.name)
+    .filter(Boolean);
+  let categoryOptions = (isEditing && dbCategoryNames.length > 0) ? dbCategoryNames : filteredCategories;
+  if (category && !categoryOptions.includes(category)) {
+    categoryOptions = [category, ...categoryOptions];
+  }
 
   const avatarPresets = [];
 
@@ -209,26 +242,31 @@ export default function PlayerRegistrationScreen() {
             </div>
           </div>
 
-          {/* Affiliation — season registration data; managed at registration only */}
-          {!isEditing && (
+          {/* Affiliation — season registration data (district + age category). */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">
             <h2 className="text-[12px] font-black uppercase tracking-widest text-[#596579] mb-4 flex items-center gap-1.5"><MapPin size={14} /> Affiliation</h2>
+            {isEditing && (
+              <p className="text-[11px] font-semibold text-[#8a99b0] mb-3 -mt-2">
+                Updates this player’s registration for the current season.
+              </p>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">District Unit</label>
                 <select value={district} onChange={e => setDistrict(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
+                  {/* Keep a previously-saved district selectable even if it's not in the preset list. */}
+                  {district && !JDCA_DISTRICTS.includes(district) && <option value={district}>{district}</option>}
                   {JDCA_DISTRICTS.map(d => <option key={d} value={d}>{d} District</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Age Category</label>
                 <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6] appearance-none">
-                  {filteredCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
           </div>
-          )}
 
           {/* Specialisation */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-gray-100">

@@ -312,6 +312,90 @@ export const api = {
     return data;
   },
 
+  // District + age category are season data on player_registrations (NOT on the
+  // players table — see updatePlayer). This updates the player's registration
+  // row for the active season so those two fields become editable. It is
+  // additive: registerPlayer and every other flow are untouched, and it never
+  // runs unless district/category are actually passed. `district` and
+  // `category` are names (as the form stores them) or UUIDs.
+  async updatePlayerRegistration(playerId, { district, category, season_id } = {}) {
+    if (!playerId) throw new Error('Player id is required.');
+    if (district === undefined && category === undefined) return null;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Resolve the season whose registration we edit (active season by default).
+    let seasonId = season_id || null;
+    let seasonName = null;
+    if (!seasonId) {
+      const activeSeason = await this.getActiveSeason();
+      if (!activeSeason) {
+        throw new Error('No active season is set, so district / age category cannot be saved.');
+      }
+      seasonId = activeSeason.id;
+      seasonName = activeSeason.name;
+    }
+
+    const update = {};
+    const resolved = {};
+
+    if (district !== undefined && district !== null && String(district).trim() !== '') {
+      if (uuidRegex.test(district)) {
+        update.district_id = district;
+      } else {
+        const { data: d, error: dErr } = await supabase
+          .from('districts').select('id, name').eq('name', district).maybeSingle();
+        if (dErr) throw dErr;
+        if (!d) throw new Error(`District "${district}" was not found.`);
+        update.district_id = d.id;
+        resolved.district_name = d.name;
+      }
+    }
+
+    if (category !== undefined && category !== null && String(category).trim() !== '') {
+      if (uuidRegex.test(category)) {
+        update.age_category_id = category;
+      } else {
+        // Match on full name first, then short_name (the directory stores either).
+        let { data: c, error: cErr } = await supabase
+          .from('age_categories').select('id, name, short_name').eq('name', category).maybeSingle();
+        if (cErr) throw cErr;
+        if (!c) {
+          ({ data: c } = await supabase
+            .from('age_categories').select('id, name, short_name').eq('short_name', category).maybeSingle());
+        }
+        if (!c) throw new Error(`Age category "${category}" was not found.`);
+        update.age_category_id = c.id;
+        resolved.age_category_name = c.name;
+      }
+    }
+
+    if (Object.keys(update).length === 0) return null;
+
+    const { data: existing, error: exErr } = await supabase
+      .from('player_registrations')
+      .select('id')
+      .eq('player_id', playerId)
+      .eq('season_id', seasonId)
+      .maybeSingle();
+    if (exErr) throw exErr;
+
+    if (existing) {
+      const { error } = await supabase
+        .from('player_registrations').update(update).eq('id', existing.id);
+      if (error) throw error;
+      return { registration_id: existing.id, ...update, ...resolved };
+    }
+
+    // No registration yet for this season (player predates it): create one.
+    const insertRow = { player_id: playerId, season_id: seasonId, ...update };
+    if (seasonName) insertRow.season = seasonName;
+    const { data: inserted, error: insErr } = await supabase
+      .from('player_registrations').insert(insertRow).select('id').single();
+    if (insErr) throw insErr;
+    return { registration_id: inserted.id, ...update, ...resolved };
+  },
+
   async deletePlayer(id) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase
