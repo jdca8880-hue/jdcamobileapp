@@ -198,6 +198,9 @@ export default function MatchSetupScreen() {
         const nextOvers = oversTouchedRef.current
           ? (prev.totalOvers || activeMatch.max_overs || 20)
           : (activeMatch.max_overs || prev.totalOvers || 20);
+        // Carry the match format through to the scoring engine (Test / multi-day
+        // matches are gated on this). Falls back to any format already in setup.
+        const nextFormat = activeMatch.match_format || prev.format || null;
         // Prefill umpires from a previously saved "A & B" umpire_name.
         const hasSetupUmpires = prev.umpires?.umpire1 || prev.umpires?.umpire2;
         const savedUmpires = String(activeMatch.umpire_name || '').split(' & ');
@@ -233,6 +236,7 @@ export default function MatchSetupScreen() {
           prev.umpires?.umpire1 === nextUmpires.umpire1 &&
           prev.umpires?.umpire2 === nextUmpires.umpire2 &&
           prev.totalOvers === nextOvers &&
+          prev.format === nextFormat &&
           prev.teamAXI.length === newTeamAXI.length &&
           prev.teamBXI.length === newTeamBXI.length
         ) {
@@ -252,6 +256,7 @@ export default function MatchSetupScreen() {
           scorerName: nextScorerName,
           umpires: nextUmpires,
           totalOvers: nextOvers,
+          format: nextFormat,
         };
       });
       if (!oversTouchedRef.current && activeMatch.max_overs && setTotalMatchOvers) {
@@ -773,32 +778,44 @@ export default function MatchSetupScreen() {
               )}
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Total Overs (per side)</label>
-                  <input
-                    type="number" min="1" max="50"
-                    value={matchSetup.totalOvers ?? ''}
-                    onChange={e => { oversTouchedRef.current = true; setMatchSetup(p => ({ ...p, totalOvers: e.target.value === '' ? '' : Number(e.target.value) })); }}
-                    placeholder="Enter overs (e.g. 12, 20, 50)"
-                    className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6]"
-                  />
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {[5, 10, 15, 20, 30, 40, 50].map(o => (
-                      <button
-                        key={o}
-                        type="button"
-                        onClick={() => { oversTouchedRef.current = true; setMatchSetup(p => ({ ...p, totalOvers: o })); }}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
-                          Number(matchSetup.totalOvers) === o
-                            ? 'bg-[#2457D6] text-white'
-                            : 'bg-slate-100 text-[#596579] hover:bg-slate-200'
-                        }`}
-                      >
-                        {o}
-                      </button>
-                    ))}
+                {String(matchSetup.format || '').toUpperCase() === 'TEST' ? (
+                  <div>
+                    <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Overs</label>
+                    <div className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold text-[#2457D6] border border-transparent">
+                      Unlimited — multi-day / Test match (4 innings)
+                    </div>
+                    <p className="text-[11px] font-semibold text-[#8a99b0] mt-1.5">
+                      Each innings runs until the side is all out or declares. No over limit applies.
+                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Total Overs (per side)</label>
+                    <input
+                      type="number" min="1" max="50"
+                      value={matchSetup.totalOvers ?? ''}
+                      onChange={e => { oversTouchedRef.current = true; setMatchSetup(p => ({ ...p, totalOvers: e.target.value === '' ? '' : Number(e.target.value) })); }}
+                      placeholder="Enter overs (e.g. 12, 20, 50)"
+                      className="w-full bg-slate-50 rounded-[12px] p-3 text-[14px] font-bold outline-none border border-transparent focus:border-[#2457D6]"
+                    />
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {[5, 10, 15, 20, 30, 40, 50].map(o => (
+                        <button
+                          key={o}
+                          type="button"
+                          onClick={() => { oversTouchedRef.current = true; setMatchSetup(p => ({ ...p, totalOvers: o })); }}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+                            Number(matchSetup.totalOvers) === o
+                              ? 'bg-[#2457D6] text-white'
+                              : 'bg-slate-100 text-[#596579] hover:bg-slate-200'
+                          }`}
+                        >
+                          {o}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-[#8a99b0] uppercase tracking-wider mb-1.5">Wide Penalty</label>

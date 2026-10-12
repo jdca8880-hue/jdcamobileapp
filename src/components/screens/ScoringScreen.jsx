@@ -33,7 +33,8 @@ export default function ScoringScreen() {
     startSuperOver, startSuperOverSecondInnings,
     tournaments, setActiveMatchId, isAppLoading, totalMatchOvers,
     isPaused, pauseMatch, resumeMatch, togglePauseMatch, resetScoringSession,
-    notificationsEnabled
+    notificationsEnabled,
+    isTestMatch, declareInnings, declareDraw
   } = useCricket();
 
   const haptics = useHaptics();
@@ -575,6 +576,32 @@ export default function ScoringScreen() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {isTestMatch && (
+                <>
+                  <button
+                    onClick={() => {
+                      const isFinal = Number(innings) === 4;
+                      const msg = isFinal
+                        ? 'Declare the 4th innings closed and end the match? This cannot be undone.'
+                        : `Declare the ${innings}${innings === 1 ? 'st' : innings === 2 ? 'nd' : innings === 3 ? 'rd' : 'th'} innings closed and move to the innings break? This cannot be undone.`;
+                      if (window.confirm(msg) && declareInnings) declareInnings();
+                    }}
+                    className="px-3 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-700 font-bold text-xs gap-1 hover:bg-amber-100 transition-colors"
+                    title="Declare the current innings closed"
+                  >
+                    <Trophy size={15} /> Declare
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('End this match as a DRAW? No winner will be recorded. This cannot be undone.') && declareDraw) declareDraw();
+                    }}
+                    className="px-3 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs gap-1 hover:bg-slate-200 transition-colors"
+                    title="End the match as a draw"
+                  >
+                    Draw
+                  </button>
+                </>
+              )}
               <button onClick={() => setInterruptionModalOpen(true)} className="px-3 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs gap-1 hover:bg-red-100 transition-colors"><Clock size={16} /> End/Interrupt</button>
               <button onClick={() => setShowHelp(true)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"><CircleHelp size={18} /></button>
               {isPaused ? (

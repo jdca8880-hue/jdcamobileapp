@@ -21,10 +21,20 @@ export const calculatePlayerAge = (dob, referenceDate = new Date()) => {
   return age;
 };
 
+// Sentinel "overs" value for multi-day / Test matches, which have no per-innings
+// over limit. It is deliberately huge so every `overs * 6` ball-limit and
+// `max_overs || 20` fallback across the app treats a Test innings as effectively
+// unlimited. The scoring engine still gates on match_format === 'TEST' (not on
+// this number), so Test behaviour never depends on the sentinel being present.
+export const TEST_UNLIMITED_OVERS = 9999;
+
 export const parseOversFromFormat = (fmt, fallback = 20) => {
   if (!fmt && fmt !== 0) return fallback;
   if (typeof fmt === 'number') return fmt;
   const str = String(fmt).trim();
+  // Test / multi-day matches have no over limit. Check before the generic digit
+  // scan so a format like "TEST" never falls through to the T20 fallback.
+  if (/^test/i.test(str) || /^multi/i.test(str)) return TEST_UNLIMITED_OVERS;
   const match = str.match(/(\d+)\s*(?:overs?|ov)?/i);
   if (match) return parseInt(match[1], 10);
   if (/^t20/i.test(str)) return 20;
@@ -1480,12 +1490,17 @@ export const api = {
       };
     };
 
-    const stats1 = innings.length > 0 ? computeInningsStats(innings[0].id) : { runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] };
-    const stats2 = innings.length > 1 ? computeInningsStats(innings[1].id) : { runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] };
+    const emptyInnings = () => ({ runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] });
+    const stats1 = innings.length > 0 ? computeInningsStats(innings[0].id) : emptyInnings();
+    const stats2 = innings.length > 1 ? computeInningsStats(innings[1].id) : emptyInnings();
+    // Innings 3 & 4 only exist for multi-day / Test matches (and super overs).
+    // Computed the same way; absent for ordinary two-innings matches.
+    const stats3 = innings.length > 2 ? computeInningsStats(innings[2].id) : null;
+    const stats4 = innings.length > 3 ? computeInningsStats(innings[3].id) : null;
 
-    // Find Top Performers across both innings
-    const allBatters = [...stats1.batting, ...stats2.batting].sort((a, b) => b.runs - a.runs);
-    const allBowlers = [...stats1.bowling, ...stats2.bowling].sort((a, b) => b.wickets - a.wickets || a.runs - b.runs);
+    // Find Top Performers across all innings (3rd/4th present only for Test)
+    const allBatters = [...stats1.batting, ...stats2.batting, ...(stats3?.batting || []), ...(stats4?.batting || [])].sort((a, b) => b.runs - a.runs);
+    const allBowlers = [...stats1.bowling, ...stats2.bowling, ...(stats3?.bowling || []), ...(stats4?.bowling || [])].sort((a, b) => b.wickets - a.wickets || a.runs - b.runs);
 
     const topBatter = allBatters[0] ? { name: allBatters[0].name, stat: `${allBatters[0].runs} (${allBatters[0].balls})` } : null;
     const topBowler = allBowlers[0] ? { name: allBowlers[0].name, stat: `${allBowlers[0].wickets}/${allBowlers[0].runs}` } : null;
@@ -1737,9 +1752,14 @@ export const api = {
       },
       isOfflineDexie: !isOnline || Boolean(matchData.isOfflineDexie),
       maxOvers: matchData.max_overs || null,
+      matchFormat: matchData.match_format || null,
       innings_1: stats1,
       innings_2: stats2,
-      innings: [stats1, stats2],
+      innings_3: stats3,
+      innings_4: stats4,
+      // Only expose the innings that actually exist so two-innings matches keep
+      // a length-2 array; Test matches grow to 3/4 as those innings are played.
+      innings: [stats1, stats2, ...(stats3 ? [stats3] : []), ...(stats4 ? [stats4] : [])],
       topBatter,
       topBowler,
       bestPartnership
@@ -1822,7 +1842,7 @@ export const api = {
     // 2. Fetch match to determine home/away teams
     const { data: match, error: matchErr } = await supabase
       .from('matches')
-      .select('id, home_team_id, away_team_id, max_overs, toss_winner_id, toss_decision')
+      .select('id, home_team_id, away_team_id, max_overs, match_format, toss_winner_id, toss_decision')
       .eq('id', matchId)
       .single();
 
@@ -1835,7 +1855,40 @@ export const api = {
     let battingTeamId = match.home_team_id;
     let bowlingTeamId = match.away_team_id;
 
-    if (innNum === 2) {
+    const isTestMatch = String(match.match_format || '').toUpperCase() === 'TEST';
+
+    if (isTestMatch && (innNum === 3 || innNum === 4)) {
+      // Test / multi-day fixed order: the side that batted in innings 1 bats
+      // again in innings 3; the side from innings 2 bats again in innings 4.
+      // Mirror the batting/bowling teams from the matching earlier innings so
+      // the right team always bats, independent of the toss derivation below.
+      const sourceInnings = innNum === 3 ? 1 : 2;
+      try {
+        const { data: src } = await supabase
+          .from('innings')
+          .select('batting_team_id, bowling_team_id')
+          .eq('match_id', matchId)
+          .eq('innings_number', sourceInnings)
+          .maybeSingle();
+        if (src && src.batting_team_id && src.bowling_team_id) {
+          battingTeamId = src.batting_team_id;
+          bowlingTeamId = src.bowling_team_id;
+        } else {
+          // Source innings not found: fall back to deriving innings 1 from the
+          // toss, then (for innings 4) invert it.
+          const tossWinnerBats = String(match.toss_decision || '').toUpperCase() === 'BAT';
+          const tossWinnerIsHome = match.toss_winner_id === match.home_team_id;
+          const homeBatsFirst = (tossWinnerIsHome && tossWinnerBats) || (!tossWinnerIsHome && !tossWinnerBats);
+          const inn1Bat = homeBatsFirst ? match.home_team_id : match.away_team_id;
+          const inn1Bowl = homeBatsFirst ? match.away_team_id : match.home_team_id;
+          battingTeamId = innNum === 3 ? inn1Bat : inn1Bowl;
+          bowlingTeamId = innNum === 3 ? inn1Bowl : inn1Bat;
+        }
+      } catch (e) {
+        // Keep the home/away default on an unexpected error — a later repair or
+        // the client's authoritative innings row will correct it.
+      }
+    } else if (innNum === 2) {
       // Check Innings 1 first
       try {
         const { data: inn1 } = await supabase

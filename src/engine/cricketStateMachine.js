@@ -156,9 +156,13 @@ export function processDelivery(currentState, ballInput) {
   // formats (4 in T20, 10 in ODI, 2 in T10). We only block when the bowler
   // would start a *new* over past that cap — mid-over illegal balls are OK.
   // Super overs (innings 3/4) exempted because each bowler bowls only one over.
+  // Test / multi-day matches have no per-innings over limit and no per-bowler
+  // over cap. Everything Test-specific below is gated on this flag, so limited-
+  // overs and super-over behaviour is left exactly as it was.
+  const isTest = String(currentState.format || '').toUpperCase() === 'TEST';
   const maxOversForMatch = currentState.totalMatchOvers || 0;
-  const inSuperOver = (currentState.innings || 1) >= 3;
-  if (maxOversForMatch >= 5 && !inSuperOver) {
+  const inSuperOver = (currentState.innings || 1) >= 3 && !isTest;
+  if (maxOversForMatch >= 5 && !inSuperOver && !isTest) {
     const perBowlerCap = Math.floor(maxOversForMatch / 5);
     const bowlerBalls = currentState.currentBowler.ballsBowled || 0;
     const bowlerCompletedOvers = Math.floor(bowlerBalls / 6);
@@ -215,6 +219,7 @@ export function processDelivery(currentState, ballInput) {
     isFreeHit: currentState.isFreeHit || false,
     innings: currentState.innings || 1,
     totalMatchOvers: currentState.totalMatchOvers || 20,
+    format: currentState.format || null,
     target: currentState.target || null,
     scorecard: {
       ...currentState.scorecard,
@@ -355,20 +360,29 @@ export function processDelivery(currentState, ballInput) {
   }
 
   // 10. Check Innings & Match Termination Conditions
-  const isSuperOver = state.innings === 3 || state.innings === 4;
-  const maxLegalBalls = isSuperOver ? 6 : (state.totalMatchOvers * 6);
+  // Super overs (limited-overs tie-breaker) only apply to innings 3/4 when the
+  // match is NOT a Test; for a Test, innings 3/4 are full innings.
+  const isSuperOver = (state.innings === 3 || state.innings === 4) && !isTest;
+  const maxLegalBalls = isSuperOver ? 6 : (isTest ? Infinity : (state.totalMatchOvers * 6));
   const maxWickets = isSuperOver ? 2 : 10;
   const isAllOut = state.wickets >= maxWickets;
   const isOversFinished = state.balls >= maxLegalBalls;
 
-  if (state.innings === 1 || state.innings === 3) {
-    if (isAllOut || isOversFinished) {
-      state.matchStatus = MATCH_STATES.INNINGS_BREAK;
-    }
-  } else if (state.innings === 2 || state.innings === 4) {
+  // Which innings end the match vs. go to an innings break:
+  //   - Limited overs / super over: innings 2 & 4 finish, 1 & 3 break.
+  //   - Test: only innings 4 finishes; 1, 2 & 3 go to a break.
+  const isFinalInnings = isTest ? (state.innings === 4) : (state.innings === 2 || state.innings === 4);
+
+  if (isFinalInnings) {
+    // A target only exists for the chasing innings (limited-overs innings 2/4,
+    // or the Test 4th innings). It is never set for a Test 1st/2nd/3rd innings.
     const isTargetChased = state.target && state.runs >= state.target;
     if (isTargetChased || isAllOut || isOversFinished) {
       state.matchStatus = MATCH_STATES.MATCH_FINISHED;
+    }
+  } else {
+    if (isAllOut || isOversFinished) {
+      state.matchStatus = MATCH_STATES.INNINGS_BREAK;
     }
   }
 
@@ -400,6 +414,7 @@ export function processPenaltyEvent(currentState, penaltyEvent) {
     isFreeHit: currentState.isFreeHit || false,
     innings: currentState.innings || 1,
     totalMatchOvers: currentState.totalMatchOvers || 20,
+    format: currentState.format || null,
     target: currentState.target || null,
     scorecard: {
       ...currentState.scorecard,
@@ -417,8 +432,11 @@ export function processPenaltyEvent(currentState, penaltyEvent) {
     state.runs += penaltyEvent.penaltyRuns;
     state.extras.penalty = (state.extras.penalty || 0) + penaltyEvent.penaltyRuns;
     
-    // Check if target is chased
-    if (state.innings === 2 || state.innings === 4) {
+    // Check if target is chased. Only the chasing innings can finish the match
+    // this way: limited-overs innings 2/4, or the Test 4th innings.
+    const isTestPenalty = String(state.format || '').toUpperCase() === 'TEST';
+    const isFinalInnings = isTestPenalty ? (state.innings === 4) : (state.innings === 2 || state.innings === 4);
+    if (isFinalInnings) {
       if (state.target && state.runs >= state.target) {
         state.matchStatus = MATCH_STATES.MATCH_FINISHED;
       }

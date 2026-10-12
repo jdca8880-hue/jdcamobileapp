@@ -217,6 +217,7 @@ export function useMatchScoring({
 
       const effectiveOvers = match.max_overs || 20;
       setTotalMatchOvers(effectiveOvers);
+      setMatchFormat(match.match_format || 'T20');
       setMatchSetup({
         matchId: match.id,
         teamA: match.home_team?.name || '',
@@ -228,6 +229,7 @@ export function useMatchScoring({
         tossWinnerTeamId: match.toss_winner_id,
         electedTo: String(match.toss_decision || '').toUpperCase() === 'BAT' ? 'Bat' : 'Bowl',
         totalOvers: effectiveOvers,
+        format: match.match_format || null,
         teamAXI: home_team_roster,
         teamBXI: away_team_roster
       });
@@ -243,6 +245,7 @@ export function useMatchScoring({
           tossWinnerTeamId: match.toss_winner_id,
           tossDecision: match.toss_decision,
           totalOvers: effectiveOvers,
+          format: match.match_format || null,
           teamAXI: home_team_roster,
           teamBXI: away_team_roster
         }));
@@ -415,8 +418,17 @@ export function useMatchScoring({
         // innings row) — it survives localStorage clears and travels
         // across devices. Fall back to re-deriving from scorecard runs,
         // then to localStorage.
+        const isTestFmt = String(match?.match_format || '').toUpperCase() === 'TEST';
         if (currentInning?.target_runs && Number(currentInning.target_runs) > 0) {
           setTarget(Number(currentInning.target_runs));
+        } else if (isTestFmt && currentInning?.innings_number === 4 && scorecard?.innings?.length >= 3) {
+          // Test 4th-innings target = (side A's two innings) − (side B's 2nd
+          // innings) + 1, i.e. the runs the chasing side needs to pass the
+          // opposition's aggregate. scorecard.innings already folds in any
+          // locally-pending deliveries, so no extra offline adjustment needed.
+          const sideAggregate = (scorecard.innings[0]?.runs || 0) + (scorecard.innings[2]?.runs || 0);
+          const chaserFirstInnings = scorecard.innings[1]?.runs || 0;
+          setTarget(sideAggregate - chaserFirstInnings + 1);
         } else if (scorecard && scorecard.innings) {
           let firstInningsRuns = null;
           if (currentInning.innings_number === 2 && scorecard.innings.length >= 1) {
@@ -1021,6 +1033,12 @@ export function useMatchScoring({
     }
   };
 
+  // Multi-day / Test matches: 4 full innings (fixed order A,B,A,B), no over
+  // limit, declarations allowed, result decided on the aggregate of both innings
+  // per side. Every Test-specific branch below is gated on this flag so limited-
+  // overs and super-over scoring is left byte-for-byte unchanged.
+  const isTestMatch = String(matchSetup?.format || matchFormat || '').toUpperCase() === 'TEST';
+
   // Helper to snapshot current state for deterministic Undo
   const captureSnapshot = () => {
     let battingTId = matchSetup?.teamAId;
@@ -1045,7 +1063,13 @@ export function useMatchScoring({
         }
       }
 
-      if (innings === 2 || innings === 3) {
+      // Which innings flip the batting side (relative to the toss-first side):
+      //   - Limited overs / super over: innings 2 & 3.
+      //   - Test (fixed order A,B,A,B): innings 2 & 4.
+      const swapForInnings = isTestMatch
+        ? (innings === 2 || innings === 4)
+        : (innings === 2 || innings === 3);
+      if (swapForInnings) {
         const temp = battingTId;
         battingTId = bowlingTId;
         bowlingTId = temp;
@@ -1068,6 +1092,7 @@ export function useMatchScoring({
       isFreeHit,
       innings,
       totalMatchOvers: totalMatchOvers || matchSetup?.totalOvers || 20,
+      format: matchSetup?.format || null,
       matchStatus,
       scorecard: JSON.parse(JSON.stringify(scorecard)),
       lastOverBowlerId,
@@ -1248,8 +1273,13 @@ export function useMatchScoring({
             bowlingTId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
           }
         }
-        // In innings 2, teams are swapped (the team that bowled first now bats)
-        if (newState.innings === 2 || newState.innings === 3) {
+        // Swap to the side batting in the final innings (relative to the
+        // toss-first side). Limited overs / super over flip on innings 2 & 3;
+        // a Test's final innings is the 4th, where the innings-2 side bats again.
+        const swapForFinal = isTestMatch
+          ? (newState.innings === 2 || newState.innings === 4)
+          : (newState.innings === 2 || newState.innings === 3);
+        if (swapForFinal) {
           const tmpId = battingTId;
           battingTId = bowlingTId;
           bowlingTId = tmpId;
@@ -1258,8 +1288,9 @@ export function useMatchScoring({
         const isBattingTeamA = battingTId === matchSetup?.teamAId;
         const battingName = isBattingTeamA ? teamAName : teamBName;
         const bowlingName = isBattingTeamA ? teamBName : teamAName;
-        
-        const isSuperOverFinal = (newState.innings || innings) >= 4;
+
+        // A Test 4th innings is NOT a super over, even though innings === 4.
+        const isSuperOverFinal = !isTestMatch && (newState.innings || innings) >= 4;
         const superOverSuffix = isSuperOverFinal ? ' (Super Over)' : '';
 
         if (newState.target && newState.runs >= newState.target) {
@@ -2155,6 +2186,26 @@ export function useMatchScoring({
     }
   };
 
+  // Test / multi-day: voluntarily close the current innings (a declaration).
+  // Innings 1–3 go to the innings break so the next innings can start; the 4th
+  // innings closing ends the match (finalisation runs via applyStateResult).
+  // Reuses the exact same termination path as an all-out, so nothing special
+  // happens downstream — the only difference is the scorer chose the moment.
+  const declareInnings = () => {
+    if (!isTestMatch) return;
+    if (matchStatus === MATCH_STATES.MATCH_FINISHED || matchStatus === 'COMPLETED') return;
+    const snap = captureSnapshot();
+    const isFinal = (snap.innings || innings) === 4;
+    const newStatus = isFinal ? MATCH_STATES.MATCH_FINISHED : MATCH_STATES.INNINGS_BREAK;
+    applyStateResult({ success: true, newState: { ...snap, matchStatus: newStatus } });
+  };
+
+  // Test / multi-day: end a timed-out match with no result. No winner; the
+  // scorecard and both-innings aggregates are preserved as-is.
+  const declareDraw = async () => {
+    await endMatchEarly({ winnerId: null, margin: 'Draw', resultText: 'Match drawn' });
+  };
+
   const endMatchEarly = async ({ winnerId, margin, resultText }) => {
     try {
       await api.endMatchEarly(activeMatchId, winnerId, margin, resultText);
@@ -2219,6 +2270,9 @@ export function useMatchScoring({
     editFailedDelivery,
     matchInterruptions,
     endMatchEarly,
+    isTestMatch,
+    declareInnings,
+    declareDraw,
     MATCH_STATES
   };
 }
