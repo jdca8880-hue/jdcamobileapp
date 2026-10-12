@@ -10,7 +10,20 @@ const isMissingPhoneColumn = (error) => {
   return (code === '42703' || code === 'PGRST204') && text.includes('phone');
 };
 
-export const calculatePlayerAge = (dob, referenceDate = new Date()) => {
+// Age-group eligibility (Under-13, Under-15, …) is assessed "as on 1 September",
+// the standard cricket age-cutoff date — NOT the player's current birthday age.
+// We use the most recent 1 September that has already passed, so the cutoff
+// stays constant across a single Sept→Aug playing season (e.g. any date from
+// Sep 2026 through Aug 2027 resolves to 1 Sep 2026). Without this, a player who
+// turns the boundary age between 1 September and today is wrongly flagged as
+// having exceeded the limit.
+export const ageCutoffDate = (today = new Date()) => {
+  const year = today.getFullYear();
+  const septemberFirst = new Date(year, 8, 1); // month index 8 = September
+  return today >= septemberFirst ? septemberFirst : new Date(year - 1, 8, 1);
+};
+
+export const calculatePlayerAge = (dob, referenceDate = ageCutoffDate()) => {
   if (!dob) return 99;
   const birthDate = new Date(dob);
   let age = referenceDate.getFullYear() - birthDate.getFullYear();
