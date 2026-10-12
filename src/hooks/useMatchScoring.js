@@ -15,6 +15,11 @@ import {
 } from '../engine/cricketStateMachine';
 import { INITIAL_SCORECARD, FIELD_DIRECTIONS } from '../data/constants';
 import { normalizeDelivery } from '../engine/deliveryContract.js';
+// --- Event-sourced engine (Plan B), used only for matches on the v2 flag ---
+import { isEventMatch } from '../engine/engineFlag';
+import { appendEvent, voidEventById } from '../lib/matchLog';
+import { pushOutbox, startAutoPush } from '../services/eventSync';
+import { resolveFormat, battingSideIndex } from '../engine/formats';
 
 export const INITIAL_MATCH_SETUP = {
   teamA: 'Team A',
@@ -89,6 +94,13 @@ export function useMatchScoring({
     } catch {
       setMatchInterruptions([]);
     }
+  }, [activeMatchId]);
+
+  // v2 engine only: keep the event outbox draining (reconnect / tab-focus /
+  // interval) so a ball queued while offline uploads as soon as possible —
+  // independent of the old SyncService. No-op for matches on the old engine.
+  useEffect(() => {
+    if (activeMatchId && isEventMatch(activeMatchId)) startAutoPush();
   }, [activeMatchId]);
 
   // Hydrate Match State on refresh
@@ -1502,8 +1514,26 @@ export function useMatchScoring({
         payload_blob: payload // Stash full payload for UI viewing if needed offline
       });
 
-      // 2. Queue for Sync to Supabase
-      if (!payload.inningsId) {
+      // 2. Sync to the server.
+      if (isEventMatch(activeMatchId)) {
+        // v2 engine: the durable event log + idempotent outbox is the system of
+        // record. seq is derived from the log (no RAM counter), so the
+        // SEQUENCE_CONFLICT hard-block cannot occur. The local deliveries.put
+        // above remains the on-device projection the existing UI/hydrate read.
+        // The 'innings_start' UI marker is not a ball — innings lifecycle is
+        // carried by MATCH_STARTED / INNINGS_STARTED events instead.
+        if (payload.type !== 'innings_start') {
+          const v2type = payload.eventType === 'PENALTY'
+            ? 'PENALTY'
+            : (['RETIRED_HURT', 'RETIRED_OUT'].includes(payload.wicketType) ? 'RETIREMENT' : 'DELIVERY');
+          try {
+            await appendEvent({ matchId: activeMatchId, type: v2type, inningsNumber: innings, payload, id: payload.id });
+            pushOutbox().catch(() => {});
+          } catch (evErr) {
+            console.error('[ScoringFlow:Sync] v2 appendEvent failed (kept in local deliveries):', evErr);
+          }
+        }
+      } else if (!payload.inningsId) {
         console.warn(`[ScoringFlow:Sync] Innings ID missing for match ${activeMatchId}. Queuing delivery for retry.`);
         await queueOfflineAction('RECORD_DELIVERY', payload);
       } else {
@@ -1520,7 +1550,44 @@ export function useMatchScoring({
     try { localStorage.setItem('jdca-scoring-first-run', '1'); } catch {}
   };
 
+  // v2: write the MATCH_STARTED (once) + INNINGS_STARTED lifecycle events to the
+  // durable log so the projection knows the format, the batted-first side and
+  // which team bats this innings — derived deterministically from the setup, so
+  // it never depends on a toss write that may have been lost. Idempotent (fixed
+  // ids), so re-entry on reload never duplicates.
+  const emitV2InningsStart = async (inningsNumber, targetRuns = null) => {
+    if (!activeMatchId || !isEventMatch(activeMatchId)) return;
+    const ms = matchSetup || {};
+    if (!ms.teamAId || !ms.teamBId) return;
+    const isBat = String(ms.electedTo || '').toUpperCase() === 'BAT';
+    let first, other;
+    if (ms.tossWinnerTeamId === ms.teamAId) {
+      first = isBat ? ms.teamAId : ms.teamBId; other = isBat ? ms.teamBId : ms.teamAId;
+    } else {
+      first = isBat ? ms.teamBId : ms.teamAId; other = isBat ? ms.teamAId : ms.teamBId;
+    }
+    const fmt = resolveFormat(ms.format || matchFormat);
+    try {
+      await appendEvent({
+        matchId: activeMatchId, type: 'MATCH_STARTED', id: `evt-matchstart-${activeMatchId}`,
+        payload: { format: fmt.id, battedFirstTeamId: first, otherTeamId: other },
+      });
+      const idx = battingSideIndex(fmt, inningsNumber);
+      const battingTeamId = idx === 0 ? first : other;
+      const bowlingTeamId = idx === 0 ? other : first;
+      await appendEvent({
+        matchId: activeMatchId, type: 'INNINGS_STARTED', inningsNumber,
+        id: `evt-inningsstart-${activeMatchId}-${inningsNumber}`,
+        payload: { inningsNumber, battingTeamId, bowlingTeamId, target: targetRuns || undefined },
+      });
+      pushOutbox().catch(() => {});
+    } catch (e) {
+      console.error('[useMatchScoring] v2 emitV2InningsStart failed:', e);
+    }
+  };
+
   const startInnings = () => {
+    emitV2InningsStart(innings);
     recordDeliveryEvent({
       type: 'innings_start',
       runs: 0,
@@ -1577,6 +1644,7 @@ export function useMatchScoring({
       })();
     }
     setInnings(nextInningsNum);
+    emitV2InningsStart(nextInningsNum, targetRuns); // v2: log INNINGS_STARTED (+ target)
     setCurrentInningsId(null);
     // Clear the resolved batting/bowling team so the next innings re-resolves
     // authoritatively from its own innings record (effect on [innings] change).
@@ -2012,6 +2080,14 @@ export function useMatchScoring({
         await db.deliveries.where('id').equals(undoneDelivery.id).delete();
       }
 
+      if (isEventMatch(undoneDelivery.matchId || activeMatchId)) {
+        // v2 engine: deterministic undo = void the event in the durable log.
+        // If it never reached the server the un-sent upload is simply cancelled;
+        // otherwise a VOID is propagated. No sync_queue / head-of-line logic, so
+        // an undo can never leave a match blocked or a ghost row behind.
+        await voidEventById(undoneDelivery.matchId || activeMatchId, undoneDelivery.id);
+        pushOutbox().catch(() => {});
+      } else {
       // Decide how to undo this ball's INSERT without leaving a ghost behind.
       //
       //  • A RECORD_DELIVERY still sitting in the queue as PENDING or
@@ -2063,6 +2139,7 @@ export function useMatchScoring({
         };
         await syncService.executeOrQueue('UNDO_DELIVERY', undoPayload, queueOfflineAction);
       }
+      } // end non-v2 undo path
     } catch (err) {
       console.error('[useMatchScoring] Failed to persist undo:', err);
     }
