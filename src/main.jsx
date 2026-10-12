@@ -8,6 +8,20 @@ import { initSentry, captureException } from './lib/sentry';
 // Must run before any component mounts so bootup errors are captured too.
 initSentry();
 
+// Test switch for the new event-sourced engine (Plan B). Open the app with
+// ?engine=v2 to turn it ON (persists on this device), or ?engine=off to turn it
+// OFF. Default is OFF, so normal users and existing matches are unaffected until
+// you explicitly flip it. Score a NEW match while it's on to exercise the v2 path.
+try {
+  const params = new URLSearchParams(window.location.search);
+  const e = params.get('engine');
+  if (e) {
+    import('./engine/engineFlag').then(({ setEngineV2 }) => {
+      setEngineV2(e === 'v2' || e === 'on' || e === '1');
+    });
+  }
+} catch { /* ignore */ }
+
 // Register PWA service worker and automatically force updates when a new deployment occurs
 const updateSW = registerSW({
   onNeedRefresh() {
