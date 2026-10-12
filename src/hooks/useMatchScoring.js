@@ -1985,23 +1985,50 @@ export function useMatchScoring({
         await db.deliveries.where('id').equals(undoneDelivery.id).delete();
       }
 
-      // If this ball's INSERT is still pending in the queue and nothing is
-      // currently draining it, cancel the insert instead of racing a DELETE
-      // against it (which would otherwise resurrect the ball as a ghost row).
-      let cancelledPendingInsert = false;
-      if (db.sync_queue && !syncService.syncInProgress) {
-        const pendingInserts = await db.sync_queue.where('action').equals('RECORD_DELIVERY').toArray();
-        const row = pendingInserts.find(a => a.payload?.id === undoneDelivery.id && a.status !== 'FAILED_PERMANENT');
+      // Decide how to undo this ball's INSERT without leaving a ghost behind.
+      //
+      //  • A RECORD_DELIVERY still sitting in the queue as PENDING or
+      //    FAILED_PERMANENT NEVER reached the server, so undoing it just means
+      //    dropping that queued insert — no UNDO_DELIVERY is needed (there is no
+      //    server row to delete). For a FAILED_PERMANENT row this is the fix for
+      //    the "Ball N hasn't saved" banner that kept nagging for a ball the
+      //    scorer had already undone: the stuck row was previously left in the
+      //    queue (it was explicitly excluded from cancellation), so it kept
+      //    re-firing the permanent-failure notice and kept the match blocked.
+      //  • A PENDING row may be mid-flight while a drain is running, so we must
+      //    NOT race a delete against it (that would resurrect the ball as a ghost
+      //    row). In that case we fall through to enqueue a DELETE, which the
+      //    single FIFO drainer runs only after the matching INSERT completes.
+      //  • No queued row at all => the ball already synced => enqueue a DELETE.
+      let insertNeutralized = false;
+      if (db.sync_queue) {
+        const inserts = await db.sync_queue.where('action').equals('RECORD_DELIVERY').toArray();
+        const row = inserts.find(a => a.payload?.id === undoneDelivery.id);
         if (row) {
-          await db.sync_queue.delete(row.id);
-          cancelledPendingInsert = true;
-          await syncService.updatePendingCount();
+          const isFailedPermanent = row.status === 'FAILED_PERMANENT';
+          // FAILED_PERMANENT rows are skipped by the drainer (never in flight),
+          // so they are always safe to remove. A PENDING row is only safe to
+          // remove when no drain is currently running.
+          if (isFailedPermanent || !syncService.syncInProgress) {
+            await db.sync_queue.delete(row.id);
+            insertNeutralized = true;
+            if (isFailedPermanent && undoneDelivery.matchId) {
+              // This ball was the thing blocking the match — unblock it and
+              // clear the stale failure banner pinned to this exact action.
+              syncService.blockedMatches.delete(undoneDelivery.matchId);
+              window.dispatchEvent(new CustomEvent('sync-failure-resolved', {
+                detail: { actionId: row.id, matchId: undoneDelivery.matchId }
+              }));
+            }
+            await syncService.updatePendingCount();
+          }
         }
       }
 
-      if (!cancelledPendingInsert) {
-        // Already synced (or mid-flight): enqueue a DELETE. The single FIFO
-        // queue drainer runs it only after the matching INSERT has completed.
+      if (!insertNeutralized) {
+        // Already synced (or a PENDING insert mid-flight): enqueue a DELETE. The
+        // single FIFO queue drainer runs it only after the matching INSERT has
+        // completed, so the server row is always removed cleanly.
         const undoPayload = {
           id: undoneDelivery.id,
           matchId: undoneDelivery.matchId,

@@ -106,10 +106,21 @@ export default function ScoringScreen() {
       setSyncError(e.detail);
     };
 
+    // A stuck ball can be resolved out-of-band (e.g. the scorer undoes a ball
+    // whose insert had failed permanently). Clear the banner if it's pinned to
+    // that same action so it doesn't keep nagging for a ball that's now gone.
+    const handleSyncResolved = (e) => {
+      const resolvedId = e.detail?.actionId;
+      if (!resolvedId) return;
+      setSyncError((prev) => (prev && prev.actionId === resolvedId ? null : prev));
+    };
+
     window.addEventListener('sync-permanent-failure', handleSyncError);
+    window.addEventListener('sync-failure-resolved', handleSyncResolved);
     return () => {
       unsubscribe();
       window.removeEventListener('sync-permanent-failure', handleSyncError);
+      window.removeEventListener('sync-failure-resolved', handleSyncResolved);
     };
   }, [activeMatchId]);
 
