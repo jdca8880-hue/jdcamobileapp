@@ -83,7 +83,7 @@ db.version(8).stores({
   innings: 'id, match_id, innings_number, [match_id+innings_number]',
   match_state: 'id',
   sync_queue: '++id, action, timestamp',
-  match_events: '++logSeq, &id, match_id, [match_id+inningsNumber]',
+  match_events: '++logSeq, &id, matchId, [matchId+inningsNumber]',
   event_outbox: '++id, &event_id, match_id, status, [match_id+status]'
 });
 

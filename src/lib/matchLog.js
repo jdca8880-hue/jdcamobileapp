@@ -44,7 +44,7 @@ export async function appendEvent({ matchId, type, inningsNumber = null, payload
       if (inningsNumber == null) throw new Error(`appendEvent: ${type} requires inningsNumber`);
       // Derive the next sequence from the DURABLE log (never a RAM counter).
       const existing = await db.match_events
-        .where('[match_id+inningsNumber]').equals([matchId, inningsNumber]).toArray();
+        .where('[matchId+inningsNumber]').equals([matchId, inningsNumber]).toArray();
       seq = nextSeqFromList(existing, inningsNumber);
     }
 
@@ -103,7 +103,7 @@ export async function voidEventById(matchId, eventId) {
 /** All events for a match in global append order (oldest first). */
 export async function getMatchEvents(matchId) {
   if (!matchId) return [];
-  const rows = await db.match_events.where('match_id').equals(matchId).toArray();
+  const rows = await db.match_events.where('matchId').equals(matchId).toArray();
   return rows.sort((a, b) => (a.logSeq || 0) - (b.logSeq || 0));
 }
 
