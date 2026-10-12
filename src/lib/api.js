@@ -1814,9 +1814,26 @@ export const api = {
    * Fetches or creates the Supabase innings record for a match and innings number.
    * Guarantees returning a real innings object with its valid UUID.
    */
-  async getOrCreateInnings(matchId, inningsNumber = 1) {
+  async getOrCreateInnings(matchId, inningsNumber = 1, authoritative = null) {
     if (!matchId || !supabase) return null;
     const innNum = Number(inningsNumber) || 1;
+
+    // The CLIENT is the source of truth for who bats: the scorer's opening
+    // batters are validated against the batting XI in the setup wizard, so the
+    // batting team the client computes can never disagree with the openers.
+    // The server's toss record, by contrast, is written best-effort at setup
+    // (api.persistMatchSetup, 3s timeout, failures swallowed) — on a slow/mobile
+    // network that write can be lost, leaving a stale toss that derives the
+    // OPPOSITE batting team and makes validate_delivery reject every ball
+    // ("Striker is not in the batting playing XI"). So when the client passes
+    // its authoritative batting/bowling team, we trust it over the toss.
+    let auth = (authoritative && authoritative.battingTeamId && authoritative.bowlingTeamId
+      && authoritative.battingTeamId !== authoritative.bowlingTeamId)
+      ? { battingTeamId: authoritative.battingTeamId, bowlingTeamId: authoritative.bowlingTeamId }
+      : null;
+    // Only ever swap between the SAME two teams — never let a stale/foreign id
+    // introduce a team that isn't part of this pairing.
+    const sameSet = (a, b, c, d) => (a === c && b === d) || (a === d && b === c);
 
     // 1. Check if innings already exists
     const { data: existing, error: fetchErr } = await supabase
@@ -1827,6 +1844,47 @@ export const api = {
       .maybeSingle();
 
     if (!fetchErr && existing) {
+      // If the client's authoritative batting team disagrees with the stored
+      // innings (the stale-toss bug above), correct it — but ONLY by swapping
+      // between this innings' own two teams and ONLY while no ball has been
+      // recorded yet (flipping after deliveries exist would corrupt the data).
+      if (auth && existing.batting_team_id && existing.bowling_team_id
+          && sameSet(auth.battingTeamId, auth.bowlingTeamId, existing.batting_team_id, existing.bowling_team_id)
+          && existing.batting_team_id !== auth.battingTeamId) {
+        try {
+          const { count } = await supabase
+            .from('deliveries')
+            .select('id', { count: 'exact', head: true })
+            .eq('innings_id', existing.id);
+          if (!count) {
+            await supabase.from('innings').update({
+              batting_team_id: auth.battingTeamId,
+              bowling_team_id: auth.bowlingTeamId
+            }).eq('id', existing.id);
+            existing.batting_team_id = auth.battingTeamId;
+            existing.bowling_team_id = auth.bowlingTeamId;
+            console.warn(`[api.getOrCreateInnings] Corrected innings ${existing.id} batting team to match the scorer's selection.`);
+            // Keep the stored toss_decision consistent with the corrected side
+            // so a later reload doesn't re-derive the wrong batting team.
+            if (innNum === 1) {
+              try {
+                const { data: mt } = await supabase.from('matches').select('toss_winner_id, toss_decision').eq('id', matchId).maybeSingle();
+                if (mt?.toss_winner_id) {
+                  const decision = mt.toss_winner_id === auth.battingTeamId ? 'BAT' : 'BOWL';
+                  if (String(mt.toss_decision || '').toUpperCase() !== decision) {
+                    await supabase.from('matches').update({ toss_decision: decision }).eq('id', matchId);
+                  }
+                }
+              } catch (_) {}
+            }
+          } else {
+            console.warn(`[api.getOrCreateInnings] Innings ${existing.id} batting team disagrees with client but has ${count} deliveries; leaving as-is.`);
+          }
+        } catch (corrErr) {
+          console.warn('[api.getOrCreateInnings] Could not reconcile innings batting team:', corrErr);
+        }
+      }
+
       // In innings 2, verify it doesn't match innings 1 batting team
       if (innNum === 2 && existing.batting_team_id) {
         try {
@@ -1937,6 +1995,24 @@ export const api = {
         // Fallback to home team batting first if toss not yet recorded
         battingTeamId = match.home_team_id;
         bowlingTeamId = match.away_team_id;
+      }
+    }
+
+    // The client's authoritative batting team wins over the toss derivation
+    // (see the stale-toss note at the top), as long as it names this match's
+    // own two teams — this is what prevents a lost setup toss-write from
+    // creating the innings with the wrong side batting.
+    if (auth && sameSet(auth.battingTeamId, auth.bowlingTeamId, match.home_team_id, match.away_team_id)) {
+      battingTeamId = auth.battingTeamId;
+      bowlingTeamId = auth.bowlingTeamId;
+      // Keep the stored toss_decision consistent with the side actually batting,
+      // so a later page reload (which rebuilds the setup from the match row)
+      // derives the same batting team instead of re-introducing the bug.
+      if (innNum === 1 && match.toss_winner_id) {
+        const decision = match.toss_winner_id === auth.battingTeamId ? 'BAT' : 'BOWL';
+        if (String(match.toss_decision || '').toUpperCase() !== decision) {
+          try { await supabase.from('matches').update({ toss_decision: decision }).eq('id', matchId); } catch (_) {}
+        }
       }
     }
 

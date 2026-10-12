@@ -628,12 +628,39 @@ export function useMatchScoring({
     if (!matchId) return null;
     const num = Number(inningsNum) || 1;
 
-    // 1. Check local Dexie cache first
+    // The scorer's own batting choice is authoritative over the server toss
+    // (which can be lost by a timed-out setup write, leaving the innings with
+    // the wrong side batting -> "Striker is not in the batting playing XI").
+    // Compute this innings' batting/bowling teams from the local setup so we can
+    // create — or repair — the innings with the correct side batting.
+    const authoritative = (() => {
+      const ms = matchSetup;
+      if (!ms?.teamAId || !ms?.teamBId || !ms?.tossWinnerTeamId) return null;
+      const isBat = String(ms.electedTo || '').toUpperCase() === 'BAT';
+      let batId, bowlId;
+      if (ms.tossWinnerTeamId === ms.teamAId) {
+        batId = isBat ? ms.teamAId : ms.teamBId;
+        bowlId = isBat ? ms.teamBId : ms.teamAId;
+      } else {
+        batId = isBat ? ms.teamBId : ms.teamAId;
+        bowlId = isBat ? ms.teamAId : ms.teamBId;
+      }
+      const isTest = String(ms.format || matchFormat || '').toUpperCase() === 'TEST';
+      const swap = isTest ? (num === 2 || num === 4) : (num === 2 || num === 3);
+      if (swap) { const t = batId; batId = bowlId; bowlId = t; }
+      return { battingTeamId: batId, bowlingTeamId: bowlId };
+    })();
+
+    // 1. Check local Dexie cache first — but don't trust a cached innings whose
+    //    batting team contradicts the scorer's selection (a previously mis-
+    //    created innings); fall through to the API, which reconciles it.
     try {
       const { db } = await import('../lib/db.js');
       if (db.innings) {
         const cached = await db.innings.where({ match_id: matchId, innings_number: num }).first();
-        if (cached?.id) {
+        const cacheContradicts = authoritative && cached?.batting_team_id
+          && cached.batting_team_id !== authoritative.battingTeamId;
+        if (cached?.id && !cacheContradicts) {
           setCurrentInningsId(cached.id);
           if (cached.batting_team_id) setCurrentBattingTeamId(cached.batting_team_id);
           if (cached.bowling_team_id) setCurrentBowlingTeamId(cached.bowling_team_id);
@@ -646,7 +673,7 @@ export function useMatchScoring({
 
     // 2. Fetch or create via Supabase API
     try {
-      const inn = await api.getOrCreateInnings(matchId, num);
+      const inn = await api.getOrCreateInnings(matchId, num, authoritative);
       if (inn?.id) {
         setCurrentInningsId(inn.id);
         if (inn.batting_team_id) setCurrentBattingTeamId(inn.batting_team_id);

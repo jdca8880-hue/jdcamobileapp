@@ -490,6 +490,39 @@ class SyncService {
     }
   }
 
+  /**
+   * Derive this innings' batting/bowling team ids from the locally-persisted
+   * match setup (the scorer's own choice), mirroring useMatchScoring's
+   * resolveInningsId. Used so an innings created on the sync path (offline ball)
+   * gets the correct side batting even if the server's toss write was lost.
+   * Returns null when the local setup can't tell us (caller falls back to the
+   * server's toss derivation, unchanged).
+   */
+  async computeAuthoritativeTeams(matchId, inningsNum) {
+    try {
+      const snapshot = await db.match_state.get(matchId);
+      const ms = snapshot?.matchSetup;
+      if (!ms?.teamAId || !ms?.teamBId || !ms?.tossWinnerTeamId) return null;
+      const isBat = String(ms.electedTo || '').toUpperCase() === 'BAT';
+      let batId, bowlId;
+      if (ms.tossWinnerTeamId === ms.teamAId) {
+        batId = isBat ? ms.teamAId : ms.teamBId;
+        bowlId = isBat ? ms.teamBId : ms.teamAId;
+      } else {
+        batId = isBat ? ms.teamBId : ms.teamAId;
+        bowlId = isBat ? ms.teamAId : ms.teamBId;
+      }
+      const isTest = String(ms.format || '').toUpperCase() === 'TEST';
+      const num = Number(inningsNum) || 1;
+      const swap = isTest ? (num === 2 || num === 4) : (num === 2 || num === 3);
+      if (swap) { const t = batId; batId = bowlId; bowlId = t; }
+      return { battingTeamId: batId, bowlingTeamId: bowlId };
+    } catch (e) {
+      console.warn('[SyncService] Could not compute authoritative teams from local setup:', e);
+      return null;
+    }
+  }
+
   async pushDelivery(rawPayload, context = null, action = null) {
     const payload = normalizeDelivery(rawPayload);
     if (!payload.matchId) return true; // Invalid data, skip
@@ -517,7 +550,12 @@ class SyncService {
     let inningsResolveErr = null;
     if (!inningsId && payload.matchId) {
       try {
-        const inn = await api.getOrCreateInnings(payload.matchId, inningsNum);
+        // Pass the scorer's authoritative batting team (from the local setup
+        // snapshot) so an offline-created innings gets the correct side batting,
+        // independent of whether the server's toss write survived (see
+        // api.getOrCreateInnings).
+        const authoritative = await this.computeAuthoritativeTeams(payload.matchId, inningsNum);
+        const inn = await api.getOrCreateInnings(payload.matchId, inningsNum, authoritative);
         if (inn?.id) {
           inningsId = inn.id;
           payload.inningsId = inningsId;
