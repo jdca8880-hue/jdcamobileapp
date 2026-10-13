@@ -48,6 +48,8 @@ export const FORMATS = {
     allowDeclare: true,
     allowDraw: true,
     perBowlerOverCap: false,
+    followOn: true,     // after both sides' 1st innings, scorer may enforce follow-on
+    newBallOvers: 80,   // a new ball becomes available every 80 overs in an innings
   },
   ODI: {
     id: 'ODI',

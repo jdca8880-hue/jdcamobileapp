@@ -152,6 +152,42 @@ test('Test: batting sides follow A,B,A,B and result is decided on aggregate', ()
   assert.equal(st.result.winnerTeamId, 'B'); // 36 vs 35 aggregate
 });
 
+test('Test follow-on: trailing side bats 3rd and loses by an innings', () => {
+  // A=90 (declare), B=20 (all out) -> A enforces follow-on: B bats again (3rd).
+  // B=30 (all out). B aggregate 50 < A 90 -> A wins by an innings & 40, no 4th inn.
+  const log = makeLog();
+  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'Multi-Day', battedFirstTeamId: 'A', otherTeamId: 'B' });
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' }); addRuns(log, 1, 90); log.add(EVENT_TYPES.DECLARATION, 1, {});
+  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 2, 20); log.add(EVENT_TYPES.DECLARATION, 2, {});
+  // Follow-on: innings 3 batting team is B again (the scorer's choice drives this).
+  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 3, 30); log.add(EVENT_TYPES.DECLARATION, 3, {});
+  const st = buildMatchState(log.events);
+  assert.equal(st.status, 'COMPLETED');
+  assert.equal(st.result.winnerTeamId, 'A');
+  assert.equal(st.result.margin, 'an innings and 40 runs');
+  assert.equal(st.innings.length, 3); // no 4th innings needed
+});
+
+test('Test follow-on: trailing side recovers, match goes to a 4th-innings chase', () => {
+  // A=90 (declare), B=20, follow-on B=120 -> B agg 140 > A 90 -> A must chase.
+  // A 4th-innings target = Baggregate(140) - A previous(90) + 1 = 51.
+  const log = makeLog();
+  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'Multi-Day', battedFirstTeamId: 'A', otherTeamId: 'B' });
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' }); addRuns(log, 1, 90); log.add(EVENT_TYPES.DECLARATION, 1, {});
+  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 2, 20); log.add(EVENT_TYPES.DECLARATION, 2, {});
+  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 3, 120); log.add(EVENT_TYPES.DECLARATION, 3, {});
+  let st = buildMatchState(log.events);
+  assert.equal(st.status, 'INNINGS_BREAK'); // A must bat a 4th innings
+  log.add(EVENT_TYPES.INNINGS_STARTED, 4, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  st = buildMatchState(log.events);
+  assert.equal(st.innings[3].target, 51);
+  addRuns(log, 4, 51); // A reaches the target
+  st = buildMatchState(log.events);
+  assert.equal(st.status, 'COMPLETED');
+  assert.equal(st.result.winnerTeamId, 'A');
+  assert.match(st.result.margin, /wkt/);
+});
+
 test('T20 chase: innings 2 target and win-by-runs result', () => {
   const log = makeLog();
   log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'T10', battedFirstTeamId: 'A', otherTeamId: 'B' });

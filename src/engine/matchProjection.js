@@ -86,14 +86,9 @@ function computeTarget(state, inningsNumber) {
     if (prev) return prev.runs + 1;
     return null;
   }
-  if (f.result === 'AGGREGATE') {
-    // Test: side-1 (bats innings 2 & 4) must pass side-0's aggregate (innings 1 & 3).
-    if (inningsNumber === 4) {
-      const i1 = innByNo(1), i2 = innByNo(2), i3 = innByNo(3);
-      if (i1 && i2 && i3) return (i1.runs + i3.runs) - i2.runs + 1;
-    }
-    return null;
-  }
+  // Test/multi-day targets depend on the batting ORDER (follow-on can make it
+  // A,B,B,A), so they are computed by TEAM aggregate in deriveTestOutcome, not
+  // from fixed innings positions here.
   return null;
 }
 
@@ -130,22 +125,92 @@ function computeResult(state) {
     const by = first.runs - chase.runs;
     return { winnerTeamId: defendingTeam, isDraw: false, margin: `${by} run${by === 1 ? '' : 's'}`, text: 'won by runs' };
   }
-  if (f.result === 'AGGREGATE') {
-    const i1 = innByNo(1), i2 = innByNo(2), i3 = innByNo(3), i4 = innByNo(4);
-    if (!i1 || !i2 || !i3 || !i4) return null;
-    const side0 = i1.runs + i3.runs; // batted-first side
-    const side1 = i2.runs + i4.runs; // other side
-    if (side1 > side0) {
-      const wktsLeft = maxWicketsForInnings(f, 4) - i4.wickets;
-      return { winnerTeamId: i4.battingTeamId, isDraw: false, margin: `${wktsLeft} wkt${wktsLeft === 1 ? '' : 's'}`, text: 'won by wickets' };
-    }
-    if (side0 > side1) {
-      const by = side0 - side1;
-      return { winnerTeamId: i1.battingTeamId, isDraw: false, margin: `${by} run${by === 1 ? '' : 's'}`, text: 'won by runs (innings aggregate)' };
-    }
-    return { winnerTeamId: null, isDraw: true, margin: 'Draw', text: 'Match drawn' };
-  }
+  // Test/multi-day (AGGREGATE) is handled by deriveTestOutcome (team-based).
   return null;
+}
+
+/**
+ * Test / multi-day outcome, computed by TEAM aggregate so it is correct for any
+ * batting order (normal A,B,A,B or a follow-on A,B,B,A). Returns the current
+ * innings' chase target (if any), the match status, and the result when decided.
+ *
+ * Rules encoded (per the user's spec):
+ *   - Each team bats up to 2 innings; innings end only on all-out / declaration
+ *     (unlimited overs); when one side is out, the other bats.
+ *   - The deciding "chase" is a team's 2nd innings once the opponent has used
+ *     both of theirs: target = opponentAggregate − ownPreviousRuns + 1.
+ *   - Innings victory: if a side that has batted twice still trails a side that
+ *     has batted once, that side wins "by an innings and N runs" — the match
+ *     ends without the 4th innings.
+ */
+function deriveTestOutcome(state) {
+  const order = [...state.innings].sort((a, b) => a.inningsNumber - b.inningsNumber);
+  const curr = order[order.length - 1];
+  if (!curr) return { target: null, status: state.status, result: null };
+
+  const first = state.battedFirstTeamId;
+  const other = state.otherTeamId;
+  const battingTeam = curr.battingTeamId;
+  const bowlingTeam = battingTeam === first ? other : first;
+
+  const aggOf = (team) => order.filter((i) => i.battingTeamId === team).reduce((s, i) => s + i.runs, 0);
+  const innCountOf = (team) => order.filter((i) => i.battingTeamId === team).length;
+  const prevRunsOf = (team) => order
+    .filter((i) => i.battingTeamId === team && i.inningsNumber < curr.inningsNumber)
+    .reduce((s, i) => s + i.runs, 0);
+
+  const oppDoneBatting = innCountOf(bowlingTeam) >= 2;
+  const isChase = innCountOf(battingTeam) >= 2 && oppDoneBatting;
+  const target = isChase ? aggOf(bowlingTeam) - prevRunsOf(battingTeam) + 1 : null;
+
+  const winByWkts = (inn) => {
+    const w = maxWicketsForInnings(state.format, inn.inningsNumber) - inn.wickets;
+    return { winnerTeamId: battingTeam, isDraw: false, margin: `${w} wkt${w === 1 ? '' : 's'}`, text: 'won by wickets' };
+  };
+
+  if (curr.status !== 'COMPLETE') {
+    // Live: a chase can be won mid-innings the moment the target is passed.
+    if (isChase && target != null && curr.runs >= target) return { target, status: 'COMPLETED', result: winByWkts(curr) };
+    return { target, status: state.status === 'INNINGS_BREAK' ? 'INNINGS_BREAK' : 'IN_PROGRESS', result: null };
+  }
+
+  // Current innings is complete.
+  if (isChase) {
+    const batAgg = aggOf(battingTeam);
+    const oppAgg = aggOf(bowlingTeam);
+    if (batAgg > oppAgg) return { target, status: 'COMPLETED', result: winByWkts(curr) };
+    if (oppAgg > batAgg) {
+      const by = oppAgg - batAgg;
+      return { target, status: 'COMPLETED', result: { winnerTeamId: bowlingTeam, isDraw: false, margin: `${by} run${by === 1 ? '' : 's'}`, text: 'won by runs' } };
+    }
+    return { target, status: 'COMPLETED', result: { winnerTeamId: null, isDraw: false, isTie: true, margin: 'Tie', text: 'Match tied' } };
+  }
+
+  // Innings victory: the side that just finished its 2nd innings still trails the
+  // side that has batted only once → that side wins by an innings (no 4th innings).
+  if (innCountOf(battingTeam) >= 2 && innCountOf(bowlingTeam) === 1) {
+    const batAgg = aggOf(battingTeam);
+    const oppAgg = aggOf(bowlingTeam);
+    if (oppAgg > batAgg) {
+      const by = oppAgg - batAgg;
+      return { target: null, status: 'COMPLETED', result: { winnerTeamId: bowlingTeam, isDraw: false, margin: `an innings and ${by} run${by === 1 ? '' : 's'}`, text: 'won by an innings' } };
+    }
+    // Opponent must bat its 2nd innings to chase — not decided yet.
+    return { target: null, status: 'INNINGS_BREAK', result: null };
+  }
+
+  // All four innings complete → decide on aggregate.
+  if (innCountOf(first) >= 2 && innCountOf(other) >= 2 && order.every((i) => i.status === 'COMPLETE')) {
+    const a = aggOf(first);
+    const b = aggOf(other);
+    if (a === b) return { target: null, status: 'COMPLETED', result: { winnerTeamId: null, isDraw: true, margin: 'Draw', text: 'Match drawn' } };
+    const winner = a > b ? first : other;
+    const by = Math.abs(a - b);
+    return { target: null, status: 'COMPLETED', result: { winnerTeamId: winner, isDraw: false, margin: `${by} run${by === 1 ? '' : 's'}`, text: 'won by runs (aggregate)' } };
+  }
+
+  // Otherwise an innings just closed and more innings are to come.
+  return { target: null, status: 'INNINGS_BREAK', result: null };
 }
 
 function applyDelivery(state, inn, p, pushError) {
@@ -338,13 +403,22 @@ export function buildMatchState(rawEvents, opts = {}) {
 
   // Derive match-level status/result from innings when not explicitly ended.
   if (state.status !== 'COMPLETED' && state.status !== 'ABANDONED') {
-    const current = state.currentInnings ? innByNo(state.currentInnings) : null;
-    if (current && current.status === 'COMPLETE') {
-      if (isFinalInnings(state.format, current.inningsNumber)) {
-        const result = computeResult(state);
-        if (result) { state.status = 'COMPLETED'; state.result = result; }
-      } else {
-        state.status = 'INNINGS_BREAK';
+    if (state.format.result === 'AGGREGATE') {
+      // Test / multi-day: team-aggregate, follow-on-aware, innings-victory-aware.
+      const outcome = deriveTestOutcome(state);
+      const curr = state.currentInnings ? innByNo(state.currentInnings) : null;
+      if (curr) curr.target = outcome.target;
+      if (outcome.status === 'COMPLETED') { state.status = 'COMPLETED'; state.result = outcome.result; }
+      else if (outcome.status === 'INNINGS_BREAK') state.status = 'INNINGS_BREAK';
+    } else {
+      const current = state.currentInnings ? innByNo(state.currentInnings) : null;
+      if (current && current.status === 'COMPLETE') {
+        if (isFinalInnings(state.format, current.inningsNumber)) {
+          const result = computeResult(state);
+          if (result) { state.status = 'COMPLETED'; state.result = result; }
+        } else {
+          state.status = 'INNINGS_BREAK';
+        }
       }
     }
   }
