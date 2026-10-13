@@ -6,9 +6,15 @@ import { PageHeader, TabBar } from '../ui/PageHeader';
 import { MatchStatusBadge } from '../ui/Badge';
 import { useLiveSubscription } from '../../hooks/useLiveSubscription';
 
+const ordinal = (n) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+};
+
 export default function ScorecardScreen() {
   const { activeMatchId, matches, goBack, deliveryLog = [], matchInterruptions = [] } = useCricket();
-  const [activeInningsTab, setActiveInningsTab] = useState('1st');
+  const [activeInningsKey, setActiveInningsKey] = useState(null);
   const [fullScorecard, setFullScorecard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(null); // 'save' | 'share' | null
@@ -52,6 +58,73 @@ export default function ScorecardScreen() {
   const activeMatch = matches?.find((m) => m.id === targetId);
   const isActiveMatch = targetId && targetId === activeMatchId;
 
+  const teamAName = fullScorecard?.home_team?.name || activeMatch?.home_team?.name || 'Home Team';
+  const teamBName = fullScorecard?.away_team?.name || activeMatch?.away_team?.name || 'Away Team';
+  const tournamentName = fullScorecard?.tournament || activeMatch?.tournament || 'JDCA Senior District Trophy 2026';
+  const venue = fullScorecard?.venue || activeMatch?.venue || 'Wright Town Stadium, Jabalpur';
+
+  // Parse a "R/W" score string into numbers (used by the legacy fallback).
+  const parseScore = (str) => {
+    const [r, w] = String(str || '').split('/');
+    return { runs: Number(r) || 0, wickets: Number(w) || 0 };
+  };
+
+  // One view per innings — this is what makes a 4-innings Test show all four
+  // innings (not just the first per side). Prefers the API's per-innings array
+  // (each entry carries its batting/bowling team); falls back to the legacy
+  // two-team scorecard for older/offline data that lacks the innings array.
+  const inningsViews = React.useMemo(() => {
+    const arr = Array.isArray(fullScorecard?.innings) ? fullScorecard.innings : [];
+    if (arr.length > 0) {
+      return arr.map((s, i) => ({
+        key: String(i),
+        inningsNumber: s.inningsNumber ?? (i + 1),
+        battingTeamName: s.battingTeamName || (i % 2 === 0 ? teamAName : teamBName),
+        bowlingTeamName: s.bowlingTeamName || (i % 2 === 0 ? teamBName : teamAName),
+        batting: s.batting || [],
+        bowling: s.bowling || [],
+        fallOfWickets: s.fallOfWickets || [],
+        runs: s.runs ?? 0,
+        wickets: s.wickets ?? 0,
+        extras: s.extras ?? 0,
+        overs: s.overs || '0.0',
+        target: s.target ?? null,
+      }));
+    }
+    const sc = fullScorecard?.scorecard;
+    if (sc?.home_team || sc?.away_team) {
+      const h = parseScore(sc?.home_team?.score);
+      const a = parseScore(sc?.away_team?.score);
+      return [
+        { key: '0', inningsNumber: 1, battingTeamName: teamAName, bowlingTeamName: teamBName, batting: sc?.home_team?.batting || [], bowling: sc?.home_team?.bowling || [], fallOfWickets: sc?.home_team?.fallOfWickets || [], runs: h.runs, wickets: h.wickets, extras: sc?.home_team?.extras || 0, overs: (sc?.home_team?.overs || '0.0').replace(/[()]/g, '').replace(' ov', ''), target: null },
+        { key: '1', inningsNumber: 2, battingTeamName: teamBName, bowlingTeamName: teamAName, batting: sc?.away_team?.batting || [], bowling: sc?.away_team?.bowling || [], fallOfWickets: sc?.away_team?.fallOfWickets || [], runs: a.runs, wickets: a.wickets, extras: sc?.away_team?.extras || 0, overs: (sc?.away_team?.overs || '0.0').replace(/[()]/g, '').replace(' ov', ''), target: null },
+      ].filter(v => v.batting.length > 0 || v.runs > 0 || v.inningsNumber === 1);
+    }
+    return [];
+  }, [fullScorecard, teamAName, teamBName]);
+
+  // Default the selected tab to the most recent innings when the data loads or
+  // the innings count changes (keeps a live match on the current innings).
+  React.useEffect(() => {
+    if (inningsViews.length === 0) { setActiveInningsKey(null); return; }
+    setActiveInningsKey(prev => {
+      if (prev != null && inningsViews.some(v => v.key === prev)) return prev;
+      return inningsViews[inningsViews.length - 1].key;
+    });
+  }, [inningsViews]);
+
+  const selectedInnings = inningsViews.find(v => v.key === activeInningsKey) || inningsViews[inningsViews.length - 1] || null;
+
+  // Per-team aggregate score line for the summary header (handles 1 or 2
+  // innings per team, e.g. a Test "350 & 180/4").
+  const scoreLineFor = (teamName) => {
+    const mine = inningsViews.filter(v => v.battingTeamName === teamName);
+    if (mine.length === 0) return null;
+    return mine.map(v => `${v.runs}/${v.wickets}`).join(' & ');
+  };
+  const homeScoreLine = scoreLineFor(teamAName);
+  const awayScoreLine = scoreLineFor(teamBName);
+
   // Cross-device match events (interruptions / reduced overs) from the server.
   const [serverEvents, setServerEvents] = useState([]);
   React.useEffect(() => {
@@ -86,25 +159,26 @@ export default function ScorecardScreen() {
   };
 
   // Ball-by-ball: prefer the server feed (visible on every device), filtered to
-  // the selected innings tab; fall back to the live on-device log for the
-  // active match when the server feed isn't available yet.
+  // the SELECTED innings; fall back to the live on-device log for the active
+  // match when the server feed isn't available yet.
   const ballEvents = React.useMemo(() => {
     const server = fullScorecard?.ballByBall;
+    const wantInnings = selectedInnings?.inningsNumber;
     if (Array.isArray(server) && server.length > 0) {
-      const wantInnings = activeInningsTab === '1st' ? [1, 3] : [2, 4];
       return server
-        .filter(d => wantInnings.includes(Number(d.inningsNumber)))
+        .filter(d => wantInnings == null || Number(d.inningsNumber) === Number(wantInnings))
         .map(d => ({ id: d.id, over: d.over || '', label: describeBall(d), isWicket: (d.wicketType || 'NONE') !== 'NONE' }))
         .reverse();
     }
     if (isActiveMatch && Array.isArray(deliveryLog)) {
       return deliveryLog
         .filter(d => d && d.type !== 'innings_start' && d.type !== 'match_start' && !String(d.id || '').startsWith('marker-'))
+        .filter(d => wantInnings == null || Number(d.innings || 1) === Number(wantInnings))
         .map(d => ({ id: d.id, over: d.over || '', label: describeBall(d), isWicket: (d.wicketType ?? d.wicket_type ?? 'NONE') !== 'NONE' }))
         .reverse();
     }
     return [];
-  }, [fullScorecard, activeInningsTab, isActiveMatch, deliveryLog]);
+  }, [fullScorecard, selectedInnings, isActiveMatch, deliveryLog]);
 
   // Match Notes: merge server events with any local-only ones (dedupe by id).
   const interruptions = React.useMemo(() => {
@@ -127,15 +201,10 @@ export default function ScorecardScreen() {
     }
   };
 
-  const teamAName = fullScorecard?.home_team?.name || activeMatch?.home_team?.name || 'Home Team';
-  const teamBName = fullScorecard?.away_team?.name || activeMatch?.away_team?.name || 'Away Team';
-  const tournamentName = fullScorecard?.tournament || activeMatch?.tournament || 'JDCA Senior District Trophy 2026';
-  const venue = fullScorecard?.venue || activeMatch?.venue || 'Wright Town Stadium, Jabalpur';
-
-  const inningsTabs = [
-    { id: '1st', label: `${teamAName} (1st Inn)` },
-    { id: '2nd', label: `${teamBName} (2nd Inn)` },
-  ];
+  const inningsTabs = inningsViews.map(v => ({
+    id: v.key,
+    label: `${v.battingTeamName} (${ordinal(v.inningsNumber)})`,
+  }));
 
   if (isLoading) {
     return (
@@ -146,17 +215,12 @@ export default function ScorecardScreen() {
     );
   }
 
-  // Choose stats based on tab selection
-  const tabData = activeInningsTab === '1st' 
-    ? fullScorecard?.scorecard?.home_team
-    : fullScorecard?.scorecard?.away_team;
-    
-  const currentBatting = tabData?.batting || [];
-  const currentBowling = tabData?.bowling || [];
+  const currentBatting = selectedInnings?.batting || [];
+  const currentBowling = selectedInnings?.bowling || [];
 
   return (
     <div className="fade-in-up bg-slate-50 dark:bg-[#0A0A0A] min-h-screen text-slate-900 dark:text-[#F3F4F6]" style={{ padding: '24px 20px 100px', maxWidth: 1000, margin: '0 auto' }}>
-      
+
       {/* Top Header & Actions */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -197,21 +261,17 @@ export default function ScorecardScreen() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-100 dark:border-white/10">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-[#F3F4F6]">{teamAName}</h2>
-            <div className="text-3xl font-extrabold text-[#2457D6] dark:text-[#A3E635] font-tabular mt-1">
-              {fullScorecard?.home_team?.score?.split('/')[0] || '0'}<span className="text-xl font-bold text-slate-400">/{fullScorecard?.home_team?.score?.split('/')[1] || '0'}</span>
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-              Overs: <strong className="text-slate-900 dark:text-[#F3F4F6]">{fullScorecard?.home_team?.overs?.replace('(', '')?.replace(' ov)', '') || '0.0'}</strong>
+            <div className="text-2xl sm:text-3xl font-extrabold text-[#2457D6] dark:text-[#A3E635] font-tabular mt-1 break-words">
+              {homeScoreLine || '0/0'}
             </div>
           </div>
 
           <div className="sm:text-right flex flex-col justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-800 dark:text-[#F3F4F6]">{teamBName}</h2>
-              {fullScorecard?.away_team?.score ? (
-                <div className="text-2xl font-extrabold text-[#2457D6] dark:text-[#A3E635] font-tabular mt-1">
-                  {fullScorecard.away_team.score.split('/')[0]}<span className="text-lg font-bold text-slate-400">/{fullScorecard.away_team.score.split('/')[1]}</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 ml-2 font-medium">({fullScorecard.away_team.overs?.replace('(', '')?.replace(' ov)', '') || '0.0'})</span>
+              {awayScoreLine ? (
+                <div className="text-xl sm:text-2xl font-extrabold text-[#2457D6] dark:text-[#A3E635] font-tabular mt-1 break-words">
+                  {awayScoreLine}
                 </div>
               ) : (
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Yet to bat</div>
@@ -280,16 +340,31 @@ export default function ScorecardScreen() {
         })()}
       </div>
 
-      {/* Innings Selector Tabs */}
-      <div className="mb-4">
-        <TabBar tabs={inningsTabs} active={activeInningsTab} onChange={setActiveInningsTab} />
-      </div>
+      {/* Innings Selector Tabs — one per innings (1..4) */}
+      {inningsTabs.length > 0 && (
+        <div className="mb-4 overflow-x-auto">
+          <TabBar tabs={inningsTabs} active={activeInningsKey} onChange={setActiveInningsKey} />
+        </div>
+      )}
+
+      {/* Innings total strip */}
+      {selectedInnings && (
+        <div className="mb-4 flex items-center justify-between text-sm">
+          <div className="font-bold text-slate-900 dark:text-[#F3F4F6]">
+            {selectedInnings.battingTeamName} — {ordinal(selectedInnings.inningsNumber)} innings
+          </div>
+          <div className="font-tabular font-extrabold text-[#2457D6] dark:text-[#A3E635]">
+            {selectedInnings.runs}/{selectedInnings.wickets} <span className="text-xs text-slate-400 font-medium">({selectedInnings.overs} ov)</span>
+            {selectedInnings.target ? <span className="text-xs text-slate-400 font-medium ml-2">Target {selectedInnings.target}</span> : null}
+          </div>
+        </div>
+      )}
 
       {/* Batting Scorecard Table */}
       <div className="jdca-card bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 overflow-hidden mb-5 text-slate-900 dark:text-[#F3F4F6]">
         <div className="p-3.5 bg-slate-50 dark:bg-[#1E2226] border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between">
           <h3 className="font-extrabold text-slate-900 dark:text-[#F3F4F6] text-sm">Batting Scorecard</h3>
-          <span className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">{activeInningsTab === '1st' ? teamAName : teamBName}</span>
+          <span className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">{selectedInnings?.battingTeamName || teamAName}</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -353,10 +428,10 @@ export default function ScorecardScreen() {
         <div className="p-4 bg-slate-50 dark:bg-[#1E2226] border-t border-slate-200 dark:border-white/10 text-xs flex items-center justify-between flex-wrap gap-2">
           <div>
             <span className="font-bold text-slate-800 dark:text-slate-300">Extras: </span>
-            <span className="text-slate-600 dark:text-slate-400 font-medium">{activeInningsTab === '1st' ? fullScorecard?.home_team?.extras || 0 : fullScorecard?.away_team?.extras || 0}</span>
+            <span className="text-slate-600 dark:text-slate-400 font-medium">{selectedInnings?.extras || 0}</span>
           </div>
           <div className="font-tabular font-extrabold text-sm text-slate-900 dark:text-[#F3F4F6]">
-            Total: {activeInningsTab === '1st' ? fullScorecard?.home_team?.score || '0/0' : fullScorecard?.away_team?.score || '0/0'} {activeInningsTab === '1st' ? fullScorecard?.home_team?.overs || '(0.0 ov)' : fullScorecard?.away_team?.overs || '(0.0 ov)'}
+            Total: {selectedInnings ? `${selectedInnings.runs}/${selectedInnings.wickets}` : '0/0'} ({selectedInnings?.overs || '0.0'} ov)
           </div>
         </div>
       </div>
@@ -365,7 +440,7 @@ export default function ScorecardScreen() {
       <div className="jdca-card bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 overflow-hidden mb-5 text-slate-900 dark:text-[#F3F4F6]">
         <div className="p-3.5 bg-slate-50 dark:bg-[#1E2226] border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between">
           <h3 className="font-extrabold text-slate-900 dark:text-[#F3F4F6] text-sm">Bowling Figures</h3>
-          <span className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">{activeInningsTab === '1st' ? teamBName : teamAName}</span>
+          <span className="text-xs text-slate-500 dark:text-[#94A3B8] font-medium">{selectedInnings?.bowlingTeamName || teamBName}</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -428,10 +503,10 @@ export default function ScorecardScreen() {
       <div className="jdca-card bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 p-4 text-slate-900 dark:text-[#F3F4F6]">
         <h3 className="font-extrabold text-slate-900 dark:text-[#F3F4F6] text-sm mb-2">Fall of Wickets</h3>
         <div className="text-xs text-slate-600 dark:text-[#CBD5E1] leading-relaxed font-tabular">
-          {(tabData?.fallOfWickets && tabData.fallOfWickets.length > 0) ? (
-            tabData.fallOfWickets.map((f, i) => (
+          {(selectedInnings?.fallOfWickets && selectedInnings.fallOfWickets.length > 0) ? (
+            selectedInnings.fallOfWickets.map((f, i) => (
               <span key={i}>
-                <strong className="text-slate-900 dark:text-[#F3F4F6]">{f.wicket}-{f.score}</strong> ({f.player}, {f.oversAt} ov){i < tabData.fallOfWickets.length - 1 ? ', ' : ''}
+                <strong className="text-slate-900 dark:text-[#F3F4F6]">{f.wicket}-{f.score}</strong> ({f.player}, {f.oversAt} ov){i < selectedInnings.fallOfWickets.length - 1 ? ', ' : ''}
               </span>
             ))
           ) : (
@@ -461,7 +536,7 @@ export default function ScorecardScreen() {
         </div>
       )}
 
-      {/* Ball-by-ball events (live, on the scoring device) */}
+      {/* Ball-by-ball events (for the selected innings) */}
       {ballEvents.length > 0 && (
         <div className="jdca-card bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 p-4 mt-5 text-slate-900 dark:text-[#F3F4F6]">
           <h3 className="font-extrabold text-slate-900 dark:text-[#F3F4F6] text-sm mb-3">Ball-by-Ball</h3>

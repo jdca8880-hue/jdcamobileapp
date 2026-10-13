@@ -171,27 +171,51 @@ export async function shareScorecardPdf(scorecard = {}, match = {}, opts = {}) {
 
   await paintHeader(doc, { title: 'Match Scorecard', subtitle: `${tournament}  ·  ${venue}` });
 
+  const ordinal = (num) => {
+    const s = ['th', 'st', 'nd', 'rd']; const v = num % 100;
+    return `${num}${s[(v - 20) % 10] || s[v] || s[0]}`;
+  };
+
+  // Per-innings list (1..4 for a Test) — each entry carries its batting/bowling
+  // team. Falls back to the legacy two-team scorecard when the array is absent.
+  const perInnings = (Array.isArray(scorecard?.innings) && scorecard.innings.length > 0)
+    ? scorecard.innings.map((s, i) => ({
+        inningsNumber: s.inningsNumber ?? (i + 1),
+        battingTeamName: s.battingTeamName || (i % 2 === 0 ? homeName : awayName),
+        bowlingTeamName: s.bowlingTeamName || (i % 2 === 0 ? awayName : homeName),
+        batting: s.batting || [], bowling: s.bowling || [], fallOfWickets: s.fallOfWickets || [],
+        extras: s.extras || 0, total: `${s.runs ?? 0}/${s.wickets ?? 0}`, overs: s.overs || '0.0',
+      }))
+    : [
+        { inningsNumber: 1, battingTeamName: homeName, bowlingTeamName: awayName, batting: scorecard?.scorecard?.home_team?.batting || [], bowling: scorecard?.scorecard?.home_team?.bowling || [], fallOfWickets: scorecard?.scorecard?.home_team?.fallOfWickets || [], extras: scorecard?.home_team?.extras || 0, total: scorecard?.home_team?.score || '0/0', overs: (scorecard?.home_team?.overs || '').replace(/[()]/g, '').replace(' ov', '') },
+        { inningsNumber: 2, battingTeamName: awayName, bowlingTeamName: homeName, batting: scorecard?.scorecard?.away_team?.batting || [], bowling: scorecard?.scorecard?.away_team?.bowling || [], fallOfWickets: scorecard?.scorecard?.away_team?.fallOfWickets || [], extras: scorecard?.away_team?.extras || 0, total: scorecard?.away_team?.score || '0/0', overs: (scorecard?.away_team?.overs || '').replace(/[()]/g, '').replace(' ov', '') },
+      ];
+
+  // Aggregate score line per team (e.g. a Test "350 & 180/4").
+  const teamScoreLine = (teamName, fallback) => {
+    const mine = perInnings.filter(v => v.battingTeamName === teamName && (v.batting.length > 0 || v.total !== '0/0'));
+    if (mine.length === 0) return fallback || '—';
+    return mine.map(v => v.total).join(' & ');
+  };
+
   // Summary band
   let y = 108;
   doc.setFillColor(...hexToRgb(BRAND.bg));
   doc.roundedRect(40, y, W - 80, 58, 6, 6, 'F');
   const col = (W - 80) / 2;
-  const drawTeamScore = (name, score, overs, x, align) => {
+  // Draw team name + aggregate score. Measure the score width AT THE SIZE IT IS
+  // RENDERED (16pt) before switching to the small overs font — otherwise the
+  // overs text is positioned using an 8.5pt measurement and overlaps the score.
+  const drawTeamScore = (name, score, x, align) => {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...hexToRgb(BRAND.navy));
-    doc.text(name, x, y + 24, { align });
-    doc.setFontSize(16); doc.setTextColor(...hexToRgb(BRAND.blue));
-    doc.text(score || '—', x, y + 46, { align });
-    if (overs) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...hexToRgb(BRAND.grey));
-      const sw = doc.getTextWidth(score || '—');
-      doc.text(`  ${overs}`, align === 'right' ? x - sw - 4 : x + sw + 6, y + 46, { align: align === 'right' ? 'right' : 'left' });
-    }
+    doc.text(name, x, y + 24, { align, maxWidth: col - 30 });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...hexToRgb(BRAND.blue));
+    doc.text(score || '—', x, y + 46, { align, maxWidth: col - 30 });
   };
-  const cleanOvers = (o) => (o || '').replace('(', '').replace(' ov)', '').replace(')', '');
-  drawTeamScore(homeName, scorecard?.home_team?.score, cleanOvers(scorecard?.home_team?.overs), 56, 'left');
+  drawTeamScore(homeName, teamScoreLine(homeName, scorecard?.home_team?.score), 56, 'left');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...hexToRgb(BRAND.grey));
   doc.text('VS', 40 + col + 0, y + 36, { align: 'center' });
-  drawTeamScore(awayName, scorecard?.away_team?.score, cleanOvers(scorecard?.away_team?.overs), W - 56, 'right');
+  drawTeamScore(awayName, teamScoreLine(awayName, scorecard?.away_team?.score), W - 56, 'right');
   y += 58 + 14;
 
   // Result banner
@@ -242,22 +266,17 @@ export async function shareScorecardPdf(scorecard = {}, match = {}, opts = {}) {
   });
   y = doc.lastAutoTable.finalY + 10;
 
-  // Both innings — full scoresheet for each team (never a single-team toggle)
-  const innings = [
-    { label: `${homeName} — Innings`, data: scorecard?.scorecard?.home_team, bowlLabel: awayName },
-    { label: `${awayName} — Innings`, data: scorecard?.scorecard?.away_team, bowlLabel: homeName },
-  ];
-
-  for (const inn of innings) {
-    if (!inn.data || ((inn.data.batting || []).length === 0 && (inn.data.bowling || []).length === 0)) continue;
+  // Every innings — full scoresheet (1..4 for a Test; the normal 2 otherwise).
+  for (const inn of perInnings) {
+    if ((inn.batting || []).length === 0 && (inn.bowling || []).length === 0) continue;
     if (y > doc.internal.pageSize.getHeight() - 200) { doc.addPage(); y = 60; }
 
-    y = sectionTitle(doc, inn.label, y + 8) + 6;
+    y = sectionTitle(doc, `${inn.battingTeamName} — ${ordinal(inn.inningsNumber)} Innings`, y + 8) + 6;
     autoTable(doc, {
       ...tableTheme(),
       startY: y,
       head: [['Batter', 'Dismissal', 'R', 'B', '4s', '6s', 'SR']],
-      body: (inn.data.batting || []).map((b) => [
+      body: (inn.batting || []).map((b) => [
         b.name || '—', b.dismissal || 'not out',
         n(b.runs), n(b.balls), n(b.fours), n(b.sixes), b.strikeRate ?? '0.0',
       ]),
@@ -265,26 +284,24 @@ export async function shareScorecardPdf(scorecard = {}, match = {}, opts = {}) {
     });
     y = doc.lastAutoTable.finalY + 4;
 
-    const extras = inn.data === scorecard?.scorecard?.home_team ? scorecard?.home_team?.extras : scorecard?.away_team?.extras;
-    const totalScore = inn.data === scorecard?.scorecard?.home_team ? scorecard?.home_team?.score : scorecard?.away_team?.score;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...hexToRgb(BRAND.grey));
-    doc.text(`Extras: ${n(extras)}`, 40, y + 11);
+    doc.text(`Extras: ${n(inn.extras)}`, 40, y + 11);
     doc.setFont('helvetica', 'bold'); doc.setTextColor(...hexToRgb(BRAND.navy));
-    doc.text(`Total: ${totalScore || '0/0'}`, W - 40, y + 11, { align: 'right' });
+    doc.text(`Total: ${inn.total || '0/0'}  (${inn.overs} ov)`, W - 40, y + 11, { align: 'right' });
     y += 22;
 
     autoTable(doc, {
       ...tableTheme(BRAND.blue),
       startY: y,
       head: [['Bowler', 'O', 'M', 'R', 'W', 'Econ', 'WD', 'NB']],
-      body: (inn.data.bowling || []).map((bo) => [
+      body: (inn.bowling || []).map((bo) => [
         bo.name || '—', bo.overs ?? '0', n(bo.maidens), n(bo.runs), n(bo.wickets), bo.economy ?? '0.00', n(bo.wides), n(bo.noBalls),
       ]),
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } },
     });
     y = doc.lastAutoTable.finalY + 6;
 
-    const fow = inn.data.fallOfWickets || [];
+    const fow = inn.fallOfWickets || [];
     if (fow.length) {
       const txt = 'Fall of wickets: ' + fow.map((f) => `${f.wicket}-${f.score} (${f.player}, ${f.oversAt} ov)`).join(', ');
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...hexToRgb(BRAND.grey));

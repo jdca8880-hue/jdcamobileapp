@@ -3,6 +3,9 @@ import { Trophy, ArrowRight, Newspaper, ShieldCheck, Lock, CheckCircle2, Trash2,
 import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
 import { syncService } from '../../services/SyncService';
+import { pushOutbox } from '../../services/eventSync';
+import { getPendingOutbox } from '../../lib/matchLog';
+import { isEventMatch } from '../../engine/engineFlag';
 import MatchScorecard from '../ui/MatchScorecard';
 import MatchMediaReport from '../ui/MatchMediaReport';
 import { calculateMatchHighlights } from '../../engine/matchSummaryEngine';
@@ -186,7 +189,48 @@ export default function MatchResultScreen() {
     }
   };
 
+  // Drain the v2 durable-event outbox for this match to empty (or until offline /
+  // a few attempts). Returns how many events are still unsynced. This MUST run
+  // before the match is finalized: once status flips to COMPLETED the server RLS
+  // rejects any further append, which would otherwise quarantine + block the
+  // whole match's event queue. Flushing while the match is still live lets every
+  // event land cleanly.
+  const flushEventOutbox = async (matchId) => {
+    if (!matchId || !isEventMatch(matchId)) return 0;
+    const online = typeof navigator === 'undefined' ? true : navigator.onLine;
+    if (!online) {
+      const pend = await getPendingOutbox(matchId);
+      return pend.length;
+    }
+    for (let i = 0; i < 8; i++) {
+      const pend = await getPendingOutbox(matchId);
+      if (pend.length === 0) return 0;
+      await pushOutbox();
+      await new Promise(r => setTimeout(r, 400));
+    }
+    const left = await getPendingOutbox(matchId);
+    return left.length;
+  };
+
   const handleFinalEndAndLock = async () => {
+    // v2 / Test matches keep their pending events in the durable event outbox,
+    // NOT the old SyncService queue, so flush that first — otherwise we lock the
+    // match while events are still queued and block the queue (the Test
+    // "sync queue got blocked" bug).
+    if (matchData?.id && isEventMatch(matchData.id)) {
+      setIsLocking(true);
+      setSyncStatus({ isSyncing: true, pendingCount: 0, initialCount: 0 });
+      const left = await flushEventOutbox(matchData.id);
+      setSyncStatus({ isSyncing: false, pendingCount: left, initialCount: 0 });
+      setIsLocking(false);
+      if (left > 0) {
+        const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+        if (!window.confirm(`${left} scoring event(s) haven't synced yet${offline ? ' (you are offline)' : ''}. Lock the match anyway? They will sync automatically when possible.`)) {
+          return;
+        }
+      }
+    }
+
     if (syncService.pendingCount > 0) {
       if (!window.confirm(`There are still ${syncService.pendingCount} deliveries waiting to sync. Do you want to sync them now before locking the match?`)) {
         return;

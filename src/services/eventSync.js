@@ -56,6 +56,24 @@ function fromServerRow(r) {
   };
 }
 
+// Is this match already finalized on the server? A finalized match (COMPLETED /
+// ABANDONED / CANCELLED) rejects every further append via RLS (42501), which the
+// classifier calls PERMANENT. But those residual events are HARMLESS to drop:
+// the authoritative result is already set and the durable log already holds them
+// locally. So rather than quarantine-and-block the whole match's drain, we drop
+// them. Cached per drain pass to avoid a query per event.
+const _finalizedCache = new Map();
+async function isMatchFinalized(matchId) {
+  if (_finalizedCache.has(matchId)) return _finalizedCache.get(matchId);
+  let finalized = false;
+  try {
+    const { data } = await supabase.from('matches').select('status').eq('id', matchId).maybeSingle();
+    finalized = ['COMPLETED', 'ABANDONED', 'CANCELLED'].includes(data?.status);
+  } catch { /* network — assume not finalized, let normal retry handle it */ }
+  _finalizedCache.set(matchId, finalized);
+  return finalized;
+}
+
 // Merge one server event into the local durable log (idempotent by id).
 async function mergeIntoLog(ev) {
   const existing = await db.match_events.where('id').equals(ev.id).first();
@@ -128,6 +146,21 @@ async function pushOne(obRow, uid) {
 export async function pushOutbox() {
   if (!supabase || !isOnline()) return { pushed: 0, paused: false };
   const uid = await uploaderId();
+
+  // Self-heal: clear any events quarantined (FAILED_PERMANENT) against a match
+  // that is now finalized — those are harmless late appends the server rightly
+  // refuses, and leaving them keeps surfacing a "didn't sync" state for a match
+  // that is actually complete. Cheap: only scans when such rows exist.
+  try {
+    const stuck = await db.event_outbox.where('status').equals('FAILED_PERMANENT').toArray();
+    if (stuck.length > 0) {
+      _finalizedCache.clear();
+      for (const row of stuck) {
+        if (await isMatchFinalized(row.match_id)) await ackOutbox(row.id);
+      }
+    }
+  } catch { /* non-fatal */ }
+
   const pending = await getPendingOutbox();
   if (pending.length === 0) return { pushed: 0, paused: false };
 
@@ -140,6 +173,7 @@ export async function pushOutbox() {
 
   let pushed = 0;
   let authPaused = false;
+  _finalizedCache.clear(); // fresh status reads each drain pass
 
   for (const [matchId, rows] of byMatch) {
     for (const row of rows) {
@@ -162,6 +196,16 @@ export async function pushOutbox() {
         break; // stop the whole drain until re-login
       }
       if (result === SYNC_RESULT.PERMANENT) {
+        // A PERMANENT rejection on an already-finalized match is just a late
+        // append the server (rightly) refuses. The result is authoritative and
+        // the log is already local, so DROP it rather than quarantining — which
+        // would otherwise block this match's whole drain forever. This is the
+        // fix for a Test/multi-day match's "sync queue got blocked" after lock.
+        if (await isMatchFinalized(matchId)) {
+          await ackOutbox(row.id);
+          pushed += 1;
+          continue;
+        }
         await failOutbox(row.id, { event_id: row.event_id }, true);
         emit({ type: 'event-quarantined', matchId, eventId: row.event_id });
         break; // stop THIS match (avoid a server gap); other matches continue

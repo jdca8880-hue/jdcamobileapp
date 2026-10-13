@@ -1695,6 +1695,31 @@ export const api = {
     const stats3 = innings.length > 2 ? computeInningsStats(innings[2].id) : null;
     const stats4 = innings.length > 3 ? computeInningsStats(innings[3].id) : null;
 
+    // Per-innings stats enriched with the team identity for THAT innings, so the
+    // scorecard UI can render one tab per innings (essential for 4-innings Test —
+    // otherwise innings 3 & 4 are invisible). Additive: the legacy
+    // innings_1..4 + scorecard.home_team/away_team fields are left untouched.
+    const teamNameById = (id) =>
+      id && id === matchData.home_team_id ? (matchData.home_team?.name || 'Home Team')
+      : id && id === matchData.away_team_id ? (matchData.away_team?.name || 'Away Team')
+      : 'Team';
+    const inningsStatsOrdered = [stats1, stats2, stats3, stats4];
+    const inningsRich = [];
+    for (let i = 0; i < inningsStatsOrdered.length; i++) {
+      const s = inningsStatsOrdered[i];
+      if (!s) continue;
+      const inn = innings[i] || {};
+      inningsRich.push({
+        ...s,
+        inningsNumber: inn.innings_number ?? (i + 1),
+        battingTeamId: inn.batting_team_id ?? null,
+        bowlingTeamId: inn.bowling_team_id ?? null,
+        battingTeamName: teamNameById(inn.batting_team_id),
+        bowlingTeamName: teamNameById(inn.bowling_team_id),
+        target: inn.target_runs ?? null,
+      });
+    }
+
     // Find Top Performers across all innings (3rd/4th present only for Test)
     const allBatters = [...stats1.batting, ...stats2.batting, ...(stats3?.batting || []), ...(stats4?.batting || [])].sort((a, b) => b.runs - a.runs);
     const allBowlers = [...stats1.bowling, ...stats2.bowling, ...(stats3?.bowling || []), ...(stats4?.bowling || [])].sort((a, b) => b.wickets - a.wickets || a.runs - b.runs);
@@ -1956,7 +1981,9 @@ export const api = {
       innings_4: stats4,
       // Only expose the innings that actually exist so two-innings matches keep
       // a length-2 array; Test matches grow to 3/4 as those innings are played.
-      innings: [stats1, stats2, ...(stats3 ? [stats3] : []), ...(stats4 ? [stats4] : [])],
+      // Each entry carries its batting/bowling team identity so the UI can label
+      // and render a tab per innings.
+      innings: inningsRich,
       topBatter,
       topBowler,
       bestPartnership
