@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
 import { api } from '../../lib/api';
+import CloudinaryAvatar from '../ui/CloudinaryAvatar';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, LabelList
@@ -236,9 +237,10 @@ export default function PlayerProfileScreen() {
           )}
 
           <div className="flex flex-col items-center mt-2 text-center">
-            <img
-              src={player.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(player.full_name || 'Player')}&background=random`}
+            <CloudinaryAvatar
+              src={player.avatar_url}
               alt={player.full_name}
+              size={192}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white shadow-sm mb-3"
             />
             <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-[#F3F4F6] leading-tight mb-1">{player.full_name}</h1>

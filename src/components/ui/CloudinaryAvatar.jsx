@@ -1,8 +1,7 @@
 import React from 'react';
 import { Cloudinary } from '@cloudinary/url-gen';
-import { auto } from '@cloudinary/url-gen/actions/resize';
+import { fill } from '@cloudinary/url-gen/actions/resize';
 import { autoGravity } from '@cloudinary/url-gen/qualifiers/gravity';
-import { AdvancedImage } from '@cloudinary/react';
 
 // Initialize Cloudinary instance
 const cld = new Cloudinary({ cloud: { cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'gglzv8pn' } });
@@ -10,18 +9,31 @@ const cld = new Cloudinary({ cloud: { cloudName: import.meta.env.VITE_CLOUDINARY
 /**
  * Universal Avatar component that leverages Cloudinary for
  * auto-formatting, optimization, and smart cropping.
- * 
+ *
  * It gracefully handles:
  * 1. Full Cloudinary URLs (extracts public ID automatically)
  * 2. External HTTP URLs (uses Cloudinary fetch feature)
  * 3. Raw Cloudinary public IDs
  * 4. Empty sources (falls back to ui-avatars)
+ *
+ * PERFORMANCE / APPLE SUPPORT
+ *   We request a SIZED thumbnail (f_auto,q_auto + fixed w/h fill crop) and
+ *   render a plain <img> with native lazy-loading + async decode. Previously
+ *   the component asked Cloudinary to `resize(auto())` with NO dimensions,
+ *   which delivers the FULL-resolution upload (often multi-MB) for a 48px
+ *   avatar, and used <AdvancedImage> which loads every image eagerly. On older
+ *   phones a directory of such images made the Players tab and profiles crawl.
+ *   A plain <img> with loading="lazy" is also the most compatible path on
+ *   iOS/Safari (no extra runtime, offscreen images are skipped).
+ *
+ * `size` is the delivered pixel box (default 192, enough for a 96px avatar at
+ * 2× retina). Callers can lower it for dense lists.
  */
-export function CloudinaryAvatar({ src, alt, className = "" }) {
+export function CloudinaryAvatar({ src, alt, className = "", size = 192 }) {
   // Fallback to UI Avatars if no source is provided
   if (!src) {
-    const fallbackSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(alt || 'Player')}&background=random&color=fff&bold=true`;
-    return <img src={fallbackSrc} alt={alt} className={className} />;
+    const fallbackSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(alt || 'Player')}&background=random&color=fff&bold=true&size=${size}`;
+    return <img src={fallbackSrc} alt={alt} className={className} loading="lazy" decoding="async" />;
   }
 
   let img;
@@ -49,13 +61,22 @@ export function CloudinaryAvatar({ src, alt, className = "" }) {
     img = cld.image(src);
   }
 
-  // Apply optimizations
+  // Optimize + cap the delivered size. fill() crops to an exact square box so
+  // the download is a small thumbnail, not the original upload.
   img
     .format('auto')
     .quality('auto')
-    .resize(auto().gravity(autoGravity()));
+    .resize(fill().width(size).height(size).gravity(autoGravity()));
 
-  return <AdvancedImage cldImg={img} className={className} alt={alt} />;
+  let url;
+  try {
+    url = img.toURL();
+  } catch {
+    // Degrade to the raw source rather than render nothing.
+    url = src;
+  }
+
+  return <img src={url} alt={alt} className={className} loading="lazy" decoding="async" />;
 }
 
 export default CloudinaryAvatar;

@@ -1269,32 +1269,47 @@ export const api = {
     const empty = { batting: [], bowling: [], fielding: [] };
     if (!playerId) return empty;
     try {
-      const matchJoin = 'matches(scheduled_at, match_format, home_team:home_team_id(name), away_team:away_team_id(name))';
-      const [batRes, bowlRes, fieldRes] = await Promise.all([
-        supabase.from('v_player_match_batting').select(`*, ${matchJoin}`).eq('player_id', playerId),
-        supabase.from('v_player_match_bowling').select(`*, ${matchJoin}`).eq('player_id', playerId),
-        supabase.from('v_player_match_fielding').select(`*, ${matchJoin}`).eq('player_id', playerId)
+      // NOTE: we intentionally do NOT embed `matches(...)` into the view query.
+      // PostgREST can only embed a view into a table when it can trace a single
+      // foreign key, and v_player_match_* now draw match_id through the
+      // v_scoring_deliveries UNION (deliveries + match_event_log), which PostgREST
+      // cannot resolve to one FK — the embed errors and blanks all charts/history.
+      // Instead fetch the three match views plainly, then join `matches`
+      // client-side in one extra query. allSettled so one failing view (e.g. a
+      // player who never bowled) never blanks the others.
+      const [batRes, bowlRes, fieldRes] = await Promise.allSettled([
+        supabase.from('v_player_match_batting').select('*').eq('player_id', playerId),
+        supabase.from('v_player_match_bowling').select('*').eq('player_id', playerId),
+        supabase.from('v_player_match_fielding').select('*').eq('player_id', playerId)
       ]);
+      const rowsOf = (res) => (res.status === 'fulfilled' && !res.value.error && res.value.data) ? res.value.data : [];
+      const batRows = rowsOf(batRes), bowlRows = rowsOf(bowlRes), fieldRows = rowsOf(fieldRes);
+
+      // One lookup for every match referenced by any of the three stat rowsets.
+      const matchIds = [...new Set([...batRows, ...bowlRows, ...fieldRows].map(r => r.match_id).filter(Boolean))];
+      const matchById = new Map();
+      if (matchIds.length > 0) {
+        const { data: matchRows } = await supabase
+          .from('matches')
+          .select('id, scheduled_at, match_format, home_team:teams!matches_home_team_id_fkey(name), away_team:teams!matches_away_team_id_fkey(name)')
+          .in('id', matchIds);
+        (matchRows || []).forEach(m => matchById.set(m.id, m));
+      }
 
       // Chronological order (oldest first) so charts read left-to-right in time.
-      const byDate = (a, b) => {
-        const da = a.matches?.scheduled_at ? new Date(a.matches.scheduled_at) : new Date(0);
-        const db = b.matches?.scheduled_at ? new Date(b.matches.scheduled_at) : new Date(0);
-        return da - db;
+      const byDate = (a, b) => (a.sortTs || 0) - (b.sortTs || 0);
+      const common = (stat) => {
+        const m = matchById.get(stat.match_id) || {};
+        const h = m.home_team?.name, a = m.away_team?.name;
+        return {
+          matchup: h && a ? `${h} v ${a}` : (h || a || 'Match'),
+          format: m.match_format || '-',
+          date: m.scheduled_at ? new Date(m.scheduled_at).toLocaleDateString() : 'Unknown',
+          sortTs: m.scheduled_at ? new Date(m.scheduled_at).getTime() : 0
+        };
       };
-      const label = (stat) => {
-        const h = stat.matches?.home_team?.name;
-        const a = stat.matches?.away_team?.name;
-        return h && a ? `${h} v ${a}` : (h || a || 'Match');
-      };
-      const common = (stat) => ({
-        matchup: label(stat),
-        format: stat.matches?.match_format || '-',
-        date: stat.matches?.scheduled_at ? new Date(stat.matches.scheduled_at).toLocaleDateString() : 'Unknown',
-        sortTs: stat.matches?.scheduled_at ? new Date(stat.matches.scheduled_at).getTime() : 0
-      });
 
-      const batting = (batRes.data || []).sort(byDate).map(s => {
+      const batting = batRows.map(s => {
         const runs = Number(s.runs_scored) || 0;
         const balls = Number(s.balls_faced) || 0;
         return {
@@ -1307,9 +1322,9 @@ export const api = {
           not_out: Number(s.is_dismissed) === 0,
           ...common(s)
         };
-      });
+      }).sort(byDate);
 
-      const bowling = (bowlRes.data || []).sort(byDate).map(s => {
+      const bowling = bowlRows.map(s => {
         const legal = Number(s.legal_balls) || 0;
         const conceded = Number(s.runs_conceded) || 0;
         return {
@@ -1322,16 +1337,16 @@ export const api = {
           economy: legal > 0 ? Math.round((conceded * 6 / legal) * 100) / 100 : 0,
           ...common(s)
         };
-      });
+      }).sort(byDate);
 
-      const fielding = (fieldRes.data || []).sort(byDate).map(s => ({
+      const fielding = fieldRows.map(s => ({
         ...s,
         catches: Number(s.catches) || 0,
         catches_behind: Number(s.catches_behind) || 0,
         run_outs: Number(s.run_outs) || 0,
         stumpings: Number(s.stumpings) || 0,
         ...common(s)
-      }));
+      })).sort(byDate);
 
       return { batting, bowling, fielding };
     } catch (e) {

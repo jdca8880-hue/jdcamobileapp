@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo, useCallback } from 'react';
 import CloudinaryAvatar from '../ui/CloudinaryAvatar';
 import { Search, ChevronRight, UserPlus, Filter, User } from 'lucide-react';
 import { useCricket } from '../../context/CricketContext';
@@ -16,13 +16,16 @@ const ROLE_BRIGHT_BADGES = {
   'Wicketkeeper': 'bg-cyan-600 text-white shadow-xs',
 };
 
-const PlayerListItem = ({ player, onClick }) => {
+// memo: the directory can hold hundreds of players; without this, typing in the
+// search box or changing a filter re-renders every row (each with an image) on
+// every keystroke, which stalls older phones. memo keeps unchanged rows static.
+const PlayerListItem = memo(({ player, onSelect }) => {
   const playerRole = player.primary_role;
   const roleBadge = ROLE_BRIGHT_BADGES[playerRole] || 'bg-blue-600 text-white';
 
   return (
-    <div 
-      onClick={onClick}
+    <div
+      onClick={() => onSelect(player)}
       className="flex items-center justify-between p-3.5 sm:p-4 bg-white hover:bg-blue-50/40 border-b border-slate-100 cursor-pointer active:bg-blue-50 transition-all group relative overflow-hidden"
     >
       <div className="flex items-center gap-3.5 min-w-0">
@@ -30,6 +33,7 @@ const PlayerListItem = ({ player, onClick }) => {
           <CloudinaryAvatar
             src={player.avatar_url}
             alt={player.full_name}
+            size={96}
             className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white shadow-md ring-2 ring-blue-500/20"
           />
         </div>
@@ -62,7 +66,7 @@ const PlayerListItem = ({ player, onClick }) => {
       </div>
     </div>
   );
-};
+});
 
 export default function PlayersScreen() {
   const { players, setSelectedPlayer, navigateTo } = useCricket();
@@ -73,7 +77,7 @@ export default function PlayersScreen() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredPlayers = players.filter(p => {
+  const filteredPlayers = useMemo(() => players.filter(p => {
     const isWomen = p.gender === 'Women' || String(p.category || '').toLowerCase().includes('women');
     if (genderTab === 'Men' && isWomen) return false;
     if (genderTab === 'Women' && !isWomen) return false;
@@ -85,25 +89,27 @@ export default function PlayersScreen() {
     }
 
     if (districtFilter !== 'All' && p.district !== districtFilter) return false;
-    
+
     if (categoryFilter !== 'All') {
       const cat = String(p.category || 'Senior').toLowerCase();
       const f = categoryFilter.toLowerCase();
-      
+
       // Match exactly or loosely (e.g., 'under 19' matches 'under 19', 'u19', 'u-19')
       const normalizedCat = cat.replace('under ', 'u').replace('-', '').replace(' ', '');
       const normalizedF = f.replace('under ', 'u').replace('-', '').replace(' ', '');
-      
+
       if (!cat.includes(f) && normalizedCat !== normalizedF) return false;
     }
 
     return true;
-  });
+  }), [players, genderTab, searchQuery, districtFilter, categoryFilter]);
 
-  const handlePlayerClick = (player) => {
+  // useCallback: a stable handler so the memoized rows don't re-render when a
+  // filter/search keystroke changes this component's state.
+  const handlePlayerClick = useCallback((player) => {
     setSelectedPlayer(player);
     navigateTo('player-profile');
-  };
+  }, [setSelectedPlayer, navigateTo]);
 
   return (
     <div className="pb-20 bg-[#f8fafc] min-h-screen">
@@ -207,7 +213,7 @@ export default function PlayersScreen() {
         
         <div className="bg-white rounded-xl shadow-2xs border border-slate-200 overflow-hidden flex flex-col divide-y divide-slate-100">
           {filteredPlayers.map(p => (
-            <PlayerListItem key={p.id} player={p} onClick={() => handlePlayerClick(p)} />
+            <PlayerListItem key={p.id} player={p} onSelect={handlePlayerClick} />
           ))}
 
           {filteredPlayers.length === 0 && (
