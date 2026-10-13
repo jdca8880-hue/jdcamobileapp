@@ -168,7 +168,7 @@ export function useDataSync({ auth, ui }) {
           try {
             const [matchesRes, teamsRes, tournamentsRes, playersRes, batStatsRes, bowlStatsRes, fieldStatsRes] = await Promise.allSettled([
               supabase.from('matches').select('*, tournaments(id, name), home_team:teams!matches_home_team_id_fkey(*), away_team:teams!matches_away_team_id_fkey(*), man_of_the_match:players!matches_man_of_the_match_id_fkey(id, full_name, avatar_url)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 10); setLoadingMessage("Updating matches..."); return r; }),
-              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*)').then(r => { setLoadingProgress(p => p + 5); setLoadingMessage("Updating teams..."); return r; }),
+              supabase.from('teams').select('*, district:district_id(*), age_category:age_category_id(*), team_players(player_id, player:player_id(id, full_name, primary_role, avatar_url, batting_style, bowling_style, date_of_birth))').then(r => { setLoadingProgress(p => p + 5); setLoadingMessage("Updating teams..."); return r; }),
               supabase.from('tournaments').select('*, tournament_teams(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 5); return r; }),
               supabase.from('players').select('*, player_registrations(district:district_id(name), age_category:age_category_id(name)), team_players(team_id)').is('deleted_at', null).then(r => { setLoadingProgress(p => p + 15); setLoadingMessage("Syncing player registry..."); return r; }),
               supabase.from('v_player_career_batting').select('*').then(r => { setLoadingProgress(p => p + 5); return r; }),

@@ -178,6 +178,17 @@ export default function ScoringScreen() {
     }
   }
 
+  // Safety: the batting and bowling sides must be the two DIFFERENT match teams.
+  // If the authoritative/toss derivation (or a stale hydration) ever leaves the
+  // bowling side unset or equal to the batting side, force it to the opposite
+  // team. Without this, battingXI and bowlingXI below collapse to the SAME array
+  // — which shows one team's players for striker, non-striker AND bowler, and
+  // leaves the other side's pickers empty (the "same players / change option not
+  // coming" bug).
+  if (battingTeamId && (!bowlingTeamId || bowlingTeamId === battingTeamId)) {
+    bowlingTeamId = battingTeamId === matchSetup?.teamAId ? matchSetup?.teamBId : matchSetup?.teamAId;
+  }
+
   const battingXI = battingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
   const bowlingXI = bowlingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
   const currentBattingTeamName = battingTeamId === matchSetup?.teamAId ? teamAName : teamBName;
