@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCricket } from '../context/CricketContext';
 import { Home, Calendar, Radio, Shield, MoreHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -6,6 +6,17 @@ import { motion } from 'motion/react';
 export default function BottomNav() {
   const { currentScreen, navigateTo, userRole, userPermissions, drawerOpen, setDrawerOpen } = useCricket();
   const [isVisible, setIsVisible] = useState(true);
+  // Latest screen for the scroll listener (its effect runs once, so it would
+  // otherwise close over a stale value).
+  const screenRef = useRef(currentScreen);
+  useEffect(() => { screenRef.current = currentScreen; }, [currentScreen]);
+  const idleTimer = useRef(null);
+
+  // On the scoring screen the pad owns the bottom, so the navbar is hidden by
+  // default and only peeks in on a scroll/swipe; everywhere else it starts shown.
+  useEffect(() => {
+    setIsVisible(currentScreen !== 'scoring');
+  }, [currentScreen]);
 
   useEffect(() => {
     const scrollContainer = document.querySelector('main');
@@ -16,7 +27,15 @@ export default function BottomNav() {
       const y = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          if (y > 80 && y > lastY + 10) {
+          if (screenRef.current === 'scoring') {
+            // Hidden by default; a swipe/scroll reveals it, then it auto-hides
+            // after a short idle so it never sits on top of the scoring pad.
+            if (Math.abs(y - lastY) > 6) {
+              setIsVisible(true);
+              if (idleTimer.current) clearTimeout(idleTimer.current);
+              idleTimer.current = setTimeout(() => setIsVisible(false), 2500);
+            }
+          } else if (y > 80 && y > lastY + 10) {
             setIsVisible(false);
           } else if (y < lastY - 10 || y <= 30) {
             setIsVisible(true);
@@ -34,10 +53,11 @@ export default function BottomNav() {
     return () => {
       if (scrollContainer) scrollContainer.removeEventListener('scroll', handleScroll);
       window.removeEventListener('scroll', handleScroll);
+      if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, []);
 
-  if (currentScreen === 'welcome' || currentScreen === 'scoring') return null;
+  if (currentScreen === 'welcome') return null;
 
   const ACTIVE_MAP = {
     'home': 'home',
