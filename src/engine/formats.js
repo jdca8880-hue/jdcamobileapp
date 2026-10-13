@@ -161,6 +161,17 @@ export function battingSideIndex(format, inningsNumber) {
   return resolveFormat(format).battingIndex(inningsNumber);
 }
 
+/**
+ * True for any multi-day / Test format, however it is spelled — 'TEST',
+ * 'Multi-Day', 'multi day', 'multiday', etc. The scoring engine and the hook
+ * MUST use this instead of `format === 'TEST'`: a match stored as 'Multi-Day'
+ * was otherwise treated as a 2-innings limited chase and finished on the first
+ * ball ("won by 10 wickets" against an empty-innings target of 1).
+ */
+export function isTestFormat(fmt) {
+  return resolveFormat(fmt).id === 'TEST';
+}
+
 /** Per-bowler over cap (Law 17) for limited overs; null if none (Test). */
 export function perBowlerOverCap(format) {
   const f = resolveFormat(format);

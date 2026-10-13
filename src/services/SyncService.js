@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 import { getPendingActions, clearAction, updateAction, db } from '../lib/db';
 import { normalizeDelivery } from '../engine/deliveryContract.js';
+import { isTestFormat } from '../engine/formats.js';
 import { captureException, captureMessage } from '../lib/sentry';
 
 const MAX_RETRIES = 3;
@@ -512,7 +513,7 @@ class SyncService {
         batId = isBat ? ms.teamBId : ms.teamAId;
         bowlId = isBat ? ms.teamAId : ms.teamBId;
       }
-      const isTest = String(ms.format || '').toUpperCase() === 'TEST';
+      const isTest = isTestFormat(ms.format);
       const num = Number(inningsNum) || 1;
       const swap = isTest ? (num === 2 || num === 4) : (num === 2 || num === 3);
       if (swap) { const t = batId; batId = bowlId; bowlId = t; }

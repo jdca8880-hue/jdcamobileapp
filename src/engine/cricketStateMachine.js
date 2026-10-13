@@ -1,4 +1,5 @@
 import { normalizeDelivery } from './deliveryContract.js';
+import { isTestFormat } from './formats.js';
 
 export const MATCH_STATES = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -159,7 +160,7 @@ export function processDelivery(currentState, ballInput) {
   // Test / multi-day matches have no per-innings over limit and no per-bowler
   // over cap. Everything Test-specific below is gated on this flag, so limited-
   // overs and super-over behaviour is left exactly as it was.
-  const isTest = String(currentState.format || '').toUpperCase() === 'TEST';
+  const isTest = isTestFormat(currentState.format);
   const maxOversForMatch = currentState.totalMatchOvers || 0;
   const inSuperOver = (currentState.innings || 1) >= 3 && !isTest;
   if (maxOversForMatch >= 5 && !inSuperOver && !isTest) {
@@ -434,7 +435,7 @@ export function processPenaltyEvent(currentState, penaltyEvent) {
     
     // Check if target is chased. Only the chasing innings can finish the match
     // this way: limited-overs innings 2/4, or the Test 4th innings.
-    const isTestPenalty = String(state.format || '').toUpperCase() === 'TEST';
+    const isTestPenalty = isTestFormat(state.format);
     const isFinalInnings = isTestPenalty ? (state.innings === 4) : (state.innings === 2 || state.innings === 4);
     if (isFinalInnings) {
       if (state.target && state.runs >= state.target) {

@@ -19,7 +19,7 @@ import { normalizeDelivery } from '../engine/deliveryContract.js';
 import { isEventMatch } from '../engine/engineFlag';
 import { appendEvent, voidEventById } from '../lib/matchLog';
 import { pushOutbox, startAutoPush } from '../services/eventSync';
-import { resolveFormat, battingSideIndex } from '../engine/formats';
+import { resolveFormat, battingSideIndex, isTestFormat } from '../engine/formats';
 
 export const INITIAL_MATCH_SETUP = {
   teamA: 'Team A',
@@ -430,7 +430,7 @@ export function useMatchScoring({
         // innings row) — it survives localStorage clears and travels
         // across devices. Fall back to re-deriving from scorecard runs,
         // then to localStorage.
-        const isTestFmt = String(match?.match_format || '').toUpperCase() === 'TEST';
+        const isTestFmt = isTestFormat(match?.match_format);
         if (currentInning?.target_runs && Number(currentInning.target_runs) > 0) {
           setTarget(Number(currentInning.target_runs));
         } else if (isTestFmt && currentInning?.innings_number === 4 && scorecard?.innings?.length >= 3) {
@@ -657,7 +657,7 @@ export function useMatchScoring({
         batId = isBat ? ms.teamBId : ms.teamAId;
         bowlId = isBat ? ms.teamAId : ms.teamBId;
       }
-      const isTest = String(ms.format || matchFormat || '').toUpperCase() === 'TEST';
+      const isTest = isTestFormat(ms.format || matchFormat);
       const swap = isTest ? (num === 2 || num === 4) : (num === 2 || num === 3);
       if (swap) { const t = batId; batId = bowlId; bowlId = t; }
       return { battingTeamId: batId, bowlingTeamId: bowlId };
@@ -1076,7 +1076,7 @@ export function useMatchScoring({
   // limit, declarations allowed, result decided on the aggregate of both innings
   // per side. Every Test-specific branch below is gated on this flag so limited-
   // overs and super-over scoring is left byte-for-byte unchanged.
-  const isTestMatch = String(matchSetup?.format || matchFormat || '').toUpperCase() === 'TEST';
+  const isTestMatch = isTestFormat(matchSetup?.format || matchFormat);
 
   // Helper to snapshot current state for deterministic Undo
   const captureSnapshot = () => {

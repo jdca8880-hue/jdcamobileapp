@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import { buildMatchState, oversFromBalls } from '../matchProjection.js';
 import { EVENT_TYPES, nextSequence, makeEvent } from '../matchEvents.js';
-import { resolveFormat, maxLegalBalls, isFinalInnings, battingSideIndex } from '../formats.js';
+import { resolveFormat, maxLegalBalls, isFinalInnings, battingSideIndex, isTestFormat } from '../formats.js';
 
 // ---- tiny log builder: assigns a global append offset (logSeq) ----
 function makeLog() {
@@ -46,6 +46,13 @@ test('formats: resolve + rules are data-driven', () => {
   assert.equal(isFinalInnings('TEST', 4), true);
   assert.equal(isFinalInnings('TEST', 2), false);
   assert.equal(isFinalInnings('T20', 2), true);
+  // "Multi-Day" (and variants) must count as Test, or it is scored as a limited
+  // chase and finishes on ball 1 — the "Pandurana won by 10 wickets" bug.
+  assert.equal(isTestFormat('Multi-Day'), true);
+  assert.equal(isTestFormat('multi day'), true);
+  assert.equal(isTestFormat('TEST'), true);
+  assert.equal(isTestFormat('T20'), false);
+  assert.equal(isTestFormat('50 overs'), false);
 });
 
 test('T20 innings: totals, batter & bowler cards aggregate correctly', () => {

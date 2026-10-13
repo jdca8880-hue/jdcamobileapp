@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isTestFormat } from '../engine/formats';
 
 // True when a Supabase/PostgREST error means the players.phone column is absent
 // (migration 13_add_player_phone.sql not applied). Postgres undefined_column is
@@ -2010,7 +2011,7 @@ export const api = {
     let battingTeamId = match.home_team_id;
     let bowlingTeamId = match.away_team_id;
 
-    const isTestMatch = String(match.match_format || '').toUpperCase() === 'TEST';
+    const isTestMatch = isTestFormat(match.match_format);
 
     if (isTestMatch && (innNum === 3 || innNum === 4)) {
       // Test / multi-day fixed order: the side that batted in innings 1 bats
