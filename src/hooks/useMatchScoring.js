@@ -1345,8 +1345,25 @@ export function useMatchScoring({
     }
 
     const isTeamABatting = battingTId === matchSetup?.teamAId;
-    const battingTeamXI = isTeamABatting ? matchSetup?.teamAXI : matchSetup?.teamBXI;
-    const bowlingTeamXI = isTeamABatting ? matchSetup?.teamBXI : matchSetup?.teamAXI;
+    let battingTeamXI = isTeamABatting ? matchSetup?.teamAXI : matchSetup?.teamBXI;
+    let bowlingTeamXI = isTeamABatting ? matchSetup?.teamBXI : matchSetup?.teamAXI;
+
+    // Self-heal a mis-resolved batting side. The engine rejects a delivery whose
+    // striker isn't in battingTeamXI ("Striker is not in the batting playing
+    // XI"). If the batting side was resolved to the wrong team (a stale/swapped
+    // currentBattingTeamId after hydration), the on-pitch striker/non-striker —
+    // who ARE in the playing XI — would be validated against the opposing XI and
+    // wrongly rejected. So if the current batters are actually found in the OTHER
+    // side's XI, the labels are swapped: flip both the XIs AND the team ids so
+    // validation, team attribution and the picker all agree with reality.
+    const _inXI = (xi, id) => Array.isArray(xi) && id != null && xi.some(p => String(p.id) === String(id));
+    const _sId = striker?.id, _nsId = nonStriker?.id;
+    const inBatting = _inXI(battingTeamXI, _sId) || _inXI(battingTeamXI, _nsId);
+    const inBowling = _inXI(bowlingTeamXI, _sId) || _inXI(bowlingTeamXI, _nsId);
+    if (!inBatting && inBowling) {
+      const tXI = battingTeamXI; battingTeamXI = bowlingTeamXI; bowlingTeamXI = tXI;
+      const tId = battingTId; battingTId = bowlingTId; bowlingTId = tId;
+    }
 
     return {
       runs,
