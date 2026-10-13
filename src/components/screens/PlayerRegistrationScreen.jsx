@@ -71,10 +71,12 @@ export default function PlayerRegistrationScreen() {
     }
   });
 
-  // Category dropdown source: in EDIT mode use the real DB age categories
-  // (filtered by gender) so the chosen value resolves to an age_categories row
-  // on save; NEW registration keeps its existing hardcoded list untouched.
-  // Always keep the player's current value selectable even if the filter hides it.
+  // Category dropdown source: use the REAL DB age categories (filtered by
+  // gender) in BOTH new and edit modes, so the chosen value always resolves to
+  // an actual age_categories row on save. Previously NEW registration used a
+  // hardcoded list ("Under-15") whose names didn't match any DB row ("Under 15
+  // Boys"), so registration silently fell back to the default category (U-13).
+  // The hardcoded list is only a fallback for when the DB list hasn't loaded.
   const dbCategoryNames = ageCategoriesDb
     .filter(c => {
       const g = String(c.gender || '').toLowerCase();
@@ -82,10 +84,22 @@ export default function PlayerRegistrationScreen() {
     })
     .map(c => c.name)
     .filter(Boolean);
-  let categoryOptions = (isEditing && dbCategoryNames.length > 0) ? dbCategoryNames : filteredCategories;
+  let categoryOptions = (dbCategoryNames.length > 0) ? dbCategoryNames : filteredCategories;
   if (category && !categoryOptions.includes(category)) {
     categoryOptions = [category, ...categoryOptions];
   }
+
+  // Keep the selected category valid for the current gender's DB options. On a
+  // NEW registration (or after switching gender) default to a Senior category,
+  // else the first available — so the saved value is always a real DB row.
+  useEffect(() => {
+    if (isEditing) return;
+    if (dbCategoryNames.length === 0) return;
+    if (dbCategoryNames.includes(category)) return;
+    const senior = dbCategoryNames.find(n => /senior/i.test(n));
+    setCategory(senior || dbCategoryNames[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbCategoryNames.join('|'), gender, isEditing]);
 
   const avatarPresets = [];
 

@@ -2404,10 +2404,11 @@ export const api = {
     const defaults = await this.getDefaults();
     const activeSeason = await this.getActiveSeason();
     if (defaults.district_id && activeSeason) {
+       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
        // Resolve district: could be a UUID, a name string, or absent (use default)
        let finalDistrictId = defaults.district_id;
        if (playerData.district) {
-         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
          if (uuidRegex.test(playerData.district)) {
            finalDistrictId = playerData.district;
          } else {
@@ -2423,16 +2424,66 @@ export const api = {
          }
        }
 
+       // Resolve age category from the chosen value. ROOT-CAUSE FIX: previously
+       // registration ALWAYS wrote defaults.age_category_id (rank 1 = U-13),
+       // silently discarding the category the user picked — so every player
+       // registered as U-13 (e.g. a chosen "Under-15" became "Under-13"). Now we
+       // honour playerData.age_category_id / playerData.category and only fall
+       // back to the default when nothing usable was supplied.
+       const finalAgeCategoryId = await this.resolveAgeCategoryId(
+         playerData.age_category_id ?? playerData.category,
+         playerData.gender
+       ) || defaults.age_category_id;
+
        await supabase.from('player_registrations').insert({
          player_id: data.id,
          season_id: playerData.season_id || activeSeason.id,
          season: activeSeason.name,
          district_id: finalDistrictId,
-         age_category_id: defaults.age_category_id
+         age_category_id: finalAgeCategoryId
        });
     }
 
     return data;
+  },
+
+  // Resolve an age-category value to its UUID. Accepts a UUID (returned as-is),
+  // a full name ("Under 15 Boys"), a short_name ("U-15 Boys"), or a loose label
+  // from the registration form ("Under-15", "Senior", "Women's Under-22").
+  // Matching is normalized (lowercase, strip spaces/hyphens/apostrophes) and,
+  // for ambiguous labels like "Senior", disambiguated by gender. Returns null
+  // when nothing matches, so the caller can fall back to a default.
+  async resolveAgeCategoryId(value, gender) {
+    if (value === undefined || value === null || String(value).trim() === '') return null;
+    const raw = String(value).trim();
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(raw)) return raw;
+
+    const { data: cats, error } = await supabase
+      .from('age_categories')
+      .select('id, name, short_name, gender');
+    if (error || !Array.isArray(cats) || cats.length === 0) return null;
+
+    // Exact name / short_name first (what the DB-backed dropdown sends).
+    const exact = cats.find(c => c.name === raw || c.short_name === raw);
+    if (exact) return exact.id;
+
+    const norm = (s) => String(s || '').toLowerCase().replace(/[\s\-'’]/g, '').replace(/^women?s/, '');
+    const q = norm(raw);
+    const wantWomen = String(gender || '').toLowerCase() === 'women' || /women|girl/i.test(raw);
+
+    const byGender = cats.filter(c =>
+      wantWomen ? String(c.gender).toLowerCase() === 'women'
+                : String(c.gender).toLowerCase() === 'men');
+    const pool = byGender.length > 0 ? byGender : cats;
+
+    // Normalized exact, then "starts-with" (so "under15" matches "under15boys").
+    const normExact = pool.find(c => norm(c.name) === q || norm(c.short_name) === q);
+    if (normExact) return normExact.id;
+    const starts = pool.find(c => norm(c.name).startsWith(q) || norm(c.short_name).startsWith(q));
+    if (starts) return starts.id;
+
+    return null;
   },
 
   // ==========================================
@@ -3019,7 +3070,7 @@ export const api = {
     try {
       const [batRes, bowlRes, fieldRes] = await Promise.all([
         supabase.from('v_player_match_batting').select('match_id, runs_scored, balls_faced, is_dismissed').eq('player_id', playerId),
-        supabase.from('v_player_match_bowling').select('match_id, wickets_taken, runs_conceded, balls_bowled').eq('player_id', playerId),
+        supabase.from('v_player_match_bowling').select('match_id, wickets, runs_conceded, legal_balls').eq('player_id', playerId),
         supabase.from('v_player_match_fielding').select('match_id, catches, run_outs, stumpings').eq('player_id', playerId)
       ]);
 
@@ -3063,9 +3114,9 @@ export const api = {
             notOut: bat.is_dismissed === 0
           } : undefined,
           bowling: bowl ? {
-            wickets: bowl.wickets_taken,
+            wickets: bowl.wickets,
             runs: bowl.runs_conceded,
-            overs: bowl.balls_bowled > 0 ? Math.floor(bowl.balls_bowled / 6) + (bowl.balls_bowled % 6) / 10 : 0
+            overs: bowl.legal_balls > 0 ? Math.floor(bowl.legal_balls / 6) + (bowl.legal_balls % 6) / 10 : 0
           } : undefined,
           fielding: field ? {
             catches: field.catches || 0,

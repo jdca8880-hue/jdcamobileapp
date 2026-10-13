@@ -82,7 +82,10 @@ export const PlayerRegistrationSchema = z.object({
   date_of_birth: z.string().refine((date) => {
     return new Date(date).getTime() > 0;
   }, { message: 'Invalid Date of Birth' }),
-  avatar_url: z.string().url().or(z.string().min(1)),
+  // Player photo is OPTIONAL — a player can be registered without one. Accept a
+  // valid URL, or an empty string / undefined (no photo). The profile screen
+  // already falls back to a generated avatar when none is set.
+  avatar_url: z.string().url().optional().or(z.literal('')),
 });
 
 /**
