@@ -131,9 +131,15 @@ export default function ScoringScreen() {
   const matchTournament = tournaments?.find(t => t.id === activeMatch?.tournament_id);
   const tournamentName = activeMatch?.tournament || 'JDCA District Cricket';
 
-  // Resolve XIs based on innings
-  const teamAXI = matchSetup?.teamAXI || [];
-  const teamBXI = matchSetup?.teamBXI || [];
+  // Resolve XIs based on innings.
+  // Guarantee the two sides can NEVER be cross-contaminated: a player who is
+  // registered to the OTHER match team (and not to this one) is dropped from the
+  // XI, so the batter / bowler / fielder pickers only ever show the correct
+  // side. Unregistered / ad-hoc players (no team_players) are always kept.
+  const _onTeam = (p, teamId) => Array.isArray(p?.team_players) && p.team_players.some(tp => String(tp.team_id) === String(teamId));
+  const _cleanXI = (xi, ownId, otherId) => (xi || []).filter(p => !(_onTeam(p, otherId) && !_onTeam(p, ownId)));
+  const teamAXI = _cleanXI(matchSetup?.teamAXI, matchSetup?.teamAId, matchSetup?.teamBId);
+  const teamBXI = _cleanXI(matchSetup?.teamBXI, matchSetup?.teamBId, matchSetup?.teamAId);
   const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
   const electedTo = matchSetup?.electedTo;
 
@@ -160,9 +166,12 @@ export default function ScoringScreen() {
       }
     }
 
-    // In innings 2, teams swap. In innings 3 (Super Over 1st innings), the team that batted second bats first, so they stay swapped.
-    // In innings 4 (Super Over 2nd innings), they swap back to their original state.
-    if (innings === 2 || innings === 3) {
+    // Which innings flip the batting side (relative to the toss-first side):
+    //   - Limited overs / super over: innings 2 & 3.
+    //   - Test (fixed order A,B,A,B): innings 2 & 4.
+    // (Only used when the authoritative innings record isn't resolved yet.)
+    const swap = isTestMatch ? (innings === 2 || innings === 4) : (innings === 2 || innings === 3);
+    if (swap) {
       const temp = battingTeamId;
       battingTeamId = bowlingTeamId;
       bowlingTeamId = temp;

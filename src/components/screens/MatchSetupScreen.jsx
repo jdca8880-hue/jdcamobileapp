@@ -212,14 +212,14 @@ export default function MatchSetupScreen() {
         let newTeamBXI = prev.teamBXI;
 
         if (newTeamAXI.length === 0 && nextTeamAId && players.length > 0) {
-          const aSquad = players.filter(p => p.team_players?.some(tp => tp.team_id === nextTeamAId));
+          const aSquad = players.filter(p => p.team_players?.some(tp => String(tp.team_id) === String(nextTeamAId)));
           if (aSquad.length > 0) {
             newTeamAXI = aSquad.map(p => ({ ...p, isCaptain: false, role: p.role || 'Batter' })).slice(0, 20);
           }
         }
 
         if (newTeamBXI.length === 0 && nextTeamBId && players.length > 0) {
-          const bSquad = players.filter(p => p.team_players?.some(tp => tp.team_id === nextTeamBId));
+          const bSquad = players.filter(p => p.team_players?.some(tp => String(tp.team_id) === String(nextTeamBId)));
           if (bSquad.length > 0) {
             newTeamBXI = bSquad.map(p => ({ ...p, isCaptain: false, role: p.role || 'Batter' })).slice(0, 20);
           }
@@ -317,11 +317,19 @@ export default function MatchSetupScreen() {
 
   const addPlayerToXI = (player) => {
     const activeTeamName = activeTeamTab === 'A' ? matchSetup.teamA : matchSetup.teamB;
+    const activeTeamId = activeTeamTab === 'A' ? matchSetup.teamAId : matchSetup.teamBId;
     const otherXI = activeTeamTab === 'A' ? matchSetup.teamBXI : matchSetup.teamAXI;
     const otherTeamName = activeTeamTab === 'A' ? matchSetup.teamB : matchSetup.teamA;
+    const otherTeamId = activeTeamTab === 'A' ? matchSetup.teamBId : matchSetup.teamAId;
     if (activeXI.length >= 20) return alert(`Maximum 20 players allowed in ${activeTeamName} XI.`);
-    if (activeXI.find(p => p.id === player.id)) return alert("Player already in Playing XI.");
-    if (otherXI.find(p => p.id === player.id)) return alert(`Player is already in ${otherTeamName}'s Playing XI.`);
+    if (activeXI.find(p => String(p.id) === String(player.id))) return alert("Player already in Playing XI.");
+    if (otherXI.find(p => String(p.id) === String(player.id))) return alert(`Player is already in ${otherTeamName}'s Playing XI.`);
+    // Hard team-membership guard: a player registered to the OTHER match team
+    // (and not to this one) can never be added here, so the two sides can't be
+    // mixed. Players with no squad registration (ad-hoc) are allowed either side.
+    const regOther = Array.isArray(player.team_players) && player.team_players.some(tp => String(tp.team_id) === String(otherTeamId));
+    const regActive = Array.isArray(player.team_players) && player.team_players.some(tp => String(tp.team_id) === String(activeTeamId));
+    if (regOther && !regActive) return alert(`${player.full_name || player.name} is registered to ${otherTeamName} and cannot be added to ${activeTeamName}.`);
 
     setMatchSetup(prev => ({
       ...prev,
