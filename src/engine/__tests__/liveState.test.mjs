@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLiveState } from '../liveState.js';
 import { EVENT_TYPES } from '../matchEvents.js';
+import { normalizeDelivery } from '../deliveryContract.js';
 
 function makeLog() {
   let logSeq = 0;
@@ -35,6 +36,31 @@ test('live: before any ball, needs openers', () => {
   assert.equal(s.striker, null);
   assert.equal(s.runs, 0);
   assert.equal(s.battingTeamId, 'A');
+});
+
+test('contract: normalizeDelivery preserves player names so the fold can restore them', () => {
+  // ROOT CAUSE REGRESSION: the live-state fold reads each delivery's own
+  // striker/nonStriker/bowler NAME from its payload to re-render the on-pitch
+  // players after a refresh/undo. normalizeDelivery used to strip those names
+  // (they weren't in the Zod schema), so a reload showed blank players.
+  const norm = normalizeDelivery({
+    id: 'evt-x-1', matchId: 'M', innings: 1,
+    strikerId: 'b1', striker: 'Rahul',
+    nonStrikerId: 'b2', nonStriker: 'Virat',
+    bowlerId: 'bw1', bowler: 'Bumrah',
+    runsBatter: 1, runsTotal: 1,
+  });
+  assert.equal(norm.striker, 'Rahul');
+  assert.equal(norm.nonStriker, 'Virat');
+  assert.equal(norm.bowler, 'Bumrah');
+
+  const log = started();
+  log.add(EVENT_TYPES.DELIVERY, 1, norm);
+  const s = buildLiveState(log.events);
+  // After folding, the on-pitch players carry their names (not null).
+  assert.equal(s.nonStriker.name, 'Rahul'); // b1 scored a single -> now non-striker
+  assert.equal(s.striker.name, 'Virat');
+  assert.equal(s.currentBowler.name, 'Bumrah');
 });
 
 test('live: a single rotates strike (engine logic preserved)', () => {

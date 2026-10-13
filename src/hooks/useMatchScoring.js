@@ -872,6 +872,24 @@ export function useMatchScoring({
           resumeFromOverComplete = true;
         }
       }
+
+      // Name backfill: the fold sources names from each delivery's payload. Events
+      // recorded before names were persisted (or synced from another device) can
+      // yield a player with a valid id but a blank name — which renders as an
+      // empty "Select" slot. Resolve any missing name from the XI roster so the
+      // on-pitch players always show, even for older matches.
+      const nameFromXI = (xi, id) => {
+        const p = (xi || []).find(x => String(x.id) === String(id));
+        return p ? (p.name || p.full_name || null) : null;
+      };
+      const withName = (player, xi) => {
+        if (!player || !player.id || player.name) return player;
+        const nm = nameFromXI(xi, player.id);
+        return nm ? { ...player, name: nm } : player;
+      };
+      outStriker = withName(outStriker, battingXI);
+      outNonStriker = withName(outNonStriker, battingXI);
+      outBowler = withName(outBowler, bowlingXI);
     } catch (e) {
       console.warn('[useMatchScoring] player-position fallback during fold failed:', e);
     }

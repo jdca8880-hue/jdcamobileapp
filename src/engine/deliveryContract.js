@@ -27,6 +27,15 @@ export const CanonicalDeliverySchema = z.object({
   strikerId: z.string().nullable().optional(),
   nonStrikerId: z.string().nullable().optional(),
   bowlerId: z.string().nullable().optional(),
+
+  // Player DISPLAY NAMES. These MUST survive normalization: the event log is the
+  // system of record, and the live-state fold (buildLiveState) rebuilds the
+  // on-pitch striker/non-striker/bowler from each delivery's own payload after a
+  // refresh or undo. Without the names stored here, a reload shows players with
+  // no name ("gayab" / blank "Select"). Not DB columns — carried in the payload.
+  striker: z.string().nullable().optional(),
+  nonStriker: z.string().nullable().optional(),
+  bowler: z.string().nullable().optional(),
   
   // Runs
   runsBatter: z.number().int().min(0).default(0), // runs_off_bat
@@ -193,6 +202,12 @@ export function normalizeDelivery(rawEvent) {
     strikerId: event.strikerId ?? null,
     nonStrikerId: event.nonStrikerId ?? null,
     bowlerId: event.bowlerId ?? null,
+
+    // Display names — preserved so the fold can restore the on-pitch players
+    // after a refresh/undo (see schema note above).
+    striker: event.striker ?? null,
+    nonStriker: event.nonStriker ?? null,
+    bowler: event.bowler ?? null,
 
     runsBatter: event.runsBatter ?? 0,
     runsExtras: event.runsExtras ?? 0,
