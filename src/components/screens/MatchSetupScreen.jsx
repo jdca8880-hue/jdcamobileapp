@@ -418,8 +418,6 @@ export default function MatchSetupScreen() {
         matchId: activeMatchId,
         tossWinnerTeamId,
         tossDecision,
-        teamAXI: battingXI,
-        teamBXI: bowlingXI,
       };
 
       try {
@@ -443,8 +441,6 @@ export default function MatchSetupScreen() {
           matchId: activeMatchId,
           tossWinnerTeamId,
           tossDecision,
-          teamAXI: battingXI,
-          teamBXI: bowlingXI,
         };
         setMatchSetup(finalSetup);
 
