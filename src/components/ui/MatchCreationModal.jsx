@@ -100,12 +100,22 @@ export default function MatchCreationModal({ isOpen, onClose, tournament, teams,
           onClose();
           navigateTo('/match-setup');
         } else {
-          alert("Failed to create match. The database may have rejected it.");
+          const skipped = createdMatches?.skipped > 0;
+          alert(skipped
+            ? "This fixture already exists (same teams and date/time in this tournament). Change the date/time or teams and try again."
+            : "Failed to create match. The database rejected it.");
         }
       }
     } catch (err) {
-      console.error(err);
-      alert("Error saving match: " + (err.originalMessage || err.message || err));
+      console.error('[MatchCreation] insert failed:', err?.details || err);
+      // Surface the ACTUAL database error (code + message + hint) so a schema
+      // issue — e.g. a legacy match_format CHECK/enum that lacks 'ODI' — is
+      // diagnosable instead of a vague "rejected".
+      const db = err?.details || {};
+      const parts = [err.originalMessage || err.message || String(err)];
+      if (db.code) parts.push(`[code ${db.code}]`);
+      if (db.hint) parts.push(db.hint);
+      alert("Error saving match: " + parts.filter(Boolean).join(' '));
     } finally {
       setIsSubmitting(false);
     }
