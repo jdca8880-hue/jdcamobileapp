@@ -8,10 +8,9 @@ import { initSentry, captureException } from './lib/sentry';
 // Must run before any component mounts so bootup errors are captured too.
 initSentry();
 
-// Test switch for the new event-sourced engine (Plan B). Open the app with
-// ?engine=v2 to turn it ON (persists on this device), or ?engine=off to turn it
-// OFF. Default is OFF, so normal users and existing matches are unaffected until
-// you explicitly flip it. Score a NEW match while it's on to exercise the v2 path.
+// Event-sourced engine (Plan B) is the DEFAULT for all matches. ?engine=off is a
+// per-device escape hatch for diagnosis (persists on this device); ?engine=v2
+// clears it again.
 try {
   const params = new URLSearchParams(window.location.search);
   const e = params.get('engine');

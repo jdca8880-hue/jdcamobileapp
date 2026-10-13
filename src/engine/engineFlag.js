@@ -10,20 +10,26 @@
 const GLOBAL_KEY = 'jdca-engine-v2';
 const MATCH_KEY = (matchId) => `jdca-engine-v2-${matchId}`;
 
-function read(key) {
-  try { return localStorage.getItem(key) === '1'; } catch { return false; }
+// Tri-state global flag: unset (default) = ON, '1' = ON, '0' = explicit OFF.
+// The v2 engine is the default for every match; '0' is only an escape hatch
+// (set via ?engine=off) for diagnosing a device.
+function readGlobal() {
+  try { return localStorage.getItem(GLOBAL_KEY) !== '0'; } catch { return true; }
 }
 function write(key, on) {
   try { on ? localStorage.setItem(key, '1') : localStorage.removeItem(key); } catch { /* ignore */ }
 }
 
-/** Global toggle — handy for testing the whole app on the new engine. */
-export function isEngineV2Enabled() { return read(GLOBAL_KEY); }
-export function setEngineV2(on) { write(GLOBAL_KEY, on); }
+/** Global toggle — v2 is ON unless this device explicitly opted out. */
+export function isEngineV2Enabled() { return readGlobal(); }
+export function setEngineV2(on) {
+  try { localStorage.setItem(GLOBAL_KEY, on ? '1' : '0'); } catch { /* ignore */ }
+}
 
-/** Is THIS match scored on the new engine? (per-match opt-in, or global on). */
+/** Is THIS match scored on the new engine? Default yes (v2 is the engine). */
 export function isEventMatch(matchId) {
   if (isEngineV2Enabled()) return true;
-  return matchId ? read(MATCH_KEY(matchId)) : false;
+  // Opted out globally: a match can still be pinned to v2 explicitly.
+  try { return matchId ? localStorage.getItem(MATCH_KEY(matchId)) === '1' : false; } catch { return false; }
 }
 export function markEventMatch(matchId, on = true) { if (matchId) write(MATCH_KEY(matchId), on); }
