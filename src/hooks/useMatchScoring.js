@@ -662,7 +662,17 @@ export function useMatchScoring({
     // create — or repair — the innings with the correct side batting.
     const authoritative = (() => {
       const ms = matchSetup;
-      if (!ms?.teamAId || !ms?.teamBId || !ms?.tossWinnerTeamId) return null;
+      if (!ms?.teamAId || !ms?.teamBId) return null;
+      // The current batting/bowling team — set by the authoritative event-log
+      // fold (INNINGS_STARTED carries explicit teams) or by a follow-on start —
+      // is the source of truth when it is for THIS innings, and is the only thing
+      // that gets a Test follow-on order (A,B,B,A) right. Only fall back to the
+      // toss derivation when we don't have it yet.
+      if (num === innings && currentBattingTeamId && currentBowlingTeamId &&
+          (currentBattingTeamId === ms.teamAId || currentBattingTeamId === ms.teamBId)) {
+        return { battingTeamId: currentBattingTeamId, bowlingTeamId: currentBowlingTeamId };
+      }
+      if (!ms.tossWinnerTeamId) return null;
       const isBat = String(ms.electedTo || '').toUpperCase() === 'BAT';
       let batId, bowlId;
       if (ms.tossWinnerTeamId === ms.teamAId) {
@@ -672,6 +682,8 @@ export function useMatchScoring({
         batId = isBat ? ms.teamBId : ms.teamAId;
         bowlId = isBat ? ms.teamAId : ms.teamBId;
       }
+      // Default batting order: limited overs flips on innings 2 & 3; a Test's
+      // normal (no follow-on) order A,B,A,B flips on innings 2 & 4.
       const isTest = isTestFormat(ms.format || matchFormat);
       const swap = isTest ? (num === 2 || num === 4) : (num === 2 || num === 3);
       if (swap) { const t = batId; batId = bowlId; bowlId = t; }
@@ -782,6 +794,88 @@ export function useMatchScoring({
       });
     }
 
+    // The on-pitch positions the FOLD can supply (from the deliveries' own
+    // strikerId/bowlerId). But three legitimate selections are React/localStorage
+    // state, not durable deliveries, so the fold returns null for them until the
+    // next ball is bowled: the openers (chosen, no ball yet), a new batter after
+    // a wicket, and the bowler at the very start of an innings. Nulling those on
+    // every refresh/undo is exactly the "striker/non-striker/bowler got offed"
+    // bug — so when the fold has no one, restore the persisted selection, but
+    // ONLY if it's still valid for THIS innings (in the batting/bowling XI and
+    // not already dismissed). That keeps a stale or wrong-team pick from sneaking
+    // back as "not in the playing XI".
+    let outStriker = live.striker || null;
+    let outNonStriker = live.nonStriker || null;
+    let outBowler = live.currentBowler || null;
+    let resumeFromOverComplete = false;
+    try {
+      // The XI source must be reliable at hydrate time: the `matchSetup` state
+      // variable can be a STALE closure value (it was just set by setMatchSetup
+      // in the same pass and React hasn't committed it yet), so prefer it only
+      // when it already carries an XI, else read the per-match setup cache that
+      // hydration writes synchronously to localStorage.
+      let ms = (matchSetup && (matchSetup.teamAXI?.length || matchSetup.teamBXI?.length)) ? matchSetup : null;
+      if (!ms) {
+        try { ms = JSON.parse(localStorage.getItem(`jdca-match-setup-${matchId}`) || 'null'); } catch { ms = null; }
+      }
+      ms = ms || matchSetup || {};
+      const xiFor = (teamId) =>
+        teamId && teamId === ms.teamAId ? (ms.teamAXI || [])
+        : teamId && teamId === ms.teamBId ? (ms.teamBXI || [])
+        : [];
+      const battingXI = xiFor(live.battingTeamId);
+      const bowlingXI = xiFor(live.bowlingTeamId);
+      const inXI = (xi, id) => Array.isArray(xi) && xi.some(p => String(p.id) === String(id));
+
+      // Who is already out in THIS innings (so we never resurrect a dismissed
+      // batter into an open end).
+      const dismissed = new Set();
+      const curProj = (live.projection?.innings || []).find(i => i.inningsNumber === live.innings);
+      if (curProj?.batting) {
+        for (const pid of Object.keys(curProj.batting)) {
+          if (curProj.batting[pid]?.out) dismissed.add(String(pid));
+        }
+      }
+
+      const readCache = (key) => {
+        try { return JSON.parse(localStorage.getItem(`${key}-${matchId}`) || 'null'); } catch { return null; }
+      };
+
+      if (!outStriker) {
+        const c = readCache('jdca-striker');
+        const nsId = outNonStriker?.id ? String(outNonStriker.id) : null;
+        if (c?.id && inXI(battingXI, c.id) && !dismissed.has(String(c.id)) && String(c.id) !== nsId) {
+          outStriker = c;
+        }
+      }
+      if (!outNonStriker) {
+        const c = readCache('jdca-nonstriker');
+        const sId = outStriker?.id ? String(outStriker.id) : null;
+        if (c?.id && inXI(battingXI, c.id) && !dismissed.has(String(c.id)) && String(c.id) !== sId) {
+          outNonStriker = c;
+        }
+      }
+      // Bowler:
+      //  • Mid-over / innings-start (fold has no bowler): restore the persisted
+      //    bowler if they're in the bowling XI.
+      //  • Over just completed: the fold keeps the bowler who BOWLED it and flags
+      //    needsNewBowler. If the scorer had ALREADY chosen the next over's bowler
+      //    (persisted, in the XI, and NOT the one who just bowled), restore them
+      //    and resume — otherwise keep prompting (leave the OVER_COMPLETE state).
+      if (!outBowler && !live.needsNewBowler) {
+        const c = readCache('jdca-bowler');
+        if (c?.id && inXI(bowlingXI, c.id)) outBowler = c;
+      } else if (live.needsNewBowler) {
+        const c = readCache('jdca-bowler');
+        if (c?.id && inXI(bowlingXI, c.id) && String(c.id) !== String(live.lastOverBowlerId)) {
+          outBowler = c;
+          resumeFromOverComplete = true;
+        }
+      }
+    } catch (e) {
+      console.warn('[useMatchScoring] player-position fallback during fold failed:', e);
+    }
+
     setInnings(live.innings);
     if (inningsId) setCurrentInningsId(inningsId);
     if (live.battingTeamId) setCurrentBattingTeamId(live.battingTeamId);
@@ -790,12 +884,14 @@ export function useMatchScoring({
     setWickets(live.wickets);
     setBalls(live.balls);
     setTarget(live.target ?? null);
-    setStriker(live.striker || null);
-    setNonStriker(live.nonStriker || null);
-    setCurrentBowler(live.currentBowler || null);
-    setCurrentOverBalls(live.currentOverBalls || []);
+    setStriker(outStriker);
+    setNonStriker(outNonStriker);
+    setCurrentBowler(outBowler);
+    setCurrentOverBalls(resumeFromOverComplete ? [] : (live.currentOverBalls || []));
     setIsFreeHit(!!live.isFreeHit);
-    setMatchStatus(live.matchStatus || MATCH_STATES.IN_PROGRESS);
+    // If we restored an already-chosen next-over bowler, resume play rather than
+    // leaving the (now-satisfied) OVER_COMPLETE "select next bowler" prompt up.
+    setMatchStatus(resumeFromOverComplete ? MATCH_STATES.IN_PROGRESS : (live.matchStatus || MATCH_STATES.IN_PROGRESS));
     if (live.lastOverBowlerId !== undefined) setLastOverBowlerId(live.lastOverBowlerId);
     setDeliveryLog(rebuiltLog);
     // Undo in v2 is log-based and never reads ballHistory's contents, but the
@@ -1349,6 +1445,140 @@ export function useMatchScoring({
     // batting score as BOTH teams' scores, so it could only corrupt listeners.
   };
 
+  // Write a finished match's winner/margin/result text and route to the result
+  // screen. Shared by the limited-overs chase finaliser and the Test aggregate
+  // finaliser so cleanup (snapshot delete, matches cache patch) stays identical.
+  const commitMatchResult = ({ winnerId, margin, text }) => {
+    api.updateMatchDetails(activeMatchId, {
+      winner_team_id: winnerId,
+      result_margin: margin,
+      result_text: text,
+    }).then(() => {
+      setMatches(prev => prev.map(m => m.id === activeMatchId ? {
+        ...m, winner_team_id: winnerId, result_margin: margin, result_text: text,
+      } : m));
+    }).catch(console.error);
+    setTimeout(() => navigateTo('match-result'), 600);
+    if (activeMatchId) {
+      import('../lib/db.js').then(({ db }) => db.match_state.delete(activeMatchId)).catch(() => {});
+    }
+  };
+
+  // Limited-overs / super-over finalisation: decide the result from the chasing
+  // innings vs. the first-innings score. (Unchanged logic, extracted verbatim.)
+  const finalizeChaseResult = (newState) => {
+    try {
+      const firstInningsScore = newState.target ? newState.target - 1 : 0;
+      let winnerId = null;
+      let margin = null;
+      let text = '';
+
+      const activeMatch = matches?.find(m => m.id === activeMatchId);
+      const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'Unknown Team';
+      const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'Unknown Team';
+
+      const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
+      const electedTo = matchSetup?.electedTo;
+      let battingTId = matchSetup?.teamAId;
+      let bowlingTId = matchSetup?.teamBId;
+      if (tossWinnerTeamId) {
+        if (tossWinnerTeamId === matchSetup?.teamAId) {
+          battingTId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+          bowlingTId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+        } else {
+          battingTId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
+          bowlingTId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
+        }
+      }
+      // Super over flips on innings 2 & 3 (this path never runs for a Test).
+      const swapForFinal = (newState.innings === 2 || newState.innings === 3);
+      if (swapForFinal) {
+        const tmpId = battingTId; battingTId = bowlingTId; bowlingTId = tmpId;
+      }
+
+      const isBattingTeamA = battingTId === matchSetup?.teamAId;
+      const battingName = isBattingTeamA ? teamAName : teamBName;
+      const bowlingName = isBattingTeamA ? teamBName : teamAName;
+
+      const isSuperOverFinal = (newState.innings || innings) >= 4;
+      const superOverSuffix = isSuperOverFinal ? ' (Super Over)' : '';
+
+      if (newState.target && newState.runs >= newState.target) {
+        winnerId = battingTId;
+        if (isSuperOverFinal) { margin = 'Super Over'; text = `${battingName} won the Super Over`; }
+        else {
+          const wktsLeft = 10 - newState.wickets;
+          margin = `${wktsLeft} wickets`;
+          text = `${battingName} won by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
+        }
+      } else if (newState.runs < firstInningsScore) {
+        winnerId = bowlingTId;
+        const runsDiff = firstInningsScore - newState.runs;
+        if (isSuperOverFinal) { margin = 'Super Over'; text = `${bowlingName} won the Super Over by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`; }
+        else { margin = `${runsDiff} runs`; text = `${bowlingName} won by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`; }
+      } else {
+        winnerId = null;
+        margin = 'Tie';
+        text = isSuperOverFinal ? 'Super Over tied — another Super Over required' : 'Match tied';
+      }
+      if (isSuperOverFinal && text && !text.includes('Super Over')) text += superOverSuffix;
+
+      commitMatchResult({ winnerId, margin, text });
+    } catch (e) {
+      console.error('[useMatchScoring] Match finalization error:', e);
+      setTimeout(() => navigateTo('match-result'), 600);
+    }
+  };
+
+  // Test / multi-day result, taken from the authoritative aggregate projection
+  // (deriveTestOutcome). Handles the 4th-innings chase, innings-victories and the
+  // draw/aggregate wording that the simple chase math cannot express.
+  const applyTestResult = (result) => {
+    const res = result || {};
+    const winnerId = res.winnerTeamId || null;
+    const activeMatch = matches?.find(m => m.id === activeMatchId);
+    const nameFor = (id) => {
+      if (id && id === matchSetup?.teamAId) return matchSetup?.teamA || activeMatch?.home_team?.name || 'Team A';
+      if (id && id === matchSetup?.teamBId) return matchSetup?.teamB || activeMatch?.away_team?.name || 'Team B';
+      return null;
+    };
+    const margin = res.margin || (res.isDraw ? 'Draw' : res.isTie ? 'Tie' : null);
+    let text;
+    if (res.isDraw) text = 'Match drawn';
+    else if (res.isTie) text = 'Match tied';
+    else if (winnerId) text = `${nameFor(winnerId) || 'Winner'} won by ${margin}`;
+    else text = res.text || 'Match completed';
+    setMatchStatus(MATCH_STATES.MATCH_FINISHED);
+    commitMatchResult({ winnerId, margin, text });
+  };
+
+  // After a Test innings ends (all-out / declaration / chase), fold the durable
+  // event log — now authoritative for the aggregate — and act on it: a COMPLETED
+  // projection finalises the match (a 4th-innings result OR an innings-victory
+  // after only 3 innings), an INNINGS_BREAK projection advances to the next
+  // innings. The short delay lets the just-recorded delivery reach the log; if
+  // the fold isn't terminal yet we trust the in-memory engine's decision.
+  const resolveTestTransition = (fallbackNewState) => {
+    setTimeout(async () => {
+      let proj = null;
+      try {
+        const { getMatchState } = await import('../lib/matchLog.js');
+        proj = await getMatchState(activeMatchId, { format: resolveFormat(matchSetup?.format || matchFormat) });
+      } catch (e) {
+        console.warn('[useMatchScoring] Test transition fold failed:', e);
+      }
+      if (proj?.status === 'COMPLETED') { applyTestResult(proj.result); return; }
+      if (proj?.status === 'INNINGS_BREAK') { navigateTo('innings-break'); return; }
+      // Projection not terminal yet — fall back to the in-memory engine.
+      if (fallbackNewState?.matchStatus === MATCH_STATES.MATCH_FINISHED) {
+        setMatchStatus(MATCH_STATES.MATCH_FINISHED);
+        finalizeChaseResult(fallbackNewState); // 4th-innings chase math is correct here
+      } else {
+        navigateTo('innings-break');
+      }
+    }, 600);
+  };
+
   // Apply State Machine Result
   const applyStateResult = (result) => {
     if (!result.success) {
@@ -1396,111 +1626,19 @@ export function useMatchScoring({
 
     saveMatchSnapshot(newState);
 
-    // Check innings or match termination
-    if (newState.matchStatus === MATCH_STATES.INNINGS_BREAK) {
+    // Check innings or match termination.
+    // Test / multi-day: never decide the result from the in-memory engine alone —
+    // an innings-victory can end the match at the innings-3 break, and the result
+    // is a team aggregate. Route BOTH the innings-break and the match-finished
+    // transitions through the authoritative aggregate projection.
+    if (isTestMatch &&
+        (newState.matchStatus === MATCH_STATES.INNINGS_BREAK ||
+         newState.matchStatus === MATCH_STATES.MATCH_FINISHED)) {
+      resolveTestTransition(newState);
+    } else if (newState.matchStatus === MATCH_STATES.INNINGS_BREAK) {
       setTimeout(() => navigateTo('innings-break'), 600);
     } else if (newState.matchStatus === MATCH_STATES.MATCH_FINISHED) {
-      // Calculate and finalize match
-      try {
-        // firstInningsScore is the score set in innings 1. Target = firstInningsScore + 1.
-        // newState.target is set as firstInningsScore + 1 via setTarget().
-        const firstInningsScore = newState.target ? newState.target - 1 : 0;
-        let winnerId = null;
-        let margin = null;
-        let text = '';
-        
-        const activeMatch = matches?.find(m => m.id === activeMatchId);
-        const teamAName = activeMatch?.home_team?.name || activeMatch?.teamA?.name || 'Unknown Team';
-        const teamBName = activeMatch?.away_team?.name || activeMatch?.teamB?.name || 'Unknown Team';
-        
-        // Determine which team was batting in this innings (innings 2/4)
-        const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
-        const electedTo = matchSetup?.electedTo;
-        let battingTId = matchSetup?.teamAId;
-        let bowlingTId = matchSetup?.teamBId;
-        if (tossWinnerTeamId) {
-          if (tossWinnerTeamId === matchSetup?.teamAId) {
-            battingTId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
-            bowlingTId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
-          } else {
-            battingTId = electedTo === 'Bat' ? matchSetup?.teamBId : matchSetup?.teamAId;
-            bowlingTId = electedTo === 'Bat' ? matchSetup?.teamAId : matchSetup?.teamBId;
-          }
-        }
-        // Swap to the side batting in the final innings (relative to the
-        // toss-first side). Limited overs / super over flip on innings 2 & 3;
-        // a Test's final innings is the 4th, where the innings-2 side bats again.
-        const swapForFinal = isTestMatch
-          ? (newState.innings === 2 || newState.innings === 4)
-          : (newState.innings === 2 || newState.innings === 3);
-        if (swapForFinal) {
-          const tmpId = battingTId;
-          battingTId = bowlingTId;
-          bowlingTId = tmpId;
-        }
-
-        const isBattingTeamA = battingTId === matchSetup?.teamAId;
-        const battingName = isBattingTeamA ? teamAName : teamBName;
-        const bowlingName = isBattingTeamA ? teamBName : teamAName;
-
-        // A Test 4th innings is NOT a super over, even though innings === 4.
-        const isSuperOverFinal = !isTestMatch && (newState.innings || innings) >= 4;
-        const superOverSuffix = isSuperOverFinal ? ' (Super Over)' : '';
-
-        if (newState.target && newState.runs >= newState.target) {
-          // Chasing team won
-          winnerId = battingTId;
-          if (isSuperOverFinal) {
-            margin = 'Super Over';
-            text = `${battingName} won the Super Over`;
-          } else {
-            const wktsLeft = 10 - newState.wickets;
-            margin = `${wktsLeft} wickets`;
-            text = `${battingName} won by ${wktsLeft} wicket${wktsLeft !== 1 ? 's' : ''}`;
-          }
-        } else if (newState.runs < firstInningsScore) {
-          // Defending team won (chasing team bowled out or overs done without reaching target)
-          winnerId = bowlingTId;
-          const runsDiff = firstInningsScore - newState.runs;
-          if (isSuperOverFinal) {
-            margin = 'Super Over';
-            text = `${bowlingName} won the Super Over by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
-          } else {
-            margin = `${runsDiff} runs`;
-            text = `${bowlingName} won by ${runsDiff} run${runsDiff !== 1 ? 's' : ''}`;
-          }
-        } else {
-          // Scores level = Tie. In a Super Over this means another Super Over
-          // is required; in a normal match the match is tied.
-          winnerId = null;
-          margin = 'Tie';
-          text = isSuperOverFinal
-            ? 'Super Over tied — another Super Over required'
-            : 'Match tied';
-        }
-        if (isSuperOverFinal && text && !text.includes('Super Over')) text += superOverSuffix;
-        
-        api.updateMatchDetails(activeMatchId, { 
-          winner_team_id: winnerId, 
-          result_margin: margin, 
-          result_text: text 
-        }).then(() => {
-          setMatches(prev => prev.map(m => m.id === activeMatchId ? {
-            ...m,
-            winner_team_id: winnerId,
-            result_margin: margin,
-            result_text: text
-          } : m));
-        }).catch(console.error);
-      } catch (e) {
-        console.error('[useMatchScoring] Match finalization error:', e);
-      }
-      setTimeout(() => navigateTo('match-result'), 600);
-
-      // Match is done — clean up the offline snapshot so it doesn't resurrect a finished match
-      if (activeMatchId) {
-        import('../lib/db.js').then(({ db }) => db.match_state.delete(activeMatchId)).catch(() => {});
-      }
+      finalizeChaseResult(newState);
     }
 
     return true;
@@ -1670,7 +1808,7 @@ export function useMatchScoring({
   // which team bats this innings — derived deterministically from the setup, so
   // it never depends on a toss write that may have been lost. Idempotent (fixed
   // ids), so re-entry on reload never duplicates.
-  const emitV2InningsStart = async (inningsNumber, targetRuns = null) => {
+  const emitV2InningsStart = async (inningsNumber, targetRuns = null, explicitTeams = null) => {
     if (!activeMatchId || !isEventMatch(activeMatchId)) return;
     const ms = matchSetup || {};
     if (!ms.teamAId || !ms.teamBId) return;
@@ -1687,9 +1825,18 @@ export function useMatchScoring({
         matchId: activeMatchId, type: 'MATCH_STARTED', id: `evt-matchstart-${activeMatchId}`,
         payload: { format: fmt.id, battedFirstTeamId: first, otherTeamId: other },
       });
-      const idx = battingSideIndex(fmt, inningsNumber);
-      const battingTeamId = idx === 0 ? first : other;
-      const bowlingTeamId = idx === 0 ? other : first;
+      // Batting side: explicit teams win (used for a Test follow-on, where the
+      // order becomes A,B,B,A and the format's default index can't express it);
+      // otherwise derive from the format's batting-side index (A,B / A,B,A,B).
+      let battingTeamId, bowlingTeamId;
+      if (explicitTeams?.battingTeamId && explicitTeams?.bowlingTeamId) {
+        battingTeamId = explicitTeams.battingTeamId;
+        bowlingTeamId = explicitTeams.bowlingTeamId;
+      } else {
+        const idx = battingSideIndex(fmt, inningsNumber);
+        battingTeamId = idx === 0 ? first : other;
+        bowlingTeamId = idx === 0 ? other : first;
+      }
       await appendEvent({
         matchId: activeMatchId, type: 'INNINGS_STARTED', inningsNumber,
         id: `evt-inningsstart-${activeMatchId}-${inningsNumber}`,
@@ -1741,7 +1888,11 @@ export function useMatchScoring({
     }
   };
 
-  const startNextInnings = (targetRuns, nextInningsNum) => {
+  // `explicitTeams` ({ battingTeamId, bowlingTeamId }) names the side that bats
+  // this innings. It is only needed for a Test FOLLOW-ON, where the order breaks
+  // the normal A,B,A,B pattern (becomes A,B,B,A). For every other innings it is
+  // omitted and the batting side is derived from the format's index.
+  const startNextInnings = (targetRuns, nextInningsNum, explicitTeams = null) => {
     setTarget(targetRuns);
     if (activeMatchId && targetRuns) {
       try { localStorage.setItem(`jdca-target-${activeMatchId}`, targetRuns); } catch {}
@@ -1759,12 +1910,14 @@ export function useMatchScoring({
       })();
     }
     setInnings(nextInningsNum);
-    emitV2InningsStart(nextInningsNum, targetRuns); // v2: log INNINGS_STARTED (+ target)
+    emitV2InningsStart(nextInningsNum, targetRuns, explicitTeams); // v2: log INNINGS_STARTED (+ target)
     setCurrentInningsId(null);
-    // Clear the resolved batting/bowling team so the next innings re-resolves
-    // authoritatively from its own innings record (effect on [innings] change).
-    setCurrentBattingTeamId(null);
-    setCurrentBowlingTeamId(null);
+    // Seed the batting/bowling team for the new innings. When follow-on teams are
+    // given they are authoritative immediately (so the right XI validates the
+    // first ball); otherwise clear and let resolveInningsId re-derive them from
+    // the freshly-created innings record (effect on [innings] change).
+    setCurrentBattingTeamId(explicitTeams?.battingTeamId || null);
+    setCurrentBowlingTeamId(explicitTeams?.bowlingTeamId || null);
     // Fresh innings => sequence starts over at 1 for this innings number.
     inningsSeqRef.current[nextInningsNum] = 0;
     setRuns(0);
@@ -1788,8 +1941,8 @@ export function useMatchScoring({
     saveMatchSnapshot({
       innings: nextInningsNum,
       currentInningsId: null,
-      currentBattingTeamId: null,
-      currentBowlingTeamId: null,
+      currentBattingTeamId: explicitTeams?.battingTeamId || null,
+      currentBowlingTeamId: explicitTeams?.bowlingTeamId || null,
       runs: 0, wickets: 0, balls: 0,
       target: targetRuns,
       striker: null, nonStriker: null, currentBowler: null,
@@ -2467,11 +2620,31 @@ export function useMatchScoring({
   // can start; closing the final innings ends the match (finalisation runs via
   // applyStateResult). Reuses the exact same termination path as an all-out, so
   // nothing special happens downstream — the scorer just chose the moment.
-  const declareInnings = () => {
+  const declareInnings = async () => {
     if (!isTestMatch) return;
     if (matchStatus === MATCH_STATES.MATCH_FINISHED || matchStatus === 'COMPLETED') return;
     const snap = captureSnapshot();
-    const isFinal = (snap.innings || innings) === 2 || (snap.innings || innings) === 4;
+    const curInn = snap.innings || innings;
+    // Only the 4th innings is the last one; declaring innings 1/2/3 closes that
+    // innings and hands over to the next (the aggregate projection then decides
+    // whether an innings-victory has already ended the match).
+    const isFinal = curInn === 4;
+
+    // v2: persist the declaration so the durable log (and every device) closes
+    // this innings. Idempotent id so a re-tap can't double-declare. Append BEFORE
+    // applyStateResult so resolveTestTransition's fold already sees it.
+    if (isEventMatch(activeMatchId)) {
+      try {
+        await appendEvent({
+          matchId: activeMatchId, type: 'DECLARATION', inningsNumber: curInn,
+          id: `evt-declare-${activeMatchId}-${curInn}`, payload: { innings: curInn },
+        });
+        pushOutbox().catch(() => {});
+      } catch (e) {
+        console.error('[useMatchScoring] declareInnings appendEvent failed:', e);
+      }
+    }
+
     const newStatus = isFinal ? MATCH_STATES.MATCH_FINISHED : MATCH_STATES.INNINGS_BREAK;
     applyStateResult({ success: true, newState: { ...snap, matchStatus: newStatus } });
   };
@@ -2479,6 +2652,19 @@ export function useMatchScoring({
   // Test / multi-day: end a timed-out match with no result. No winner; the
   // scorecard and both-innings aggregates are preserved as-is.
   const declareDraw = async () => {
+    // v2: record MATCH_ENDED so the durable log (and every device / a reload)
+    // folds to a COMPLETED draw rather than re-opening the match as in-progress.
+    if (isEventMatch(activeMatchId)) {
+      try {
+        await appendEvent({
+          matchId: activeMatchId, type: 'MATCH_ENDED', id: `evt-matchend-${activeMatchId}`,
+          payload: { isDraw: true, winnerTeamId: null, margin: 'Draw', resultText: 'Match drawn' },
+        });
+        pushOutbox().catch(() => {});
+      } catch (e) {
+        console.error('[useMatchScoring] declareDraw appendEvent failed:', e);
+      }
+    }
     await endMatchEarly({ winnerId: null, margin: 'Draw', resultText: 'Match drawn' });
   };
 

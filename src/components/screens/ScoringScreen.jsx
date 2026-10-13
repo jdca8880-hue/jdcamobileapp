@@ -591,12 +591,16 @@ export default function ScoringScreen() {
                 <>
                   <button
                     onClick={() => {
-                      // Multi-day is 2 innings: declaring the 2nd (final) innings
-                      // ends the match; declaring the 1st goes to the break.
-                      const isFinal = Number(innings) === 2 || Number(innings) === 4;
+                      // Test/multi-day is 4 innings: only the 4th is the last, so
+                      // declaring it ends the match; declaring 1st/2nd/3rd closes
+                      // that innings and goes to the break (where the aggregate
+                      // may already have decided an innings-victory).
+                      const isFinal = Number(innings) === 4;
+                      const o = ['th', 'st', 'nd', 'rd']; const v = innings % 100;
+                      const ord = `${innings}${o[(v - 20) % 10] || o[v] || o[0]}`;
                       const msg = isFinal
                         ? 'Declare this innings closed and end the match? This cannot be undone.'
-                        : `Declare the ${innings === 1 ? '1st' : `${innings}th`} innings closed and move to the innings break? This cannot be undone.`;
+                        : `Declare the ${ord} innings closed and move to the innings break? This cannot be undone.`;
                       if (window.confirm(msg) && declareInnings) declareInnings();
                     }}
                     className="px-3 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-700 font-bold text-xs gap-1 hover:bg-amber-100 transition-colors"
@@ -673,7 +677,7 @@ export default function ScoringScreen() {
         <div className="px-4 py-6 bg-white">
           <div className="text-center">
             <div className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-              {innings === 1 ? '1st Innings' : '2nd Innings'} • {currentBattingTeamName}
+              {(() => { const o = ['th','st','nd','rd']; const v = innings % 100; return `${innings}${o[(v-20)%10]||o[v]||o[0]}`; })()} Innings • {currentBattingTeamName}
             </div>
             <div className="text-[80px] font-black leading-none tracking-tighter tabular-nums mb-2 text-slate-900 flex items-baseline justify-center">
               <motion.span
@@ -754,11 +758,13 @@ export default function ScoringScreen() {
               </div>
             )}
 
-            {innings === 2 && target && (
+            {((innings === 2 && !isTestMatch) || (isTestMatch && innings === 4)) && target && (
               <div className="mt-4 bg-jade-50 border border-jade-100 px-4 py-2 rounded-xl inline-flex flex-col items-center justify-center text-jade-700">
                 <div className="text-[12px] font-bold uppercase tracking-widest opacity-80 mb-0.5">Target: {target}</div>
                 <div className="text-[15px] font-black">
-                  Need {Math.max(0, target - runs)} runs from {Math.max(0, (currentTotalOvers * 6) - balls)} balls
+                  {isTestMatch
+                    ? `Need ${Math.max(0, target - runs)} runs to win`
+                    : `Need ${Math.max(0, target - runs)} runs from ${Math.max(0, (currentTotalOvers * 6) - balls)} balls`}
                 </div>
               </div>
             )}
@@ -1408,7 +1414,7 @@ export default function ScoringScreen() {
           </Modal>
         )}
 
-        {matchStatus === 'INNINGS_BREAK' && (innings === 1 || innings === 3) && (
+        {matchStatus === 'INNINGS_BREAK' && !isTestMatch && (innings === 1 || innings === 3) && (
           <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">

@@ -37,22 +37,27 @@ export const FORMATS = {
   TEST: {
     id: 'TEST',
     label: 'Test / Multi-day',
-    // JDCA multi-day: ONE innings per side (2 total), just with no per-innings
-    // over limit (unlimited overs → innings ends only on all-out / declaration).
-    // It is NOT 4-innings Test cricket — no follow-on, no aggregate, no innings
-    // victory. The only thing that sets it apart from a limited match is the
-    // absent over cap; the result is a straight chase of the 1st-innings total.
-    inningsCount: 2,
+    // Real multi-day / Test cricket: FOUR innings, two per side, no per-innings
+    // over limit (an innings ends only on all-out or a declaration). The batting
+    // order is A,B,A,B by default; a follow-on (enforced at the innings-2 break
+    // when the side batting first leads by `followOnLead`+) makes it A,B,B,A.
+    // The result is decided on the TEAM AGGREGATE of both innings, which also
+    // yields innings-victories and the 4th-innings run-chase target — all handled
+    // by `deriveTestOutcome` in the projection (gated on result === 'AGGREGATE').
+    inningsCount: 4,
     oversPerInnings: UNLIMITED_OVERS,
     ballsPerOver: 6,
     maxWickets: 10,
-    swap: 'AB',
-    battingIndex: battingIndexAB,
-    result: 'CHASE',
+    swap: 'ABAB',
+    battingIndex: battingIndexABAB,
+    result: 'AGGREGATE',
     superOver: false,
     allowDeclare: true,
     allowDraw: true,
     perBowlerOverCap: false,
+    // Minimum first-innings lead that lets the side batting first enforce the
+    // follow-on. 150 is the standard first-class margin for 3–4 day matches.
+    followOnLead: 150,
   },
   ODI: {
     id: 'ODI',

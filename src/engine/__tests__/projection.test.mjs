@@ -43,10 +43,16 @@ test('formats: resolve + rules are data-driven', () => {
   assert.equal(maxLegalBalls('T20', 1), 120);
   assert.equal(maxLegalBalls('TEST', 1), Infinity);
   assert.equal(maxLegalBalls('T20', 3), 6); // super over
-  // Test/multi-day is a 2-innings format (1 per side), unlimited overs. Its
-  // match-deciding innings is the 2nd, like any limited match.
-  assert.equal(resolveFormat('TEST').inningsCount, 2);
-  assert.equal(isFinalInnings('TEST', 2), true);
+  // Test/multi-day is a FOUR-innings aggregate format (2 per side), unlimited
+  // overs, batting order A,B,A,B by default.
+  assert.equal(resolveFormat('TEST').inningsCount, 4);
+  assert.equal(resolveFormat('TEST').result, 'AGGREGATE');
+  assert.equal(maxLegalBalls('TEST', 3), Infinity);
+  assert.equal(maxLegalBalls('TEST', 4), Infinity);
+  assert.equal(battingSideIndex('TEST', 1), 0); // A
+  assert.equal(battingSideIndex('TEST', 2), 1); // B
+  assert.equal(battingSideIndex('TEST', 3), 0); // A again
+  assert.equal(battingSideIndex('TEST', 4), 1); // B again
   assert.equal(isFinalInnings('T20', 2), true);
   // "Multi-Day" (and variants) must count as Test, or it is scored as a limited
   // chase and finishes on ball 1 — the "Pandurana won by 10 wickets" bug.
@@ -136,30 +142,96 @@ test('undo: voiding a delivery removes its effect deterministically', () => {
   assert.equal(i1.batting.b1.out, false);
 });
 
-test('Multi-day: 2 innings (1 per side), unlimited overs, decided by a chase', () => {
-  // A bats first and DECLARES at 90 (no over limit ends the innings); B then
-  // chases. Target = first innings + 1 = 91. B reaches it -> B wins by wickets.
+test('Multi-day: full 4 innings A,B,A,B decided on aggregate by a 4th-innings chase', () => {
+  // A 120 (declare) ; B 100 ; A 80 (declare) ; B needs (120+80) - 100 + 1 = 101.
   const log = makeLog();
   log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'Multi-Day', battedFirstTeamId: 'A', otherTeamId: 'B' });
-  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' });
-  addRuns(log, 1, 90);
-  log.add(EVENT_TYPES.DECLARATION, 1, {});
 
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  addRuns(log, 1, 120);
+  log.add(EVENT_TYPES.DECLARATION, 1, {});
   let st = buildMatchState(log.events);
-  assert.equal(st.innings.length, 1);
-  assert.equal(st.status, 'INNINGS_BREAK'); // only 2 innings total — now the 2nd
-  assert.equal(st.innings[0].battingTeamId, 'A');
+  assert.equal(st.status, 'INNINGS_BREAK'); // innings 1 of 4 done
 
   log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' });
+  addRuns(log, 2, 100);
+  log.add(EVENT_TYPES.DECLARATION, 2, {});
   st = buildMatchState(log.events);
-  assert.equal(st.innings[1].battingTeamId, 'B');
-  assert.equal(st.innings[1].target, 91); // chase the first-innings total + 1
+  assert.equal(st.status, 'INNINGS_BREAK'); // innings 2 of 4
 
-  addRuns(log, 2, 91);
+  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  addRuns(log, 3, 80);
+  log.add(EVENT_TYPES.DECLARATION, 3, {});
+  st = buildMatchState(log.events);
+  assert.equal(st.status, 'INNINGS_BREAK'); // innings 3 of 4 — not an innings victory (B 100 < A 200)
+
+  log.add(EVENT_TYPES.INNINGS_STARTED, 4, { battingTeamId: 'B', bowlingTeamId: 'A' });
+  st = buildMatchState(log.events);
+  assert.equal(st.innings[3].target, 101); // (120+80) - 100 + 1
+
+  addRuns(log, 4, 101);
   st = buildMatchState(log.events);
   assert.equal(st.status, 'COMPLETED');
   assert.equal(st.result.winnerTeamId, 'B');
   assert.match(st.result.margin, /wkt/);
+});
+
+test('Multi-day: aggregate win by runs when the 4th-innings chase falls short', () => {
+  const log = makeLog();
+  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'TEST', battedFirstTeamId: 'A', otherTeamId: 'B' });
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' }); addRuns(log, 1, 150); log.add(EVENT_TYPES.DECLARATION, 1, {});
+  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 2, 90); log.add(EVENT_TYPES.DECLARATION, 2, {});
+  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'A', bowlingTeamId: 'B' }); addRuns(log, 3, 60); log.add(EVENT_TYPES.DECLARATION, 3, {});
+  // B need (150+60) - 90 + 1 = 121; bowled out for 100 (10 wkts) -> A by 20 runs.
+  log.add(EVENT_TYPES.INNINGS_STARTED, 4, { battingTeamId: 'B', bowlingTeamId: 'A' });
+  assert.equal(buildMatchState(log.events).innings[3].target, 121);
+  addRuns(log, 4, 100, 'c1', 'bwlZ');
+  for (let i = 0; i < 10; i++) log.add(EVENT_TYPES.DELIVERY, 4, ball(0, { s: `z${i}`, rb: 0, wkt: 'BOWLED', out: `z${i}` }));
+  const st = buildMatchState(log.events);
+  assert.equal(st.status, 'COMPLETED');
+  assert.equal(st.result.winnerTeamId, 'A');
+  assert.equal(st.result.margin, '20 runs'); // 210 - 190
+});
+
+test('Multi-day: innings victory ends the match after 3 innings (no 4th)', () => {
+  // A collapses twice (20 + 30 = 50) ; B make 100 in one innings -> B win by an
+  // innings and 50, with the match ending after innings 3.
+  const log = makeLog();
+  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'TEST', battedFirstTeamId: 'A', otherTeamId: 'B' });
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  addRuns(log, 1, 20);
+  for (let i = 0; i < 10; i++) log.add(EVENT_TYPES.DELIVERY, 1, ball(0, { s: `p${i}`, rb: 0, wkt: 'BOWLED', out: `p${i}` }));
+  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' });
+  addRuns(log, 2, 100); log.add(EVENT_TYPES.DECLARATION, 2, {});
+  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  addRuns(log, 3, 30);
+  for (let i = 0; i < 10; i++) log.add(EVENT_TYPES.DELIVERY, 3, ball(0, { s: `q${i}`, rb: 0, wkt: 'BOWLED', out: `q${i}` }));
+  const st = buildMatchState(log.events);
+  assert.equal(st.innings.length, 3); // never reached a 4th innings
+  assert.equal(st.status, 'COMPLETED');
+  assert.equal(st.result.winnerTeamId, 'B');
+  assert.match(st.result.margin, /innings and 50/);
+});
+
+test('Multi-day: follow-on order A,B,B,A, A wins by an innings', () => {
+  // A 300 ; B 100 (lead 200 -> follow-on) ; B again 120 (agg 220) -> A win by an
+  // innings and 80, match ends after 3 innings (B batted twice, A once).
+  const log = makeLog();
+  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'TEST', battedFirstTeamId: 'A', otherTeamId: 'B' });
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  addRuns(log, 1, 300); log.add(EVENT_TYPES.DECLARATION, 1, {});
+  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' });
+  addRuns(log, 2, 100);
+  for (let i = 0; i < 10; i++) log.add(EVENT_TYPES.DELIVERY, 2, ball(0, { s: `r${i}`, rb: 0, wkt: 'BOWLED', out: `r${i}` }));
+  // Follow-on: B bats innings 3 again (explicit teams express the broken order).
+  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'B', bowlingTeamId: 'A' });
+  addRuns(log, 3, 120);
+  for (let i = 0; i < 10; i++) log.add(EVENT_TYPES.DELIVERY, 3, ball(0, { s: `t${i}`, rb: 0, wkt: 'BOWLED', out: `t${i}` }));
+  const st = buildMatchState(log.events);
+  assert.equal(st.innings.length, 3);
+  assert.equal(st.status, 'COMPLETED');
+  assert.equal(st.result.winnerTeamId, 'A');
+  assert.match(st.result.margin, /innings and 80/);
 });
 
 test('Multi-day: an innings ends on all-out, never on an over limit', () => {
@@ -174,7 +246,7 @@ test('Multi-day: an innings ends on all-out, never on an over limit', () => {
   const st = buildMatchState(log.events);
   assert.equal(st.innings[0].wickets, 10);
   assert.equal(st.innings[0].status, 'COMPLETE');
-  assert.equal(st.status, 'INNINGS_BREAK'); // hand over to the 2nd and final innings
+  assert.equal(st.status, 'INNINGS_BREAK'); // hand over to the 2nd innings (of 4)
 });
 
 test('T20 chase: innings 2 target and win-by-runs result', () => {
