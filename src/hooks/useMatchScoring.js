@@ -17,7 +17,7 @@ import { INITIAL_SCORECARD, FIELD_DIRECTIONS } from '../data/constants';
 import { normalizeDelivery } from '../engine/deliveryContract.js';
 // --- Event-sourced engine (Plan B), used only for matches on the v2 flag ---
 import { isEventMatch } from '../engine/engineFlag';
-import { appendEvent, voidEventById, getMatchEvents } from '../lib/matchLog';
+import { appendEvent, voidEventById, getMatchEvents, getPendingOutbox } from '../lib/matchLog';
 import { pushOutbox, startAutoPush } from '../services/eventSync';
 import { resolveFormat, battingSideIndex, isTestFormat } from '../engine/formats';
 import { buildLiveState } from '../engine/liveState';
@@ -2688,6 +2688,28 @@ export function useMatchScoring({
 
   const endMatchEarly = async ({ winnerId, margin, resultText }) => {
     try {
+      // ROOT-CAUSE GUARD (offline balls lost on reconnect): api.endMatchEarly
+      // flips the match to COMPLETED on the server, after which the server
+      // refuses any further ball append and the sync layer drops whatever is
+      // still queued. So, when online, fully drain the durable event outbox for
+      // this match FIRST — the last balls scored before the match ended upload
+      // while the match is still live. This only orchestrates the existing
+      // pushOutbox() drain; it changes neither the sync engine nor the scoring
+      // engine. (Offline: nothing to flip yet — api.endMatchEarly queues the
+      // completion, and auto-push uploads the balls when connectivity returns.)
+      if (activeMatchId && isEventMatch(activeMatchId) &&
+          (typeof navigator === 'undefined' ? true : navigator.onLine)) {
+        let prev = Infinity;
+        const deadline = Date.now() + 30000;
+        for (;;) {
+          const left = (await getPendingOutbox(activeMatchId)).length;
+          if (left === 0 || Date.now() > deadline) break;
+          if (left >= prev) break; // stalled (auth/quarantine) — stop, don't spin
+          prev = left;
+          await pushOutbox();
+          await new Promise(r => setTimeout(r, 400));
+        }
+      }
       await api.endMatchEarly(activeMatchId, winnerId, margin, resultText);
       setMatchStatus('COMPLETED');
       setTimeout(() => navigateTo('match-result'), 400);

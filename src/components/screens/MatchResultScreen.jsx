@@ -189,44 +189,73 @@ export default function MatchResultScreen() {
     }
   };
 
-  // Drain the v2 durable-event outbox for this match to empty (or until offline /
-  // a few attempts). Returns how many events are still unsynced. This MUST run
-  // before the match is finalized: once status flips to COMPLETED the server RLS
-  // rejects any further append, which would otherwise quarantine + block the
-  // whole match's event queue. Flushing while the match is still live lets every
-  // event land cleanly.
-  const flushEventOutbox = async (matchId) => {
-    if (!matchId || !isEventMatch(matchId)) return 0;
-    const online = typeof navigator === 'undefined' ? true : navigator.onLine;
-    if (!online) {
-      const pend = await getPendingOutbox(matchId);
-      return pend.length;
-    }
-    for (let i = 0; i < 8; i++) {
-      const pend = await getPendingOutbox(matchId);
-      if (pend.length === 0) return 0;
+  // Drain the v2 durable-event outbox for this match to EMPTY before we ever
+  // finalize. This is the root-cause guard for lost offline scoring: once a
+  // match flips to COMPLETED the server rightly refuses any further append and
+  // the sync layer drops those still-pending balls — so a big offline backlog
+  // that hadn't finished uploading when the scorer hit "lock" vanished from the
+  // official record (scorecard showed 0) even though it was on the phone.
+  //
+  // It pushes repeatedly and keeps going as long as the pending count is
+  // shrinking (so a large backlog on a slow network still completes), with a
+  // generous time budget. It stops early only if it STALLS (no progress across
+  // several passes — e.g. an expired login or a quarantined event). Touches
+  // neither the sync engine nor the scoring engine; it only orchestrates the
+  // existing pushOutbox() drain. Returns { left, initial, online }.
+  const flushEventOutbox = async (matchId, onProgress) => {
+    const onlineNow = () => (typeof navigator === 'undefined' ? true : navigator.onLine);
+    if (!matchId || !isEventMatch(matchId)) return { left: 0, initial: 0, online: onlineNow() };
+
+    const initial = (await getPendingOutbox(matchId)).length;
+    if (initial === 0) return { left: 0, initial: 0, online: onlineNow() };
+    if (!onlineNow()) return { left: initial, initial, online: false };
+
+    let left = initial;
+    let prev = initial;
+    let noProgressPasses = 0;
+    const deadline = Date.now() + 30000; // enough for a sizeable offline backlog
+
+    while (left > 0 && Date.now() < deadline && onlineNow()) {
       await pushOutbox();
-      await new Promise(r => setTimeout(r, 400));
+      left = (await getPendingOutbox(matchId)).length;
+      if (onProgress) onProgress(left);
+      if (left >= prev) {
+        // No forward progress this pass — likely auth-paused or a quarantined
+        // event blocking the match drain. Give it a couple of retries then stop.
+        if (++noProgressPasses >= 3) break;
+      } else {
+        noProgressPasses = 0;
+      }
+      prev = left;
+      if (left > 0) await new Promise(r => setTimeout(r, 400));
     }
-    const left = await getPendingOutbox(matchId);
-    return left.length;
+    return { left, initial, online: onlineNow() };
   };
 
   const handleFinalEndAndLock = async () => {
-    // v2 / Test matches keep their pending events in the durable event outbox,
-    // NOT the old SyncService queue, so flush that first — otherwise we lock the
-    // match while events are still queued and block the queue (the Test
-    // "sync queue got blocked" bug).
+    // v2 / Test matches keep every ball in the durable event outbox. We MUST
+    // fully drain it before finalizing: locking flips the match to COMPLETED,
+    // after which the server refuses further appends and the sync layer drops
+    // any still-pending balls. So if the outbox can't be emptied, we BLOCK the
+    // lock (no "lock anyway" that would silently discard scoring) and tell the
+    // scorer exactly why. This is the root-cause fix for offline balls lost on
+    // reconnect — finalize never races ahead of the upload.
     if (matchData?.id && isEventMatch(matchData.id)) {
-      setIsLocking(true);
-      setSyncStatus({ isSyncing: true, pendingCount: 0, initialCount: 0 });
-      const left = await flushEventOutbox(matchData.id);
-      setSyncStatus({ isSyncing: false, pendingCount: left, initialCount: 0 });
-      setIsLocking(false);
-      if (left > 0) {
-        const offline = typeof navigator !== 'undefined' && !navigator.onLine;
-        if (!window.confirm(`${left} scoring event(s) haven't synced yet${offline ? ' (you are offline)' : ''}. Lock the match anyway? They will sync automatically when possible.`)) {
-          return;
+      const pending0 = (await getPendingOutbox(matchData.id)).length;
+      if (pending0 > 0) {
+        setIsLocking(true);
+        setSyncStatus({ isSyncing: true, pendingCount: pending0, initialCount: pending0 });
+        const { left, initial, online } = await flushEventOutbox(matchData.id, (n) =>
+          setSyncStatus(prev => ({ ...prev, pendingCount: n, initialCount: prev.initialCount || initial })));
+        setSyncStatus({ isSyncing: false, pendingCount: left, initialCount: 0 });
+        setIsLocking(false);
+        if (left > 0) {
+          if (!online) {
+            alert(`You are offline and ${left} scored ball(s)/event(s) still need to upload.\n\nConnect to the internet first, then lock the match. Locking while offline could drop those balls from the official record.`);
+          } else {
+            alert(`${left} scored ball(s)/event(s) could not be synced to the server, so the match was NOT locked (locking now could drop them).\n\nThis usually means your login expired or an event is stuck. Please return to the Scoring screen (log in again if prompted), let it finish syncing, then lock the match.`);
+          }
+          return; // never finalize with a non-empty outbox
         }
       }
     }
