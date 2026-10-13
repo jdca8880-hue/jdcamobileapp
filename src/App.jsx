@@ -35,7 +35,6 @@ const PlayerRegistrationScreen = lazy(() => import('./components/screens/PlayerR
 const SelectionScreen = lazy(() => import('./components/selection/SelectionWorkspace'));
 const AdministrationScreen = lazy(() => import('./components/screens/AdministrationScreen'));
 const MatchOfficialsScreen = lazy(() => import('./components/screens/MatchOfficialsScreen'));
-const NewsScreen = lazy(() => import('./components/screens/NewsScreen'));
 const PlayerComparisonModal = lazy(() => import('./components/screens/PlayerComparisonModal'));
 
 // Lightweight fallback shown while a lazily-loaded screen's chunk downloads.
@@ -170,7 +169,6 @@ function MainApp() {
               <Route path="/selection" element={<ProtectedRoute path="/selection" element={<AnimatedPage><SelectionScreen /></AnimatedPage>} />} />
               <Route path="/administration" element={<ProtectedRoute path="/administration" element={<AnimatedPage><AdministrationScreen /></AnimatedPage>} />} />
               <Route path="/officials" element={<ProtectedRoute path="/officials" element={<AnimatedPage><MatchOfficialsScreen /></AnimatedPage>} />} />
-              <Route path="/news" element={<ProtectedRoute path="/news" element={<AnimatedPage><NewsScreen /></AnimatedPage>} />} />
 
               {/* Legacy aliases */}
               <Route path="/match-officials" element={<Navigate to="/officials" replace />} />

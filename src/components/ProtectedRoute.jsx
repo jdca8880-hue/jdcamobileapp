@@ -13,7 +13,7 @@ const SCORING_FLOW_ROUTES = ['/match-setup', '/scoring', '/innings-break', '/mat
 // a match end, and hit a finalize step they have no permission for.
 const PLAYER_ROUTES = [
   '/home', '/matches', '/match-overview', '/match-detail', '/scorecard', '/player-profile',
-  '/teams', '/tournaments', '/news', '/players', '/selection'
+  '/teams', '/tournaments', '/players', '/selection'
 ];
 
 const SCORER_ROUTES = [

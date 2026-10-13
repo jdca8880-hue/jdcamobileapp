@@ -22,7 +22,6 @@ const SCREEN_TITLES = {
   'administration':     { title: 'Administration',       showBack: false },
   'access-control':     { title: 'Administration',       showBack: false },
   'officials':          { title: 'Scorers & Umpires',    showBack: false },
-  'news':               { title: 'News',                 showBack: false },
 };
 
 export default function Header() {

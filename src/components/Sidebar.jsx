@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Home, Calendar, Trophy, Users, Clipboard, Radio, Settings,
-  LogOut, Shield, Megaphone, Award, Sun, Moon, Bell, BellOff, Calculator
+  LogOut, Shield, Award, Sun, Moon, Bell, BellOff, Calculator
 } from 'lucide-react';
 import { useCricket } from '../context/CricketContext';
 import { RoleBadge } from './ui/Badge';
@@ -16,7 +16,6 @@ const NAV_ITEMS = [
   { id: 'scoring', label: 'Live Score', icon: Radio, route: 'scoring', liveIndicator: true },
   { id: 'players', label: 'Players', icon: Users, route: 'players' },
   { id: 'officials', label: 'Scorers & Umpires', icon: Award, route: 'officials', adminOnly: true },
-  { id: 'news', label: 'News', icon: Megaphone, route: 'news' },
   { id: 'administration', label: 'Administration', icon: Settings, route: 'administration', adminOnly: true },
 ];
 
@@ -35,8 +34,8 @@ export default function Sidebar() {
     if (userRole === 'SUPER_ADMIN' && item.id === 'scoring') return false;
     if (item.id === 'scoring' && userPermissions?.can_score) return true;
     if (userRole === 'SCORER') return ['matches', 'scoring', 'teams', 'tournaments', 'administration'].includes(item.id);
-    if (userRole === 'SELECTOR') return ['home', 'players', 'selection', 'teams', 'tournaments', 'news'].includes(item.id);
-    if (userRole === 'VIEWER') return ['home', 'matches', 'players', 'teams', 'tournaments', 'news'].includes(item.id);
+    if (userRole === 'SELECTOR') return ['home', 'players', 'selection', 'teams', 'tournaments'].includes(item.id);
+    if (userRole === 'VIEWER') return ['home', 'matches', 'players', 'teams', 'tournaments'].includes(item.id);
     return true;
   });
 
@@ -51,7 +50,6 @@ export default function Sidebar() {
       'scoring': 'scoring', 'scorecard': 'scoring',
       'officials': 'officials', 'match-officials': 'officials',
       'administration': 'administration', 'access-control': 'administration',
-      'news': 'news',
     };
     return map[currentScreen] || currentScreen;
   })();

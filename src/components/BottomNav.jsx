@@ -72,7 +72,6 @@ export default function BottomNav() {
     'administration': 'administration', 'access-control': 'administration',
     'officials': 'more', 'match-officials': 'more',
     'tournaments': 'more',
-    'news': 'more',
   };
 
   const activeId = ACTIVE_MAP[currentScreen] || 'home';

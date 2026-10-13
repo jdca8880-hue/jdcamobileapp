@@ -27,7 +27,6 @@ export function useGlobalUI() {
     'innings-break': 'matches',
     'tournaments': 'tournaments',
     'teams': 'teams',
-    'news': 'news',
     'administration': 'administration',
     'access-control': 'administration',
   };
@@ -104,7 +103,6 @@ export function useGlobalUI() {
       'access-control': '/administration',
       'officials': '/officials',
       'match-officials': '/officials',
-      'news': '/news',
     };
     navigate(routeMap[screenName] || '/home');
   };
