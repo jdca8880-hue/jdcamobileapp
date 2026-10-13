@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 import { isTestFormat } from '../engine/formats';
+import { isEventMatch } from '../engine/engineFlag';
+import { buildMatchState } from '../engine/matchProjection';
 
 // True when a Supabase/PostgREST error means the players.phone column is absent
 // (migration 13_add_player_phone.sql not applied). Postgres undefined_column is
@@ -41,6 +43,90 @@ export const calculatePlayerAge = (dob, referenceDate = ageCutoffDate()) => {
 // unlimited. The scoring engine still gates on match_format === 'TEST' (not on
 // this number), so Test behaviour never depends on the sentinel being present.
 export const TEST_UNLIMITED_OVERS = 9999;
+
+// --- v2 (event-sourced) scorecard input builder ------------------------------
+// A v2 match stores every ball in the append-only `match_event_log`, NOT in the
+// `deliveries` table. So that EVERY viewer screen renders a v2 match with no
+// changes, we fold that server log into the exact `innings` + `deliveries` row
+// shapes the existing scorecard aggregator already understands. One adapter
+// here => the whole scorecard/ball-by-ball pipeline works unchanged, and undos
+// (voided events) are simply skipped by the fold, so they disappear live too.
+function v2EventToDeliveryRow(e, matchId) {
+  const p = e.payload || {};
+  const legalBefore = Number(p.balls) || 0; // legal balls BEFORE this ball (scorer semantics)
+  const extraType = p.extraType || 'NONE';
+  const wicketType = p.wicketType || 'NONE';
+  const eventType = e.type === 'PENALTY' ? 'PENALTY'
+    : (e.type === 'RETIREMENT' || ['RETIRED_HURT', 'RETIRED_OUT'].includes(wicketType) ? 'RETIREMENT' : 'DELIVERY');
+  return {
+    id: e.id,
+    idempotency_key: e.id,
+    match_id: matchId,
+    innings_id: e.inningsNumber,     // synthetic: the innings NUMBER doubles as its id
+    innings_number: e.inningsNumber,
+    delivery_sequence: e.seq ?? 0,
+    over_number: Math.floor(legalBefore / 6),
+    ball_number: (legalBefore % 6) + 1,
+    striker_id: p.strikerId ?? null,
+    non_striker_id: p.nonStrikerId ?? null,
+    bowler_id: p.bowlerId ?? null,
+    runs_off_bat: p.runsBatter ?? 0,
+    runs_extras: p.runsExtras ?? 0,
+    runs_total: p.runsTotal ?? 0,
+    extra_type: extraType,
+    wicket_type: wicketType,
+    dismissed_player_id: p.dismissedPlayerId ?? null,
+    fielder_id: p.fielderId ?? null,
+    wicketkeeper_id: p.wicketkeeperId ?? null,
+    is_legal_delivery: p.isLegalDelivery ?? (extraType !== 'WIDE' && extraType !== 'NO_BALL'),
+    is_overthrow: !!p.isOverthrow,
+    runs_overthrow: p.runsOverthrow ?? 0,
+    event_type: eventType,
+    // Names are carried in the event payload, so the aggregator can label cards
+    // without a players join (the viewer may not be able to read that table).
+    striker: p.striker ? { full_name: p.striker } : null,
+    bowler: p.bowler ? { full_name: p.bowler } : null,
+  };
+}
+
+async function buildV2ScorecardInputs(matchId, matchData) {
+  const { data, error } = await supabase
+    .from('match_event_log').select('*')
+    .eq('match_id', matchId)
+    .order('server_seq', { ascending: true });
+  if (error) throw error;
+  const rows = data || [];
+  if (rows.length === 0) return null; // no events yet — caller falls back to legacy
+
+  const events = rows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    matchId: r.match_id,
+    inningsNumber: r.innings_number ?? null,
+    seq: r.seq ?? null,
+    payload: r.payload || {},
+    voided: !!r.voided,
+    createdAt: r.created_at || null,
+    serverSeq: r.server_seq ?? null,
+  }));
+
+  const proj = buildMatchState(events, { matchId, format: matchData?.match_format || null });
+
+  const innings = proj.innings.map((i) => ({
+    id: i.inningsNumber,
+    innings_number: i.inningsNumber,
+    batting_team_id: i.battingTeamId,
+    bowling_team_id: i.bowlingTeamId,
+    status: i.status,
+    target_runs: i.target ?? null,
+  }));
+
+  const deliveries = events
+    .filter((e) => !e.voided && (e.type === 'DELIVERY' || e.type === 'PENALTY' || e.type === 'RETIREMENT'))
+    .map((e) => v2EventToDeliveryRow(e, matchId));
+
+  return { innings, deliveries };
+}
 
 export const parseOversFromFormat = (fmt, fallback = 20) => {
   if (!fmt && fmt !== 0) return fallback;
@@ -1323,9 +1409,22 @@ export const api = {
       }
     } catch (e) {}
 
-    // 2. Fetch innings
+    // v2 (event-sourced) match: fold the server event log into innings +
+    // deliveries rows so the rest of this function (and every viewer screen)
+    // works unchanged. This is what makes a v2 match visible cross-device and
+    // keeps undos (voided events) reflected live.
+    let v2Inputs = null;
+    if (isEventMatch(matchId) && isOnline) {
+      try {
+        v2Inputs = await buildV2ScorecardInputs(matchId, matchData);
+      } catch (e) {
+        console.warn('[api] v2 scorecard fold failed; falling back to deliveries table:', e?.message || e);
+      }
+    }
+
+    // 2. Fetch innings (skipped for v2 — the log already gave us the innings)
     let inningsData = null;
-    if (isOnline) {
+    if (isOnline && !v2Inputs) {
       try {
         const res = await withTimeout(
           supabase
@@ -1339,9 +1438,9 @@ export const api = {
       } catch (e) {}
     }
 
-    // 3. Fetch deliveries with players
+    // 3. Fetch deliveries with players (skipped for v2 — folded from the log)
     let deliveriesData = null;
-    if (isOnline) {
+    if (isOnline && !v2Inputs) {
       try {
         const res = await withTimeout(
           supabase
@@ -1354,8 +1453,8 @@ export const api = {
       } catch (e) {}
     }
 
-    let innings = inningsData || [];
-    let deliveries = deliveriesData || [];
+    let innings = v2Inputs?.innings || inningsData || [];
+    let deliveries = v2Inputs?.deliveries || deliveriesData || [];
 
     // Fallback to local DB if Supabase hasn't received sync yet
     try {

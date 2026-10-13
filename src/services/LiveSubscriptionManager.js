@@ -77,6 +77,19 @@ class LiveSubscriptionManager {
       this._notifyListeners(matchId, payload);
     });
 
+    // v2 (event-sourced) matches publish every ball — and every undo (a voided
+    // row) — to match_event_log, not to `deliveries`. Listen there too so live
+    // viewers of a v2 match update on each event. Harmless for legacy matches,
+    // which never write to this table.
+    channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'match_event_log',
+      filter: `match_id=eq.${matchId}`
+    }, (payload) => {
+      this._notifyListeners(matchId, payload);
+    });
+
     channel.on('system', { event: '*' }, (status) => {
       if (sub.destroyed) return;
 

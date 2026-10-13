@@ -17,9 +17,10 @@ import { INITIAL_SCORECARD, FIELD_DIRECTIONS } from '../data/constants';
 import { normalizeDelivery } from '../engine/deliveryContract.js';
 // --- Event-sourced engine (Plan B), used only for matches on the v2 flag ---
 import { isEventMatch } from '../engine/engineFlag';
-import { appendEvent, voidEventById } from '../lib/matchLog';
+import { appendEvent, voidEventById, getMatchEvents } from '../lib/matchLog';
 import { pushOutbox, startAutoPush } from '../services/eventSync';
 import { resolveFormat, battingSideIndex, isTestFormat } from '../engine/formats';
+import { buildLiveState } from '../engine/liveState';
 
 export const INITIAL_MATCH_SETUP = {
   teamA: 'Team A',
@@ -262,6 +263,20 @@ export function useMatchScoring({
           teamBXI: away_team_roster
         }));
       } catch (e) {}
+
+      // v2 (event-sourced) match: the durable log is the source of truth. Fold
+      // it for the authoritative score/positions instead of counting a mix of
+      // server + local-queue rows (which differs per device). Setup/rosters were
+      // just loaded above, so names/XI are ready; the fold governs the numbers.
+      if (isEventMatch(matchId)) {
+        try {
+          const ok = await hydrateFromEventLog(matchId);
+          if (ok) return { success: true, v2: true };
+          // No events yet (innings not started): fall through to the normal path.
+        } catch (e) {
+          console.warn('[useMatchScoring] v2 event-log hydrate failed; using legacy path:', e);
+        }
+      }
 
       if (currentInning) {
         if (currentInning.overs_limit) {
@@ -715,6 +730,92 @@ export function useMatchScoring({
     return null;
   };
 
+  // --- v2 read path: rebuild ALL live UI state by FOLDING the durable event
+  // log. This is the authoritative, deterministic read for an event-sourced
+  // match: the same log folds to the same state on every device and after every
+  // restart, so runs/wickets/balls can never drift from a volatile RAM counter
+  // or a half-merged sync queue (the root cause of "phone 8, laptop 7"). It also
+  // rebuilds `deliveryLog` (so Undo can target the last real event by id after a
+  // restart) and reseeds `ballHistory` length so the shared Undo guard stays
+  // enabled. Declared as a hoisted function so the earlier hydration closures can
+  // call it; it only runs during hydration/undo, after all setters exist.
+  async function hydrateFromEventLog(matchId) {
+    const events = await getMatchEvents(matchId);
+    if (!events || events.length === 0) return false;
+
+    const fmt = resolveFormat(matchSetup?.format || matchFormat);
+    const live = buildLiveState(events, { format: fmt });
+
+    // Best-effort resolve of the real innings UUID (needed by the delivery
+    // writer + scorecard). Non-fatal offline: keep whatever we already have.
+    let inningsId = currentInningsId;
+    try {
+      const resolved = await resolveInningsId(matchId, live.innings);
+      if (resolved) inningsId = resolved;
+    } catch { /* offline — fold still governs the score */ }
+
+    // Rebuild the delivery timeline from the log (voided events skipped), so the
+    // recent-balls strip renders and Undo has a real event id to void.
+    const rebuiltLog = [];
+    let legalSoFar = 0;
+    for (const e of events) {
+      if (!e || e.voided) continue;
+      if (e.type !== 'DELIVERY' && e.type !== 'PENALTY' && e.type !== 'RETIREMENT') continue;
+      const p = e.payload || {};
+      const extraType = p.extraType || 'NONE';
+      const wicketType = p.wicketType || 'NONE';
+      const isLegal = extraType === 'WIDE' || extraType === 'NO_BALL' ? false : (p.isLegalDelivery !== false);
+      if (e.type === 'DELIVERY' && isLegal) legalSoFar += 1;
+      rebuiltLog.push({
+        id: e.id,
+        matchId,
+        inningsId,
+        innings: e.inningsNumber,
+        type: wicketType !== 'NONE' ? 'wicket' : (extraType !== 'NONE' ? 'extra' : 'run'),
+        runs_total: Number(p.runsTotal) || 0,
+        runs_off_bat: Number(p.runsBatter) || 0,
+        runs_extras: Number(p.runsExtras) || 0,
+        extra_type: extraType,
+        wicket_type: wicketType,
+        dismissed_player_id: p.dismissedPlayerId || null,
+        over: `${Math.floor(legalSoFar / 6)}.${legalSoFar % 6}`,
+      });
+    }
+
+    setInnings(live.innings);
+    if (inningsId) setCurrentInningsId(inningsId);
+    if (live.battingTeamId) setCurrentBattingTeamId(live.battingTeamId);
+    if (live.bowlingTeamId) setCurrentBowlingTeamId(live.bowlingTeamId);
+    setRuns(live.runs);
+    setWickets(live.wickets);
+    setBalls(live.balls);
+    setTarget(live.target ?? null);
+    setStriker(live.striker || null);
+    setNonStriker(live.nonStriker || null);
+    setCurrentBowler(live.currentBowler || null);
+    setCurrentOverBalls(live.currentOverBalls || []);
+    setIsFreeHit(!!live.isFreeHit);
+    setMatchStatus(live.matchStatus || MATCH_STATES.IN_PROGRESS);
+    if (live.lastOverBowlerId !== undefined) setLastOverBowlerId(live.lastOverBowlerId);
+    setDeliveryLog(rebuiltLog);
+    // Undo in v2 is log-based and never reads ballHistory's contents, but the
+    // shared guard checks its length — seed one sentinel per real event so undo
+    // stays enabled after a restart (when the RAM stack would otherwise be empty).
+    setBallHistory(rebuiltLog.map(() => ({})));
+
+    // Keep the per-innings seq ref consistent with the durable log (seq is
+    // derived from the log on append; this ref is only read for display/legacy).
+    try {
+      const perInn = {};
+      for (const e of events) {
+        if (Number.isFinite(e.seq)) perInn[e.inningsNumber] = Math.max(perInn[e.inningsNumber] || 0, e.seq);
+      }
+      Object.assign(inningsSeqRef.current, perInn);
+    } catch { /* ignore */ }
+
+    return true;
+  }
+
   const [matchFormat, setMatchFormat] = useState('T20');
   const [totalMatchOvers, setTotalMatchOvers] = useState(20);
   const [runs, setRuns] = useState(0);
@@ -839,6 +940,20 @@ export function useMatchScoring({
         }
       } catch (e) {
         console.warn('[useMatchScoring] Local snapshot restore failed:', e);
+      }
+
+      if (cancelled) return;
+
+      // --- Step 1b: v2 matches — fold the durable event log for an instant,
+      // authoritative local view (overrides any stale snapshot numbers). Step 2
+      // then only refreshes setup/rosters; the score stays governed by the log. ---
+      if (!cancelled && isEventMatch(activeMatchId)) {
+        try {
+          const ok = await hydrateFromEventLog(activeMatchId);
+          if (ok) restoredLocally = true;
+        } catch (e) {
+          console.warn('[useMatchScoring] v2 instant fold failed; API hydrate will cover it:', e);
+        }
       }
 
       if (cancelled) return;
@@ -2015,8 +2130,38 @@ export function useMatchScoring({
 
   // 4. Undo Last Action (Zero-Drift Event Reversal)
   const undoLastAction = async () => {
-    if (ballHistory.length === 0) return;
     if (matchStatus === MATCH_STATES.MATCH_FINISHED || matchStatus === 'COMPLETED') return; // Cannot undo after match completion
+
+    // --- v2 (event-sourced) undo: deterministic + restart-proof ---
+    // Undo = void the last real event in the DURABLE log, then re-fold the log
+    // to recompute every number/position. It does NOT read the volatile in-memory
+    // ballHistory, so it keeps working after a phone restart — the legacy stack
+    // is empty then, which is exactly why undo used to die after 3-4 balls.
+    if (isEventMatch(activeMatchId)) {
+      if (deliveryLog.length === 0) return;
+      let target = null;
+      for (let i = deliveryLog.length - 1; i >= 0; i--) {
+        const d = deliveryLog[i];
+        if (!d) continue;
+        if (d.type === 'innings_start' || d.type === 'match_start') continue;
+        target = d; break;
+      }
+      if (!target || !target.id) return;
+      try {
+        const { db } = await import('../lib/db.js');
+        if (db.deliveries) await db.deliveries.where('id').equals(target.id).delete();
+        await voidEventById(target.matchId || activeMatchId, target.id);
+        pushOutbox().catch(() => {});
+        await hydrateFromEventLog(activeMatchId); // re-fold → authoritative state
+        setValidationError(null);
+        setTimeout(() => saveMatchSnapshot(), 0);
+      } catch (err) {
+        console.error('[useMatchScoring] v2 undo failed:', err);
+      }
+      return;
+    }
+
+    if (ballHistory.length === 0) return;
     if (deliveryLog.length === 0) return;
 
     const undoneDelivery = deliveryLog[deliveryLog.length - 1];
