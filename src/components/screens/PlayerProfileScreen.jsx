@@ -18,13 +18,13 @@ const INK = '#0f172a';
 const GRID = '#e2e8f0';
 
 const ProfileTabs = ({ tabs, active, onChange }) => (
-  <div className="flex bg-slate-100 p-1 rounded-xl mb-4 max-w-2xl mx-auto overflow-x-auto">
+  <div className="flex bg-slate-100 dark:bg-[#1E2226]p-1 rounded-xl mb-4 max-w-2xl mx-auto overflow-x-auto">
     {tabs.map(tab => (
       <button
         key={tab.id}
         onClick={() => onChange(tab.id)}
         className={`flex-1 whitespace-nowrap py-1.5 px-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-          active === tab.id ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-500 hover:text-slate-900'
+          active === tab.id ? 'bg-white dark:bg-[#14171A] text-slate-900 dark:text-[#F3F4F6] shadow-2xs font-semibold' : 'text-slate-500 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-[#F3F4F6]'
         }`}
       >
         {tab.label}
@@ -34,9 +34,9 @@ const ProfileTabs = ({ tabs, active, onChange }) => (
 );
 
 const Stat = ({ label, value, accent }) => (
-  <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-    <div className="text-xs font-medium text-slate-400">{label}</div>
-    <div className={`text-xl sm:text-2xl font-semibold mt-1 tabular-nums ${accent || 'text-slate-900'}`}>
+  <div className="bg-white dark:bg-[#14171A] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-2xs">
+    <div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">{label}</div>
+    <div className={`text-xl sm:text-2xl font-semibold mt-1 tabular-nums ${accent || 'text-slate-900 dark:text-[#F3F4F6]'}`}>
       {value}
     </div>
   </div>
@@ -47,11 +47,11 @@ function ChartTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null;
   const row = payload[0].payload;
   return (
-    <div className="rounded-lg bg-white border border-slate-200 shadow-md px-3 py-2 text-xs">
-      <div className="font-semibold text-slate-900">{row.matchup}</div>
-      <div className="text-slate-500 mb-1">{row.date} · {row.format}</div>
+    <div className="rounded-lg bg-white dark:bg-[#14171A] border border-slate-200 dark:border-white/10 shadow-md px-3 py-2 text-xs">
+      <div className="font-semibold text-slate-900 dark:text-[#F3F4F6]">{row.matchup}</div>
+      <div className="text-slate-500 dark:text-[#94A3B8] mb-1">{row.date} · {row.format}</div>
       {payload.map(p => (
-        <div key={p.dataKey} className="flex items-center gap-1.5 text-slate-700">
+        <div key={p.dataKey} className="flex items-center gap-1.5 text-slate-700 dark:text-[#CBD5E1]">
           <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
           <span>{p.name}: <span className="font-semibold tabular-nums">{p.value}</span></span>
         </div>
@@ -61,7 +61,7 @@ function ChartTooltip({ active, payload }) {
 }
 
 const EmptyChart = ({ text }) => (
-  <div className="h-48 flex items-center justify-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-lg">
+  <div className="h-48 flex items-center justify-center text-sm text-slate-400 dark:text-[#64748B] border border-dashed border-slate-200 dark:border-white/10 rounded-lg">
     {text}
   </div>
 );
@@ -153,10 +153,10 @@ export default function PlayerProfileScreen() {
 
   if (!player) {
     return (
-      <div className="pb-20 bg-[#f8fafc] min-h-screen flex flex-col items-center justify-center p-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center max-w-md w-full">
-          <h2 className="text-xl font-bold text-slate-800 mb-2">No Player Selected</h2>
-          <p className="text-sm text-slate-500 mb-4">Please select a player from the directory to view their profile.</p>
+      <div className="pb-20 bg-[#f8fafc] dark:bg-[#0A0A0A] min-h-screen flex flex-col items-center justify-center p-6">
+        <div className="bg-white dark:bg-[#14171A] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-white/10 text-center max-w-md w-full">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-[#E5E7EB] mb-2">No Player Selected</h2>
+          <p className="text-sm text-slate-500 dark:text-[#94A3B8] mb-4">Please select a player from the directory to view their profile.</p>
           <button onClick={goBack} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition w-full">
             Go Back
           </button>
@@ -201,19 +201,19 @@ export default function PlayerProfileScreen() {
   const num = (v) => (v === null || v === undefined || v === '' ? '-' : v);
 
   return (
-    <div className="pb-20 bg-[#f8fafc] min-h-screen">
+    <div className="pb-20 bg-[#f8fafc] dark:bg-[#0A0A0A] min-h-screen">
       {/* Header Area */}
-      <div className="bg-white border-b border-slate-200 pt-14 sm:pt-6 pb-6 px-4 relative shadow-2xs">
+      <div className="bg-white dark:bg-[#14171A] border-b border-slate-200 dark:border-white/10 pt-14 sm:pt-6 pb-6 px-4 relative shadow-2xs">
         <div className="max-w-4xl mx-auto relative">
           <button onClick={goBack}
-            className="absolute top-0 left-0 w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer"
+            className="absolute top-0 left-0 w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14171A] text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-[#F3F4F6] hover:bg-slate-50 dark:hover:bg-[#1E2226] transition cursor-pointer"
             aria-label="Go Back">
             <ArrowLeft size={18} />
           </button>
 
           <button onClick={() => toggleShortlist(player.id)}
             className={`absolute top-0 right-0 w-9 h-9 flex items-center justify-center rounded-lg border transition cursor-pointer ${
-              isShortlisted ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600'
+              isShortlisted ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-white dark:bg-[#14171A] border-slate-200 dark:border-white/10 text-slate-400 dark:text-[#64748B] hover:text-slate-600 dark:hover:text-[#94A3B8]'
             }`}
             aria-label="Toggle Shortlist">
             <Star size={18} fill={isShortlisted ? '#d97706' : 'none'} />
@@ -221,7 +221,7 @@ export default function PlayerProfileScreen() {
 
           {canSoftDeletePlayer && (
             <button onClick={handleDelete} disabled={isDeleting}
-              className="absolute top-0 right-11 w-9 h-9 flex items-center justify-center rounded-lg border bg-white border-rose-200 text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50"
+              className="absolute top-0 right-11 w-9 h-9 flex items-center justify-center rounded-lg border bg-white dark:bg-[#14171A] border-rose-200 text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50"
               title="Delete Player">
               <Trash2 size={16} />
             </button>
@@ -229,7 +229,7 @@ export default function PlayerProfileScreen() {
 
           {canEditPlayer && (
             <button onClick={() => { setEditingPlayer(player); navigateTo('player-registration'); }}
-              className="absolute top-0 right-[88px] w-9 h-9 flex items-center justify-center rounded-lg border bg-white border-blue-200 text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition cursor-pointer"
+              className="absolute top-0 right-[88px] w-9 h-9 flex items-center justify-center rounded-lg border bg-white dark:bg-[#14171A] border-blue-200 text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition cursor-pointer"
               title="Edit Player">
               <Pencil size={15} />
             </button>
@@ -241,9 +241,9 @@ export default function PlayerProfileScreen() {
               alt={player.full_name}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white shadow-sm mb-3"
             />
-            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 leading-tight mb-1">{player.full_name}</h1>
-            <div className="text-xs text-slate-500 flex flex-wrap items-center justify-center gap-1.5 mb-3">
-              <span className="font-medium text-slate-700">{player.primary_role}</span>
+            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-[#F3F4F6] leading-tight mb-1">{player.full_name}</h1>
+            <div className="text-xs text-slate-500 dark:text-[#94A3B8] flex flex-wrap items-center justify-center gap-1.5 mb-3">
+              <span className="font-medium text-slate-700 dark:text-[#CBD5E1]">{player.primary_role}</span>
               <span>•</span>
               <MapPin size={12} className="text-blue-600" />
               <span>{player.district}</span>
@@ -261,7 +261,7 @@ export default function PlayerProfileScreen() {
                 </span>
               )}
               {player.bowling_style && player.bowling_style !== 'None (Pure Batter)' && (
-                <span className="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200">
+                <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#1E2226]text-slate-700 dark:text-[#CBD5E1] text-xs font-medium border border-slate-200 dark:border-white/10">
                   {player.bowling_style}
                 </span>
               )}
@@ -291,22 +291,22 @@ export default function PlayerProfileScreen() {
                 <Stat label="Dismissals (field)" value={player.dismissalsTaken || 0} accent="text-emerald-700" />
               </div>
 
-              <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-2xs space-y-3">
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <div className="bg-white dark:bg-[#14171A] rounded-xl p-5 border border-slate-200 dark:border-white/10 shadow-2xs space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-white/10">
                   <Award size={16} className="text-amber-500" />
-                  <h3 className="font-semibold text-sm text-slate-900">Distinctions & Honors</h3>
+                  <h3 className="font-semibold text-sm text-slate-900 dark:text-[#F3F4F6]">Distinctions & Honors</h3>
                 </div>
                 {(player.awards || []).length > 0 ? (
                   <ul className="space-y-2 text-xs">
                     {(player.awards || []).map((award, i) => (
-                      <li key={i} className="flex items-center gap-2 text-slate-700">
+                      <li key={i} className="flex items-center gap-2 text-slate-700 dark:text-[#CBD5E1]">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                         <span>{award}</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-slate-400">No honors recorded yet.</p>
+                  <p className="text-xs text-slate-400 dark:text-[#64748B]">No honors recorded yet.</p>
                 )}
               </div>
             </>
@@ -314,26 +314,26 @@ export default function PlayerProfileScreen() {
 
           {/* ===== BATTING ===== */}
           {activeTab === 'Batting' && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-slate-50/60">
-                <h3 className="font-semibold text-sm text-slate-900">Batting Profile</h3>
-                <p className="text-xs text-slate-500">{player.batting_style || '-'}</p>
+            <div className="bg-white dark:bg-[#14171A] rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/60 dark:bg-[#181A1D]">
+                <h3 className="font-semibold text-sm text-slate-900 dark:text-[#F3F4F6]">Batting Profile</h3>
+                <p className="text-xs text-slate-500 dark:text-[#94A3B8]">{player.batting_style || '-'}</p>
               </div>
               <div className="p-4 grid grid-cols-3 sm:grid-cols-6 gap-4">
-                <div><div className="text-xs font-medium text-slate-400">Innings</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.inningsBatted || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Not Outs</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.notOuts || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">High Score</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.highScore || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">50s / 100s</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.fifties || 0} / {player.hundreds || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">4s / 6s</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.fours || 0} / {player.sixes || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Avg / SR</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.battingAvg || 0} / {player.strikeRate || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Innings</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.inningsBatted || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Not Outs</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.notOuts || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">High Score</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.highScore || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">50s / 100s</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.fifties || 0} / {player.hundreds || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">4s / 6s</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.fours || 0} / {player.sixes || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Avg / SR</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.battingAvg || 0} / {player.strikeRate || 0}</div></div>
               </div>
 
-              <div className="p-4 border-t border-slate-100">
-                <h4 className="font-semibold text-sm text-slate-800 mb-3">Runs per innings</h4>
+              <div className="p-4 border-t border-slate-100 dark:border-white/10">
+                <h4 className="font-semibold text-sm text-slate-800 dark:text-[#E5E7EB] mb-3">Runs per innings</h4>
                 <MatchBarChart data={battingSeries} dataKey="runs_scored" name="Runs" color={C_BAT} />
               </div>
-              <div className="p-4 border-t border-slate-100">
-                <h4 className="font-semibold text-sm text-slate-800 mb-3">Strike rate trend</h4>
+              <div className="p-4 border-t border-slate-100 dark:border-white/10">
+                <h4 className="font-semibold text-sm text-slate-800 dark:text-[#E5E7EB] mb-3">Strike rate trend</h4>
                 <MatchLineChart data={battingSeries} dataKey="strike_rate" name="Strike rate" color={C_BAT} />
               </div>
             </div>
@@ -341,26 +341,26 @@ export default function PlayerProfileScreen() {
 
           {/* ===== BOWLING ===== */}
           {activeTab === 'Bowling' && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-slate-50/60">
-                <h3 className="font-semibold text-sm text-slate-900">Bowling Profile</h3>
-                <p className="text-xs text-slate-500">{player.bowling_style || '-'}</p>
+            <div className="bg-white dark:bg-[#14171A] rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/60 dark:bg-[#181A1D]">
+                <h3 className="font-semibold text-sm text-slate-900 dark:text-[#F3F4F6]">Bowling Profile</h3>
+                <p className="text-xs text-slate-500 dark:text-[#94A3B8]">{player.bowling_style || '-'}</p>
               </div>
               <div className="p-4 grid grid-cols-3 sm:grid-cols-6 gap-4">
-                <div><div className="text-xs font-medium text-slate-400">Wickets</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.wickets || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Economy</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.economy || '-'}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Average</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.bowlingAvg || '-'}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Best</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{num(player.bestBowling)}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Maidens</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.maidens || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">5W Hauls</div><div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{player.fiveWicketHauls || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Wickets</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.wickets || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Economy</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.economy || '-'}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Average</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.bowlingAvg || '-'}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Best</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{num(player.bestBowling)}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Maidens</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.maidens || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">5W Hauls</div><div className="text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] mt-0.5 tabular-nums">{player.fiveWicketHauls || 0}</div></div>
               </div>
 
-              <div className="p-4 border-t border-slate-100">
-                <h4 className="font-semibold text-sm text-slate-800 mb-3">Wickets per innings</h4>
+              <div className="p-4 border-t border-slate-100 dark:border-white/10">
+                <h4 className="font-semibold text-sm text-slate-800 dark:text-[#E5E7EB] mb-3">Wickets per innings</h4>
                 <MatchBarChart data={bowlingSeries} dataKey="wickets_taken" name="Wickets" color={C_BOWL} />
               </div>
-              <div className="p-4 border-t border-slate-100">
-                <h4 className="font-semibold text-sm text-slate-800 mb-3">Economy trend</h4>
+              <div className="p-4 border-t border-slate-100 dark:border-white/10">
+                <h4 className="font-semibold text-sm text-slate-800 dark:text-[#E5E7EB] mb-3">Economy trend</h4>
                 <MatchLineChart data={bowlingSeries} dataKey="economy" name="Economy" color={C_BOWL} />
               </div>
             </div>
@@ -368,37 +368,37 @@ export default function PlayerProfileScreen() {
 
           {/* ===== FIELDING / WK ===== */}
           {activeTab === 'Fielding' && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-slate-50/60 flex items-center gap-2">
+            <div className="bg-white dark:bg-[#14171A] rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/60 dark:bg-[#181A1D] flex items-center gap-2">
                 <Hand size={16} className="text-emerald-600" />
-                <h3 className="font-semibold text-sm text-slate-900">Fielding & Wicketkeeping</h3>
+                <h3 className="font-semibold text-sm text-slate-900 dark:text-[#F3F4F6]">Fielding & Wicketkeeping</h3>
               </div>
               <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div><div className="text-xs font-medium text-slate-400">Catches</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.catches || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400 flex items-center gap-1"><Target size={12} /> Catches (keeper)</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.catchesBehind || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Stumpings</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.stumpings || 0}</div></div>
-                <div><div className="text-xs font-medium text-slate-400">Run Outs</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.runOuts || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Catches</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.catches || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B] flex items-center gap-1"><Target size={12} /> Catches (keeper)</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.catchesBehind || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Stumpings</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.stumpings || 0}</div></div>
+                <div><div className="text-xs font-medium text-slate-400 dark:text-[#64748B]">Run Outs</div><div className="text-lg font-semibold text-emerald-700 mt-0.5 tabular-nums">{player.runOuts || 0}</div></div>
               </div>
-              <div className="px-4 pb-4 text-xs text-slate-500">
-                Total dismissals contributed in the field: <span className="font-semibold text-slate-800 tabular-nums">{player.dismissalsTaken || 0}</span>
+              <div className="px-4 pb-4 text-xs text-slate-500 dark:text-[#94A3B8]">
+                Total dismissals contributed in the field: <span className="font-semibold text-slate-800 dark:text-[#E5E7EB] tabular-nums">{player.dismissalsTaken || 0}</span>
               </div>
             </div>
           )}
 
           {/* ===== MATCH HISTORY ===== */}
           {activeTab === 'History' && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-slate-50/60">
-                <h3 className="font-semibold text-sm text-slate-900">Per-Match Performance</h3>
-                <p className="text-xs text-slate-500">Every match this player has featured in, newest first.</p>
+            <div className="bg-white dark:bg-[#14171A] rounded-xl border border-slate-200 dark:border-white/10 shadow-2xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-white/10 bg-slate-50/60 dark:bg-[#181A1D]">
+                <h3 className="font-semibold text-sm text-slate-900 dark:text-[#F3F4F6]">Per-Match Performance</h3>
+                <p className="text-xs text-slate-500 dark:text-[#94A3B8]">Every match this player has featured in, newest first.</p>
               </div>
               {history.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-sm">No match history yet.</div>
+                <div className="p-8 text-center text-slate-400 dark:text-[#64748B] text-sm">No match history yet.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-slate-400 text-left border-b border-slate-100">
+                      <tr className="text-slate-400 dark:text-[#64748B] text-left border-b border-slate-100 dark:border-white/10">
                         <th className="p-3 font-medium">Match</th>
                         <th className="p-3 font-medium">Format</th>
                         <th className="p-3 font-medium">Batting</th>
@@ -406,7 +406,7 @@ export default function PlayerProfileScreen() {
                         <th className="p-3 font-medium">Fielding</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-50 dark:divide-white/10">
                       {history.map(h => {
                         const bat = h.bat
                           ? `${h.bat.runs_scored}${h.bat.not_out ? '*' : ''} (${h.bat.balls_faced})`
@@ -422,10 +422,10 @@ export default function PlayerProfileScreen() {
                           f.run_outs ? `${f.run_outs}ro` : ''
                         ].filter(Boolean).join(' ') : '';
                         return (
-                          <tr key={h.match_id} className="text-slate-700">
+                          <tr key={h.match_id} className="text-slate-700 dark:text-[#CBD5E1]">
                             <td className="p-3">
-                              <div className="font-medium text-slate-900">{h.matchup}</div>
-                              <div className="text-slate-400">{h.date}</div>
+                              <div className="font-medium text-slate-900 dark:text-[#F3F4F6]">{h.matchup}</div>
+                              <div className="text-slate-400 dark:text-[#64748B]">{h.date}</div>
                             </td>
                             <td className="p-3">{h.format}</td>
                             <td className="p-3 tabular-nums">{bat}</td>
