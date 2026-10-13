@@ -79,14 +79,20 @@ export function buildLiveState(events, { format } = {}) {
 
   const batters = new Map(); // id -> accumulating batter object
   const bowlers = new Map(); // id -> accumulating bowler object (persists across spells)
-  const getBatter = (id) => {
+  // Names are carried in each delivery payload (p.striker/p.nonStriker/p.bowler),
+  // so the fold re-uses them. Without this the shaped object keeps name:null and
+  // the scoring screen renders "Select Striker" even though the id is valid —
+  // which looked like the striker had "disappeared" on undo.
+  const getBatter = (id, name = null) => {
     if (!id) return null;
-    if (!batters.has(id)) batters.set(id, { id, name: null, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
+    if (!batters.has(id)) batters.set(id, { id, name, runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: '0.0' });
+    else if (name && !batters.get(id).name) batters.get(id).name = name;
     return batters.get(id);
   };
-  const getBowler = (id) => {
+  const getBowler = (id, name = null) => {
     if (!id) return null;
-    if (!bowlers.has(id)) bowlers.set(id, { id, name: null, runs: 0, wickets: 0, ballsBowled: 0, overs: 0, economy: '0.00' });
+    if (!bowlers.has(id)) bowlers.set(id, { id, name, runs: 0, wickets: 0, ballsBowled: 0, overs: 0, economy: '0.00' });
+    else if (name && !bowlers.get(id).name) bowlers.get(id).name = name;
     return bowlers.get(id);
   };
 
@@ -96,10 +102,11 @@ export function buildLiveState(events, { format } = {}) {
   for (const e of deliveries) {
     const p = e.payload || {};
     // Personnel decisions come from the payload: a new batter fills a vacated
-    // end; the bowler changes at the start of a new over.
-    if (!striker) striker = getBatter(p.strikerId);
-    if (!nonStriker) nonStriker = getBatter(p.nonStrikerId);
-    if (!bowler || (p.bowlerId && bowler.id !== p.bowlerId)) bowler = getBowler(p.bowlerId);
+    // end; the bowler changes at the start of a new over. The payload also
+    // carries the display name so the fold restores it after a reload/undo.
+    if (!striker) striker = getBatter(p.strikerId, p.striker);
+    if (!nonStriker) nonStriker = getBatter(p.nonStrikerId, p.nonStriker);
+    if (!bowler || (p.bowlerId && bowler.id !== p.bowlerId)) bowler = getBowler(p.bowlerId, p.bowler);
 
     if (running._overJustCompleted) { running.currentOverBalls = []; running._overJustCompleted = false; }
 
