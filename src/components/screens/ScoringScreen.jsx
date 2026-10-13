@@ -591,10 +591,12 @@ export default function ScoringScreen() {
                 <>
                   <button
                     onClick={() => {
-                      const isFinal = Number(innings) === 4;
+                      // Multi-day is 2 innings: declaring the 2nd (final) innings
+                      // ends the match; declaring the 1st goes to the break.
+                      const isFinal = Number(innings) === 2 || Number(innings) === 4;
                       const msg = isFinal
-                        ? 'Declare the 4th innings closed and end the match? This cannot be undone.'
-                        : `Declare the ${innings}${innings === 1 ? 'st' : innings === 2 ? 'nd' : innings === 3 ? 'rd' : 'th'} innings closed and move to the innings break? This cannot be undone.`;
+                        ? 'Declare this innings closed and end the match? This cannot be undone.'
+                        : `Declare the ${innings === 1 ? '1st' : `${innings}th`} innings closed and move to the innings break? This cannot be undone.`;
                       if (window.confirm(msg) && declareInnings) declareInnings();
                     }}
                     className="px-3 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-700 font-bold text-xs gap-1 hover:bg-amber-100 transition-colors"
@@ -882,6 +884,11 @@ export default function ScoringScreen() {
             </div>
           )}
 
+          {/* When paused, the whole scoring pad is dimmed and non-interactive so
+              "paused" is obvious and no ball/wicket/extra can be recorded until
+              Resume — the run buttons, WICKET/RETIRE/EXTRAS/OVERTHROW openers and
+              Undo are all covered by this one wrapper. */}
+          <div className={isPaused ? 'opacity-40 pointer-events-none select-none transition-opacity' : 'transition-opacity'} aria-disabled={isPaused}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-[16px] font-black text-slate-900 dark:text-[#F3F4F6]">Record Ball</h3>
@@ -935,6 +942,7 @@ export default function ScoringScreen() {
             <motion.button whileTap={{ scale: 0.96 }} onClick={() => { haptics.light(); setOverthrowOpen(true); }} className="h-14 rounded-[12px] bg-white dark:bg-[#1E2226] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 text-[12px] font-bold shadow-sm active:bg-slate-50 dark:active:bg-[#282d33] transition-colors">
               <CornerUpRight size={16} /> OVERTHROW
             </motion.button>
+          </div>
           </div>
         </div>
 
