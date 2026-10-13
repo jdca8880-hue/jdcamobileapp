@@ -36,11 +36,11 @@ export default function InningsBreakScreen() {
 
   // The innings that just concluded (the engine keeps `innings` on the current
   // number through the break; it only advances when the next innings starts).
-  const completedInnings = isTestMatch ? (innings || 1) : 1;
-  const nextInningsNum = isTestMatch ? completedInnings + 1 : 2;
-  // Only the chasing innings has a target: an ordinary 2nd innings, or a Test
-  // 4th innings. A Test 2nd/3rd innings just continues the match.
-  const nextIsChase = isTestMatch ? (nextInningsNum === 4) : true;
+  const completedInnings = 1;
+  const nextInningsNum = 2;
+  // Multi-day is now a 2-innings format too, so the 2nd innings is always the
+  // chase of the 1st-innings total — exactly like a limited match.
+  const nextIsChase = true;
 
   // Stats for the innings that just finished (falls back to live score).
   const completedData = useMemo(() => {
@@ -56,15 +56,9 @@ export default function InningsBreakScreen() {
   const oversForRR = legalBalls > 0 ? legalBalls / 6 : (maxOvers || 1);
   const runRate = oversForRR > 0 ? (inningsRuns / oversForRR).toFixed(2) : '0.00';
 
-  // Target: ordinary chase = 1st-innings runs + 1. Test 4th innings = the
-  // runs needed to pass the opposition's two-innings aggregate.
-  const targetScore = useMemo(() => {
-    if (!nextIsChase) return null;
-    if (!isTestMatch) return inningsRuns + 1;
-    const sideAggregate = (scorecard?.innings_1?.runs || 0) + (scorecard?.innings_3?.runs || 0);
-    const chaserFirstInnings = scorecard?.innings_2?.runs || 0;
-    return sideAggregate - chaserFirstInnings + 1;
-  }, [nextIsChase, isTestMatch, inningsRuns, scorecard]);
+  // Target for the 2nd innings = 1st-innings runs + 1 (same for limited and
+  // multi-day; multi-day just has no over limit on the chase).
+  const targetScore = useMemo(() => inningsRuns + 1, [inningsRuns]);
 
   const chaseBalls = (nextIsChase && !isTestMatch && maxOvers) ? maxOvers * 6 : null;
   const requiredRR = (nextIsChase && !isTestMatch && maxOvers) ? (targetScore / maxOvers).toFixed(2) : null;

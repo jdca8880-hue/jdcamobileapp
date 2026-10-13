@@ -2463,15 +2463,15 @@ export function useMatchScoring({
   };
 
   // Test / multi-day: voluntarily close the current innings (a declaration).
-  // Innings 1–3 go to the innings break so the next innings can start; the 4th
-  // innings closing ends the match (finalisation runs via applyStateResult).
-  // Reuses the exact same termination path as an all-out, so nothing special
-  // happens downstream — the only difference is the scorer chose the moment.
+  // The 1st innings closing goes to the innings break so the 2nd (final) innings
+  // can start; closing the final innings ends the match (finalisation runs via
+  // applyStateResult). Reuses the exact same termination path as an all-out, so
+  // nothing special happens downstream — the scorer just chose the moment.
   const declareInnings = () => {
     if (!isTestMatch) return;
     if (matchStatus === MATCH_STATES.MATCH_FINISHED || matchStatus === 'COMPLETED') return;
     const snap = captureSnapshot();
-    const isFinal = (snap.innings || innings) === 4;
+    const isFinal = (snap.innings || innings) === 2 || (snap.innings || innings) === 4;
     const newStatus = isFinal ? MATCH_STATES.MATCH_FINISHED : MATCH_STATES.INNINGS_BREAK;
     applyStateResult({ success: true, newState: { ...snap, matchStatus: newStatus } });
   };

@@ -37,19 +37,22 @@ export const FORMATS = {
   TEST: {
     id: 'TEST',
     label: 'Test / Multi-day',
-    inningsCount: 4,
+    // JDCA multi-day: ONE innings per side (2 total), just with no per-innings
+    // over limit (unlimited overs → innings ends only on all-out / declaration).
+    // It is NOT 4-innings Test cricket — no follow-on, no aggregate, no innings
+    // victory. The only thing that sets it apart from a limited match is the
+    // absent over cap; the result is a straight chase of the 1st-innings total.
+    inningsCount: 2,
     oversPerInnings: UNLIMITED_OVERS,
     ballsPerOver: 6,
     maxWickets: 10,
-    swap: 'ABAB',
-    battingIndex: battingIndexABAB,
-    result: 'AGGREGATE', // result decided on aggregate of both innings per side
+    swap: 'AB',
+    battingIndex: battingIndexAB,
+    result: 'CHASE',
     superOver: false,
     allowDeclare: true,
     allowDraw: true,
     perBowlerOverCap: false,
-    followOn: true,     // after both sides' 1st innings, scorer may enforce follow-on
-    newBallOvers: 80,   // a new ball becomes available every 80 overs in an innings
   },
   ODI: {
     id: 'ODI',
@@ -149,8 +152,9 @@ export function maxWicketsForInnings(format, inningsNumber) {
 
 /** True if finishing this innings finishes the MATCH (vs. an innings break). */
 export function isFinalInnings(format, inningsNumber) {
-  const f = resolveFormat(format);
-  if (f.id === 'TEST') return inningsNumber === 4;
+  // Every supported format is decided by its 2nd innings (super-over tie-breaks
+  // add innings 3 & 4, whose 4th is the last). Test/multi-day is now 2 innings
+  // too, so it no longer needs a special case.
   return inningsNumber === 2 || inningsNumber === 4;
 }
 

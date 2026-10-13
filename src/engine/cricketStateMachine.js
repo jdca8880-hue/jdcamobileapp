@@ -369,10 +369,11 @@ export function processDelivery(currentState, ballInput) {
   const isAllOut = state.wickets >= maxWickets;
   const isOversFinished = state.balls >= maxLegalBalls;
 
-  // Which innings end the match vs. go to an innings break:
-  //   - Limited overs / super over: innings 2 & 4 finish, 1 & 3 break.
-  //   - Test: only innings 4 finishes; 1, 2 & 3 go to a break.
-  const isFinalInnings = isTest ? (state.innings === 4) : (state.innings === 2 || state.innings === 4);
+  // Which innings end the match vs. go to an innings break: innings 2 finishes
+  // (and 4 for a super-over tie-break); innings 1 (and 3) go to a break. Test/
+  // multi-day is now a 2-innings format too, so it needs no special case — its
+  // 2nd innings is the decider, just with no over limit (maxLegalBalls=Infinity).
+  const isFinalInnings = state.innings === 2 || state.innings === 4;
 
   if (isFinalInnings) {
     // A target only exists for the chasing innings (limited-overs innings 2/4,
@@ -433,10 +434,9 @@ export function processPenaltyEvent(currentState, penaltyEvent) {
     state.runs += penaltyEvent.penaltyRuns;
     state.extras.penalty = (state.extras.penalty || 0) + penaltyEvent.penaltyRuns;
     
-    // Check if target is chased. Only the chasing innings can finish the match
-    // this way: limited-overs innings 2/4, or the Test 4th innings.
-    const isTestPenalty = isTestFormat(state.format);
-    const isFinalInnings = isTestPenalty ? (state.innings === 4) : (state.innings === 2 || state.innings === 4);
+    // Check if target is chased. Only the chasing (final) innings can finish the
+    // match this way — innings 2 (or a super-over 4). Test/multi-day is 2 innings.
+    const isFinalInnings = state.innings === 2 || state.innings === 4;
     if (isFinalInnings) {
       if (state.target && state.runs >= state.target) {
         state.matchStatus = MATCH_STATES.MATCH_FINISHED;

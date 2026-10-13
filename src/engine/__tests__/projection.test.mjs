@@ -43,8 +43,10 @@ test('formats: resolve + rules are data-driven', () => {
   assert.equal(maxLegalBalls('T20', 1), 120);
   assert.equal(maxLegalBalls('TEST', 1), Infinity);
   assert.equal(maxLegalBalls('T20', 3), 6); // super over
-  assert.equal(isFinalInnings('TEST', 4), true);
-  assert.equal(isFinalInnings('TEST', 2), false);
+  // Test/multi-day is a 2-innings format (1 per side), unlimited overs. Its
+  // match-deciding innings is the 2nd, like any limited match.
+  assert.equal(resolveFormat('TEST').inningsCount, 2);
+  assert.equal(isFinalInnings('TEST', 2), true);
   assert.equal(isFinalInnings('T20', 2), true);
   // "Multi-Day" (and variants) must count as Test, or it is scored as a limited
   // chase and finishes on ball 1 — the "Pandurana won by 10 wickets" bug.
@@ -134,58 +136,45 @@ test('undo: voiding a delivery removes its effect deterministically', () => {
   assert.equal(i1.batting.b1.out, false);
 });
 
-test('Test: batting sides follow A,B,A,B and result is decided on aggregate', () => {
+test('Multi-day: 2 innings (1 per side), unlimited overs, decided by a chase', () => {
+  // A bats first and DECLARES at 90 (no over limit ends the innings); B then
+  // chases. Target = first innings + 1 = 91. B reaches it -> B wins by wickets.
+  const log = makeLog();
+  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'Multi-Day', battedFirstTeamId: 'A', otherTeamId: 'B' });
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  addRuns(log, 1, 90);
+  log.add(EVENT_TYPES.DECLARATION, 1, {});
+
+  let st = buildMatchState(log.events);
+  assert.equal(st.innings.length, 1);
+  assert.equal(st.status, 'INNINGS_BREAK'); // only 2 innings total — now the 2nd
+  assert.equal(st.innings[0].battingTeamId, 'A');
+
+  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' });
+  st = buildMatchState(log.events);
+  assert.equal(st.innings[1].battingTeamId, 'B');
+  assert.equal(st.innings[1].target, 91); // chase the first-innings total + 1
+
+  addRuns(log, 2, 91);
+  st = buildMatchState(log.events);
+  assert.equal(st.status, 'COMPLETED');
+  assert.equal(st.result.winnerTeamId, 'B');
+  assert.match(st.result.margin, /wkt/);
+});
+
+test('Multi-day: an innings ends on all-out, never on an over limit', () => {
+  // 10 wickets in the FIRST over (well under any limit) must end innings 1 — and
+  // because overs are unlimited, nothing else would have ended it.
   const log = makeLog();
   log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'TEST', battedFirstTeamId: 'A', otherTeamId: 'B' });
-  log.add(EVENT_TYPES.INNINGS_STARTED, 1, {}); addRuns(log, 1, 20); log.add(EVENT_TYPES.DECLARATION, 1, {});
-  log.add(EVENT_TYPES.INNINGS_STARTED, 2, {}); addRuns(log, 2, 10); log.add(EVENT_TYPES.DECLARATION, 2, {});
-  log.add(EVENT_TYPES.INNINGS_STARTED, 3, {}); addRuns(log, 3, 15); log.add(EVENT_TYPES.DECLARATION, 3, {});
-  log.add(EVENT_TYPES.INNINGS_STARTED, 4, {}); addRuns(log, 4, 26); // target = (20+15)-10+1 = 26 -> chased
-
+  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' });
+  for (let w = 1; w <= 10; w++) {
+    log.add(EVENT_TYPES.DELIVERY, 1, ball(0, { s: `b${w}`, wkt: 'BOWLED', out: `b${w}` }));
+  }
   const st = buildMatchState(log.events);
-  assert.equal(st.innings[0].battingTeamId, 'A');
-  assert.equal(st.innings[1].battingTeamId, 'B');
-  assert.equal(st.innings[2].battingTeamId, 'A');
-  assert.equal(st.innings[3].battingTeamId, 'B');
-  assert.equal(st.innings[3].target, 26);
-  assert.equal(st.status, 'COMPLETED');
-  assert.equal(st.result.winnerTeamId, 'B'); // 36 vs 35 aggregate
-});
-
-test('Test follow-on: trailing side bats 3rd and loses by an innings', () => {
-  // A=90 (declare), B=20 (all out) -> A enforces follow-on: B bats again (3rd).
-  // B=30 (all out). B aggregate 50 < A 90 -> A wins by an innings & 40, no 4th inn.
-  const log = makeLog();
-  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'Multi-Day', battedFirstTeamId: 'A', otherTeamId: 'B' });
-  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' }); addRuns(log, 1, 90); log.add(EVENT_TYPES.DECLARATION, 1, {});
-  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 2, 20); log.add(EVENT_TYPES.DECLARATION, 2, {});
-  // Follow-on: innings 3 batting team is B again (the scorer's choice drives this).
-  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 3, 30); log.add(EVENT_TYPES.DECLARATION, 3, {});
-  const st = buildMatchState(log.events);
-  assert.equal(st.status, 'COMPLETED');
-  assert.equal(st.result.winnerTeamId, 'A');
-  assert.equal(st.result.margin, 'an innings and 40 runs');
-  assert.equal(st.innings.length, 3); // no 4th innings needed
-});
-
-test('Test follow-on: trailing side recovers, match goes to a 4th-innings chase', () => {
-  // A=90 (declare), B=20, follow-on B=120 -> B agg 140 > A 90 -> A must chase.
-  // A 4th-innings target = Baggregate(140) - A previous(90) + 1 = 51.
-  const log = makeLog();
-  log.add(EVENT_TYPES.MATCH_STARTED, null, { format: 'Multi-Day', battedFirstTeamId: 'A', otherTeamId: 'B' });
-  log.add(EVENT_TYPES.INNINGS_STARTED, 1, { battingTeamId: 'A', bowlingTeamId: 'B' }); addRuns(log, 1, 90); log.add(EVENT_TYPES.DECLARATION, 1, {});
-  log.add(EVENT_TYPES.INNINGS_STARTED, 2, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 2, 20); log.add(EVENT_TYPES.DECLARATION, 2, {});
-  log.add(EVENT_TYPES.INNINGS_STARTED, 3, { battingTeamId: 'B', bowlingTeamId: 'A' }); addRuns(log, 3, 120); log.add(EVENT_TYPES.DECLARATION, 3, {});
-  let st = buildMatchState(log.events);
-  assert.equal(st.status, 'INNINGS_BREAK'); // A must bat a 4th innings
-  log.add(EVENT_TYPES.INNINGS_STARTED, 4, { battingTeamId: 'A', bowlingTeamId: 'B' });
-  st = buildMatchState(log.events);
-  assert.equal(st.innings[3].target, 51);
-  addRuns(log, 4, 51); // A reaches the target
-  st = buildMatchState(log.events);
-  assert.equal(st.status, 'COMPLETED');
-  assert.equal(st.result.winnerTeamId, 'A');
-  assert.match(st.result.margin, /wkt/);
+  assert.equal(st.innings[0].wickets, 10);
+  assert.equal(st.innings[0].status, 'COMPLETE');
+  assert.equal(st.status, 'INNINGS_BREAK'); // hand over to the 2nd and final innings
 });
 
 test('T20 chase: innings 2 target and win-by-runs result', () => {
