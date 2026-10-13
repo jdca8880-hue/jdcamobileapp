@@ -1541,10 +1541,42 @@ export const api = {
       console.warn('[api] Failed offline fallback in scorecard:', e);
     }
 
+    // Canonical delivery -> innings matching. An innings record's id may be a real
+    // UUID (DB / local cache) while a v2 delivery's innings_id is the innings
+    // NUMBER — and the two sources get mixed when one is empty and the other
+    // falls back (e.g. v2 deliveries + local innings rows). Matching on the
+    // innings NUMBER first (with an innings_id fallback for the legacy tables)
+    // makes the join robust regardless of which id representation each side uses.
+    // Without this, a 4-innings Test showed every innings as 0/0 (0.0 ov).
+    const inningsNumberOf = (inn) => inn?.innings_number ?? inn?.inningsNumber ?? null;
+    const belongsToInnings = (d, inn) => {
+      if (!inn) return false;
+      const dn = d.innings_number ?? d.inningsNumber ?? null;
+      const innNum = inningsNumberOf(inn);
+      if (dn != null && innNum != null && Number(dn) === Number(innNum)) return true;
+      return d.innings_id != null && inn.id != null && String(d.innings_id) === String(inn.id);
+    };
+
+    // Surface any innings that exist ONLY in the deliveries — e.g. an
+    // INNINGS_STARTED event that never synced or was skipped — so its runs still
+    // appear (otherwise that innings would silently vanish from the scorecard).
+    {
+      const knownNums = new Set(innings.map(inningsNumberOf).filter(v => v != null).map(Number));
+      const delNums = new Set();
+      for (const d of deliveries) {
+        const dn = d.innings_number ?? d.inningsNumber ?? null;
+        if (dn != null) delNums.add(Number(dn));
+      }
+      [...delNums].filter(nnum => !knownNums.has(nnum)).sort((a, b) => a - b).forEach(nnum => {
+        innings.push({ id: nnum, innings_number: nnum, batting_team_id: null, bowling_team_id: null, status: 'IN_PROGRESS', target_runs: null });
+      });
+      innings.sort((a, b) => (inningsNumberOf(a) || 0) - (inningsNumberOf(b) || 0));
+    }
+
     // Helper: Compute stats for an innings
-    const computeInningsStats = (inningId) => {
+    const computeInningsStats = (inn) => {
       const balls = deliveries
-        .filter(d => d.innings_id === inningId)
+        .filter(d => belongsToInnings(d, inn))
         .slice()
         .sort((a, b) => (a.delivery_sequence || 0) - (b.delivery_sequence || 0));
       let runs = 0;
@@ -1688,12 +1720,12 @@ export const api = {
     };
 
     const emptyInnings = () => ({ runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] });
-    const stats1 = innings.length > 0 ? computeInningsStats(innings[0].id) : emptyInnings();
-    const stats2 = innings.length > 1 ? computeInningsStats(innings[1].id) : emptyInnings();
+    const stats1 = innings.length > 0 ? computeInningsStats(innings[0]) : emptyInnings();
+    const stats2 = innings.length > 1 ? computeInningsStats(innings[1]) : emptyInnings();
     // Innings 3 & 4 only exist for multi-day / Test matches (and super overs).
     // Computed the same way; absent for ordinary two-innings matches.
-    const stats3 = innings.length > 2 ? computeInningsStats(innings[2].id) : null;
-    const stats4 = innings.length > 3 ? computeInningsStats(innings[3].id) : null;
+    const stats3 = innings.length > 2 ? computeInningsStats(innings[2]) : null;
+    const stats4 = innings.length > 3 ? computeInningsStats(innings[3]) : null;
 
     // Per-innings stats enriched with the team identity for THAT innings, so the
     // scorecard UI can render one tab per innings (essential for 4-innings Test —
@@ -1729,9 +1761,9 @@ export const api = {
 
     // Best partnership: walk each innings' deliveries in order, break at each
     // dismissal, track runs between the two batters currently at the crease.
-    const computeBestPartnership = (inningId) => {
+    const computeBestPartnership = (inn) => {
       const inningBalls = deliveries
-        .filter(d => d.innings_id === inningId && (d.event_type || 'DELIVERY') === 'DELIVERY')
+        .filter(d => belongsToInnings(d, inn) && (d.event_type || 'DELIVERY') === 'DELIVERY')
         .slice()
         .sort((a, b) => (a.delivery_sequence || 0) - (b.delivery_sequence || 0));
       if (!inningBalls.length) return null;
@@ -1784,8 +1816,8 @@ export const api = {
       };
     };
 
-    const partnership1 = innings.length > 0 ? computeBestPartnership(innings[0].id) : null;
-    const partnership2 = innings.length > 1 ? computeBestPartnership(innings[1].id) : null;
+    const partnership1 = innings.length > 0 ? computeBestPartnership(innings[0]) : null;
+    const partnership2 = innings.length > 1 ? computeBestPartnership(innings[1]) : null;
     let bestPartnership = null;
     if (partnership1 && partnership2) {
       bestPartnership = partnership1.runs >= partnership2.runs ? partnership1 : partnership2;
@@ -1888,20 +1920,23 @@ export const api = {
     const finalResultText = matchData.result_text || matchData.result || matchData.resultText || (matchData.status === 'COMPLETED' ? 'Match Completed' : matchData.status);
 
     // Flat ball-by-ball feed (cross-device) — ordered by innings then sequence.
+    // Prefer the delivery's own innings_number (reliable for v2 + local); fall
+    // back to mapping its innings_id through the innings records.
     const inningsNumById = {};
-    innings.forEach(i => { if (i?.id) inningsNumById[i.id] = i.innings_number; });
+    innings.forEach(i => { if (i?.id != null) inningsNumById[i.id] = i.innings_number; });
+    const inningsNumOfDelivery = (d) => d.innings_number ?? d.inningsNumber ?? inningsNumById[d.innings_id] ?? null;
     const ballByBall = deliveries
       .filter(d => (d.event_type || 'DELIVERY') === 'DELIVERY' || d.event_type === 'RETIREMENT' || (d.wicket_type && d.wicket_type !== 'NONE'))
       .slice()
       .sort((a, b) => {
-        const ia = inningsNumById[a.innings_id] || 0;
-        const ib = inningsNumById[b.innings_id] || 0;
+        const ia = inningsNumOfDelivery(a) || 0;
+        const ib = inningsNumOfDelivery(b) || 0;
         if (ia !== ib) return ia - ib;
         return (a.delivery_sequence || 0) - (b.delivery_sequence || 0);
       })
       .map(d => ({
         id: d.idempotency_key || d.id,
-        inningsNumber: inningsNumById[d.innings_id] || null,
+        inningsNumber: inningsNumOfDelivery(d),
         over: (d.over_number != null && d.ball_number != null) ? `${d.over_number}.${d.ball_number}` : '',
         runsTotal: d.runs_total ?? 0,
         runsExtras: d.runs_extras ?? 0,
