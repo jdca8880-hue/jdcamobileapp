@@ -172,6 +172,23 @@ export default function ScoringScreen() {
     batIsA = swap ? !tossFirstBatsA : tossFirstBatsA;
   }
 
+  // GROUND-TRUTH GUARD: whoever is actually on strike defines the batting side.
+  // currentBattingTeamId can arrive stale or flipped from hydration (a durable
+  // INNINGS_STARTED or a reconciled innings record that baked the wrong side),
+  // which would make the pickers list the opposing XI and "flip" the teams on
+  // reload. The on-pitch striker/non-striker come straight from the recorded
+  // deliveries and belong to exactly one XI, so when they are unambiguously in
+  // the side we did NOT pick as batting, correct batIsA. This mirrors the
+  // self-heal the scoring / undo / event-log paths already apply, so the display
+  // can never disagree with who is really batting.
+  const _inXI = (xi, id) => Array.isArray(xi) && id != null && xi.some(p => String(p.id) === String(id));
+  if (striker?.id != null || nonStriker?.id != null) {
+    const inA = _inXI(teamAXI, striker?.id) || _inXI(teamAXI, nonStriker?.id);
+    const inB = _inXI(teamBXI, striker?.id) || _inXI(teamBXI, nonStriker?.id);
+    if (inA && !inB) batIsA = true;
+    else if (inB && !inA) batIsA = false;
+  }
+
   const battingTeamId = batIsA ? teamAId : teamBId;
   const bowlingTeamId = batIsA ? teamBId : teamAId;
   const battingXI = batIsA ? teamAXI : teamBXI;
