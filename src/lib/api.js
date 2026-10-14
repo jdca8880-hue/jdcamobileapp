@@ -165,6 +165,27 @@ export const withTimeout = (promise, ms = 3500) => {
   ]);
 };
 
+// Run a Supabase write (a THUNK returning a fresh query each call) with a few
+// bounded, timed attempts. Used for the setup-critical writes — the toss and
+// innings-1 batting side — so a single slow/flaky request can't silently drop
+// them and leave the server deriving the wrong batting team. Retries on a thrown
+// timeout AND on a returned `{ error }`; resolves with the last result either way
+// (never throws), since these are best-effort and a durable self-heal backs them.
+export const withRetry = async (thunk, { attempts = 3, ms = 3000, backoff = 400 } = {}) => {
+  let last = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await withTimeout(Promise.resolve().then(thunk), ms);
+      last = res;
+      if (!res || !res.error) return res; // success (or a non-{error} shape)
+    } catch (e) {
+      last = { error: e };
+    }
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, backoff * (i + 1)));
+  }
+  return last;
+};
+
 export const api = {
   // ANNOUNCEMENTS
   // ==========================================
@@ -2788,13 +2809,15 @@ export const api = {
       }
       if (setupUmpireName !== null) matchUpdateFields.umpire_name = setupUmpireName;
       if (setupScorerName !== null) matchUpdateFields.scorer_name = setupScorerName;
-      await withTimeout(
+      // Retried: losing this write leaves the server toss NULL, which makes
+      // getOrCreateInnings default to the home team batting (the swapped-side bug).
+      const res = await withRetry(() =>
         supabase
           .from('matches')
           .update(matchUpdateFields)
-          .eq('id', matchId),
-        3000
+          .eq('id', matchId)
       );
+      if (res?.error) console.warn('Could not update match fields on Supabase after retries:', res.error.message || res.error);
     } catch (e) {
       console.warn('Could not update match fields on Supabase immediately:', e);
     }
@@ -2813,17 +2836,19 @@ export const api = {
           supabase.from('innings').select('id').eq('match_id', matchId).eq('innings_number', 1).maybeSingle(),
           3000
         );
+        // Retried for the same reason as the toss write above: a dropped innings-1
+        // write lets a later getOrCreateInnings create it with the wrong side.
         if (existingInnings) {
-          await withTimeout(
+          const res = await withRetry(() =>
             supabase.from('innings').update({
               batting_team_id: battingTeamId,
               bowling_team_id: bowlingTeamId,
               overs_limit: setupData.totalOvers || 20
-            }).eq('id', existingInnings.id),
-            3000
+            }).eq('id', existingInnings.id)
           );
+          if (res?.error) console.warn('Could not update innings 1 on Supabase after retries:', res.error.message || res.error);
         } else {
-          await withTimeout(
+          const res = await withRetry(() =>
             supabase.from('innings').insert({
               match_id: matchId,
               innings_number: 1,
@@ -2831,9 +2856,9 @@ export const api = {
               bowling_team_id: bowlingTeamId,
               overs_limit: setupData.totalOvers || 20,
               status: 'IN_PROGRESS'
-            }),
-            3000
+            })
           );
+          if (res?.error) console.warn('Could not insert innings 1 on Supabase after retries:', res.error.message || res.error);
         }
       } catch (e) {
         console.warn('Could not upsert innings 1 on Supabase immediately:', e);

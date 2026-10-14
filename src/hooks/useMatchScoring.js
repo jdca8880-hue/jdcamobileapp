@@ -286,6 +286,13 @@ export function useMatchScoring({
           try { await pullMatch(matchId); } catch (pullErr) {
             console.warn('[useMatchScoring] remote event catch-up failed; folding local log only:', pullErr);
           }
+          // ROOT-CAUSE repair: push the scorer's toss back to the server if the
+          // setup write was lost (3s-timeout, failures swallowed). Without it the
+          // server match row keeps a null toss and api.getOrCreateInnings — here
+          // and on every other device — derives "home team bats first", which is
+          // the source of the swapped batting side. Fire-and-forget so it never
+          // delays the fold; it is idempotent and self-dedupes per session.
+          try { syncService.ensureTossSynced(matchId).catch(() => {}); } catch (_) {}
           // SELF-HEAL a wrong INNINGS_STARTED: the durable event is immutable, so
           // an innings whose batting side was baked from a stale toss stays wrong
           // forever and the fold shows the wrong team batting. The server innings
@@ -810,6 +817,37 @@ export function useMatchScoring({
     // Only heal a genuine swap: the event must currently name the OTHER team as
     // batting (both values are the match's two teams, just reversed).
     if (!(p.battingTeamId === bowl && p.bowlingTeamId === bat)) return;
+
+    // Guard against healing the WRONG way. The server innings record can itself
+    // be wrong (a toss write lost at setup defaults it to home-team batting), in
+    // which case the local event is the correct one and overwriting it would
+    // corrupt the fold's scorecard/result. The deliveries are the tie-breaker:
+    // their striker belongs to exactly one XI. Only overwrite the event when the
+    // server's batting side actually contains the player who has been batting;
+    // if the evidence points the other way, trust the event and skip the heal.
+    try {
+      let ms = (matchSetup && (matchSetup.teamAXI?.length || matchSetup.teamBXI?.length)) ? matchSetup : null;
+      if (!ms) { try { ms = JSON.parse(localStorage.getItem(`jdca-match-setup-${matchId}`) || 'null'); } catch { ms = null; } }
+      const xiFor = (teamId) =>
+        teamId && teamId === ms?.teamAId ? (ms.teamAXI || [])
+        : teamId && teamId === ms?.teamBId ? (ms.teamBXI || [])
+        : [];
+      const serverBattingXI = xiFor(bat);
+      const serverBowlingXI = xiFor(bowl);
+      if (serverBattingXI.length && serverBowlingXI.length) {
+        const firstDelivery = (await getMatchEvents(matchId))
+          .filter(e => e && !e.voided && e.type === 'DELIVERY' && (e.inningsNumber === num))[0];
+        const sId = firstDelivery?.payload?.strikerId;
+        const inXI = (xi, id) => id != null && xi.some(x => String(x.id) === String(id));
+        if (sId != null && !inXI(serverBattingXI, sId) && inXI(serverBowlingXI, sId)) {
+          console.warn(`[useMatchScoring] skipped INNINGS_STARTED heal for innings ${num}: deliveries show the EVENT's batting side is correct, not the server record.`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[useMatchScoring] innings-start heal evidence check failed; proceeding with server record:', e);
+    }
+
     await db.match_events.update(ev.logSeq, { payload: { ...p, battingTeamId: bat, bowlingTeamId: bowl } });
     console.warn(`[useMatchScoring] healed INNINGS_STARTED innings ${num}: batting ${p.battingTeamId} -> ${bat} (matched reconciled innings record)`);
   }
@@ -871,6 +909,12 @@ export function useMatchScoring({
     let outNonStriker = live.nonStriker || null;
     let outBowler = live.currentBowler || null;
     let resumeFromOverComplete = false;
+    // The batting/bowling teams the fold derived from INNINGS_STARTED. These can
+    // be swapped if that event (or a server innings record healed into it) baked
+    // the wrong side batting — the self-heal below corrects them from the actual
+    // recorded deliveries before anything commits them to React state.
+    let effBattingTeamId = live.battingTeamId || null;
+    let effBowlingTeamId = live.bowlingTeamId || null;
     try {
       // The XI source must be reliable at hydrate time: the `matchSetup` state
       // variable can be a STALE closure value (it was just set by setMatchSetup
@@ -886,9 +930,34 @@ export function useMatchScoring({
         teamId && teamId === ms.teamAId ? (ms.teamAXI || [])
         : teamId && teamId === ms.teamBId ? (ms.teamBXI || [])
         : [];
-      const battingXI = xiFor(live.battingTeamId);
-      const bowlingXI = xiFor(live.bowlingTeamId);
+      let battingXI = xiFor(effBattingTeamId);
+      let bowlingXI = xiFor(effBowlingTeamId);
       const inXI = (xi, id) => Array.isArray(xi) && xi.some(p => String(p.id) === String(id));
+
+      // SELF-HEAL a swapped batting side from the recorded deliveries — the one
+      // source that is always available, even fully OFFLINE (healV2InningsStarted
+      // Teams needs the server record and so never runs offline). The on-pitch
+      // striker/non-striker come from the deliveries' own payloads and belong to
+      // exactly one team's XI. If the fold's batting side points at the team
+      // whose XI does NOT contain them but the OTHER side's XI does (a wrong
+      // INNINGS_STARTED from a lost toss, or a server record healed in backwards),
+      // the batter picker would list the bowling team and the real striker would
+      // read as "not in the batting XI" — the "batter came from Mandla / player
+      // id must be unique" bug. Flip the team ids AND the XIs so team attribution,
+      // the pickers and validation all agree with who actually batted. Guarded:
+      // both XIs must be known, and a batter must be clearly in the opposite XI.
+      {
+        const sId = outStriker?.id;
+        const nsId = outNonStriker?.id;
+        const haveXIs = battingXI.length > 0 && bowlingXI.length > 0;
+        const batterInBatting = inXI(battingXI, sId) || inXI(battingXI, nsId);
+        const batterInBowling = inXI(bowlingXI, sId) || inXI(bowlingXI, nsId);
+        if (haveXIs && (sId || nsId) && !batterInBatting && batterInBowling) {
+          const tId = effBattingTeamId; effBattingTeamId = effBowlingTeamId; effBowlingTeamId = tId;
+          const tXI = battingXI; battingXI = bowlingXI; bowlingXI = tXI;
+          console.warn(`[useMatchScoring] healed folded batting side from delivery evidence: batting ${live.battingTeamId} -> ${effBattingTeamId} (striker/non-striker are in the other XI)`);
+        }
+      }
 
       // Who is already out in THIS innings (so we never resurrect a dismissed
       // batter into an open end).
@@ -963,8 +1032,8 @@ export function useMatchScoring({
 
     setInnings(live.innings);
     if (inningsId) setCurrentInningsId(inningsId);
-    if (live.battingTeamId) setCurrentBattingTeamId(live.battingTeamId);
-    if (live.bowlingTeamId) setCurrentBowlingTeamId(live.bowlingTeamId);
+    if (effBattingTeamId) setCurrentBattingTeamId(effBattingTeamId);
+    if (effBowlingTeamId) setCurrentBowlingTeamId(effBowlingTeamId);
     setRuns(live.runs);
     setWickets(live.wickets);
     setBalls(live.balls);

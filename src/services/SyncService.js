@@ -132,7 +132,8 @@ class SyncService {
         inningsDetailsCache: new Map(),
         lastSequenceCache: new Map(),
         rosterCache: new Map(),
-        rosterEnsured: new Set()
+        rosterEnsured: new Set(),
+        tossEnsured: new Set()
       };
 
       for (const action of actions) {
@@ -492,6 +493,90 @@ class SyncService {
   }
 
   /**
+   * ROOT-CAUSE heal for the "wrong side batting" bug: guarantee the server
+   * `matches` row carries the toss the scorer chose. `api.persistMatchSetup`
+   * writes toss_winner_id/toss_decision best-effort with a 3s timeout and
+   * swallows failures, so on a slow/offline setup the server row stays NULL —
+   * and then `api.getOrCreateInnings` falls back to "home team bats first",
+   * creating innings 1 with the wrong side. The local match-setup snapshot keeps
+   * the correct toss reliably, so here (opportunistically, whenever a ball syncs)
+   * we push it back to the server if it is missing or disagrees. Once the server
+   * toss is correct, every future getOrCreateInnings — on any device, after any
+   * cache clear — derives the right batting team. We also correct innings 1's
+   * teams, but ONLY while it has no deliveries (flipping after balls exist would
+   * corrupt scored data — same guard as getOrCreateInnings).
+   */
+  async ensureTossSynced(matchId, context = null) {
+    if (!supabase || !matchId) return;
+    // Dedupe per match. Within a processQueue run the shared `context` set is
+    // used; when called standalone (e.g. from the v2 event path, which does not
+    // flow through processQueue) fall back to an instance-level set so a match
+    // is only healed once per session unless an attempt fails.
+    const ensured = context?.tossEnsured || (this._tossEnsured ||= new Set());
+    if (ensured.has(matchId)) return;
+    ensured.add(matchId);
+
+    try {
+      const snapshot = await db.match_state.get(matchId);
+      const ms = snapshot?.matchSetup;
+      if (!ms?.teamAId || !ms?.teamBId || !ms?.tossWinnerTeamId) return; // nothing authoritative to heal from
+      const isUUID = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      if (!isUUID(ms.tossWinnerTeamId)) return;
+
+      const decision = String(ms.electedTo || '').toUpperCase() === 'BAT' ? 'BAT' : 'BOWL';
+
+      const { data: match } = await supabase
+        .from('matches')
+        .select('toss_winner_id, toss_decision')
+        .eq('id', matchId)
+        .maybeSingle();
+      if (!match) return;
+
+      const serverDecision = String(match.toss_decision || '').toUpperCase();
+      const needsToss = match.toss_winner_id !== ms.tossWinnerTeamId || serverDecision !== decision;
+      if (needsToss) {
+        const { error } = await supabase
+          .from('matches')
+          .update({ toss_winner_id: ms.tossWinnerTeamId, toss_decision: decision })
+          .eq('id', matchId);
+        if (error) {
+          ensured.delete(matchId); // let it retry next ball
+          console.warn('[SyncService] Toss heal update failed; will retry:', error.message);
+          return;
+        }
+        console.log(`[SyncService] Toss ensured on server for match ${matchId} (winner ${ms.tossWinnerTeamId}, ${decision}).`);
+      }
+
+      // Correct innings 1 teams from the authoritative setup, but only while no
+      // ball has been recorded against it yet.
+      const auth = await this.computeAuthoritativeTeams(matchId, 1);
+      if (!auth) return;
+      const { data: inn1 } = await supabase
+        .from('innings')
+        .select('id, batting_team_id, bowling_team_id')
+        .eq('match_id', matchId)
+        .eq('innings_number', 1)
+        .maybeSingle();
+      if (inn1?.id && inn1.batting_team_id && inn1.batting_team_id !== auth.battingTeamId) {
+        const { count } = await supabase
+          .from('deliveries')
+          .select('id', { count: 'exact', head: true })
+          .eq('innings_id', inn1.id);
+        if (!count) {
+          await supabase
+            .from('innings')
+            .update({ batting_team_id: auth.battingTeamId, bowling_team_id: auth.bowlingTeamId })
+            .eq('id', inn1.id);
+          console.log(`[SyncService] Innings 1 batting side corrected on server for match ${matchId}.`);
+        }
+      }
+    } catch (e) {
+      ensured.delete(matchId);
+      console.warn('[SyncService] Toss heal threw; will retry:', e?.message || e);
+    }
+  }
+
+  /**
    * Derive this innings' batting/bowling team ids from the locally-persisted
    * match setup (the scorer's own choice), mirroring useMatchScoring's
    * resolveInningsId. Used so an innings created on the sync path (offline ball)
@@ -548,6 +633,13 @@ class SyncService {
     // A ball recorded while offline is queued with inningsId=null (the innings
     // row could not be created without a connection). On sync we resolve/create
     // it here instead of failing permanently and blocking the whole match.
+    // Root-cause heal: make sure the server match row carries the toss the
+    // scorer chose before we resolve/create the innings, so a lost setup
+    // toss-write can never leave the server deriving the wrong batting side.
+    if (payload.matchId) {
+      try { await this.ensureTossSynced(payload.matchId, context); } catch (_) {}
+    }
+
     let inningsResolveErr = null;
     if (!inningsId && payload.matchId) {
       try {
