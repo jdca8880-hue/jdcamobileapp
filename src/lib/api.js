@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { isTestFormat } from '../engine/formats';
 import { isEventMatch } from '../engine/engineFlag';
 import { buildMatchState } from '../engine/matchProjection';
+import { projectionToScorecard } from '../engine/scorecardProjection';
 
 // True when a Supabase/PostgREST error means the players.phone column is absent
 // (migration 13_add_player_phone.sql not applied). Postgres undefined_column is
@@ -111,6 +112,11 @@ async function buildV2ScorecardInputs(matchId, matchData) {
   }));
 
   const proj = buildMatchState(events, { matchId, format: matchData?.match_format || null });
+  if (proj.errors && proj.errors.length) {
+    // Surface projection anomalies instead of hiding them behind a silent legacy
+    // fallback — a v2 match's scorecard must come from this one projection.
+    console.warn('[api] v2 projection reported anomalies:', proj.errors);
+  }
 
   const innings = proj.innings.map((i) => ({
     id: i.inningsNumber,
@@ -125,7 +131,15 @@ async function buildV2ScorecardInputs(matchId, matchData) {
     .filter((e) => !e.voided && (e.type === 'DELIVERY' || e.type === 'PENALTY' || e.type === 'RETIREMENT'))
     .map((e) => v2EventToDeliveryRow(e, matchId));
 
-  return { innings, deliveries };
+  // Projection-driven per-innings scorecard stats (batting/bowling/extras/FoW).
+  // This is the SINGLE authority for a v2 match's figures: getMatchScorecard uses
+  // these instead of re-aggregating the synthetic delivery rows, so the scorecard
+  // can never diverge from the live/hydration fold. The synthetic `deliveries`
+  // remain only for the secondary, delivery-shaped computations (partnerships,
+  // ball-by-ball) which read the same accepted events.
+  const projScorecard = projectionToScorecard(proj);
+
+  return { innings, deliveries, projScorecard };
 }
 
 export const parseOversFromFormat = (fmt, fallback = 20) => {
@@ -1735,12 +1749,27 @@ export const api = {
     };
 
     const emptyInnings = () => ({ runs: 0, wickets: 0, extras: 0, overs: '0.0', batting: [], bowling: [] });
-    const stats1 = innings.length > 0 ? computeInningsStats(innings[0]) : emptyInnings();
-    const stats2 = innings.length > 1 ? computeInningsStats(innings[1]) : emptyInnings();
+
+    // For a v2 match, the per-innings batting/bowling/extras/FoW come from the
+    // canonical projection (projScorecard), matched to each innings by number —
+    // ONE rule set, so the scorecard matches live play and hydration exactly.
+    // Legacy (historical `deliveries`) matches keep computeInningsStats as the
+    // explicit compatibility aggregator. We never silently mix the two.
+    const v2Stats = v2Inputs?.projScorecard || null;
+    const statsForInnings = (inn) => {
+      if (!inn) return emptyInnings();
+      if (v2Stats) {
+        const num = inn.innings_number ?? inn.inningsNumber;
+        const match = v2Stats.find((s) => s.inningsNumber === num);
+        return match || emptyInnings();
+      }
+      return computeInningsStats(inn);
+    };
+    const stats1 = innings.length > 0 ? statsForInnings(innings[0]) : emptyInnings();
+    const stats2 = innings.length > 1 ? statsForInnings(innings[1]) : emptyInnings();
     // Innings 3 & 4 only exist for multi-day / Test matches (and super overs).
-    // Computed the same way; absent for ordinary two-innings matches.
-    const stats3 = innings.length > 2 ? computeInningsStats(innings[2]) : null;
-    const stats4 = innings.length > 3 ? computeInningsStats(innings[3]) : null;
+    const stats3 = innings.length > 2 ? statsForInnings(innings[2]) : null;
+    const stats4 = innings.length > 3 ? statsForInnings(innings[3]) : null;
 
     // Per-innings stats enriched with the team identity for THAT innings, so the
     // scorecard UI can render one tab per innings (essential for 4-innings Test —

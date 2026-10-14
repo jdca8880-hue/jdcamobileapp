@@ -56,6 +56,10 @@ export function buildLiveState(events, { format } = {}) {
     currentOverBalls: [],
     isFreeHit: false,
     lastOverBowlerId: null,
+    // The running scorecard projection (fall-of-wickets etc.) rebuilt from the
+    // log, so hydration can initialise the scorecard state from the fold rather
+    // than leaving it empty or inheriting a previous match's scorecard.
+    scorecard: { fallOfWickets: [] },
     needsOpeners: false,
     needsNewBatter: false,
     needsNewBowler: false,
@@ -142,6 +146,7 @@ export function buildLiveState(events, { format } = {}) {
   base.currentOverBalls = running.currentOverBalls;
   base.isFreeHit = running.isFreeHit;
   base.lastOverBowlerId = running.lastOverBowlerId;
+  base.scorecard = running.scorecard || { fallOfWickets: [] };
   // Projection is authoritative for terminal status; otherwise use the replay.
   if (base.status !== 'INNINGS_BREAK' && base.status !== 'COMPLETED') {
     base.matchStatus = running.matchStatus;

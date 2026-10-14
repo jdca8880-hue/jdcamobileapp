@@ -18,7 +18,7 @@ import { normalizeDelivery } from '../engine/deliveryContract.js';
 // --- Event-sourced engine (Plan B), used only for matches on the v2 flag ---
 import { isEventMatch } from '../engine/engineFlag';
 import { appendEvent, voidEventById, getMatchEvents, getPendingOutbox } from '../lib/matchLog';
-import { pushOutbox, startAutoPush } from '../services/eventSync';
+import { pushOutbox, startAutoPush, pullMatch } from '../services/eventSync';
 import { resolveFormat, battingSideIndex, isTestFormat } from '../engine/formats';
 import { buildLiveState } from '../engine/liveState';
 
@@ -106,6 +106,9 @@ export function useMatchScoring({
 
   // Hydrate Match State on refresh
   const hydrateMatchState = async (matchId) => {
+    // A late response for a match the scorer has since left must not commit its
+    // state over the newly-opened match. Checked before every state commit.
+    const stale = () => activeMatchIdRef.current && activeMatchIdRef.current !== matchId;
     try {
       let match, home_team_roster, away_team_roster, currentInning, deliveries;
       try {
@@ -123,6 +126,7 @@ export function useMatchScoring({
           const { db } = await import('../lib/db.js');
           const snapshot = await db.match_state.get(matchId);
           if (snapshot && snapshot.matchSetup) {
+            if (stale()) return { success: true, stale: true };
             console.log('[useMatchScoring] Restoring from local match snapshot, updatedAt:', snapshot.updatedAt);
             setMatchSetup(snapshot.matchSetup);
             setInnings(snapshot.innings ?? 1);
@@ -228,6 +232,10 @@ export function useMatchScoring({
         console.warn('Failed to enrich rosters with persistent local data', err);
       }
 
+      // One checkpoint after all async fetch/fallback resolution and before ANY
+      // state commit: if the scorer switched matches meanwhile, abandon quietly.
+      if (stale()) return { success: true, stale: true };
+
       const effectiveOvers = match.max_overs || 20;
       setTotalMatchOvers(effectiveOvers);
       setMatchFormat(match.match_format || 'T20');
@@ -270,6 +278,15 @@ export function useMatchScoring({
       // just loaded above, so names/XI are ready; the fold governs the numbers.
       if (isEventMatch(matchId)) {
         try {
+          // Remote event catch-up BEFORE folding: merge any events this device
+          // is missing (scored on another device, or appended while this one was
+          // offline) into the local durable log. Idempotent and dedupes by id,
+          // so local unsynced events are preserved and nothing is double-counted.
+          // Offline it is an instant no-op and the local fold still governs.
+          try { await pullMatch(matchId); } catch (pullErr) {
+            console.warn('[useMatchScoring] remote event catch-up failed; folding local log only:', pullErr);
+          }
+          if (stale()) return { success: true, stale: true };
           const ok = await hydrateFromEventLog(matchId);
           if (ok) return { success: true, v2: true };
           // No events yet (innings not started): fall through to the normal path.
@@ -348,6 +365,7 @@ export function useMatchScoring({
               (Array.isArray(snapshot.deliveryLog) && snapshot.deliveryLog.length > 0)
             );
             if (snapHasData) {
+              if (stale()) return { success: true, stale: true };
               console.warn('[useMatchScoring] Hydration returned 0 deliveries but snapshot has data. Restoring snapshot to avoid score reset.');
               setInnings(snapshot.innings ?? currentInning.innings_number);
               setCurrentInningsId(snapshot.currentInningsId ?? currentInning.id);
@@ -416,6 +434,7 @@ export function useMatchScoring({
           });
         });
         
+        if (stale()) return { success: true, stale: true };
         setRuns(r);
         setWickets(w);
         setBalls(b);
@@ -894,6 +913,10 @@ export function useMatchScoring({
       console.warn('[useMatchScoring] player-position fallback during fold failed:', e);
     }
 
+    // A fold for a match the scorer has since left must not commit over the
+    // newly-opened match (resolveInningsId above awaits the network).
+    if (activeMatchIdRef.current && activeMatchIdRef.current !== matchId) return false;
+
     setInnings(live.innings);
     if (inningsId) setCurrentInningsId(inningsId);
     if (live.battingTeamId) setCurrentBattingTeamId(live.battingTeamId);
@@ -907,6 +930,10 @@ export function useMatchScoring({
     setCurrentBowler(outBowler);
     setCurrentOverBalls(resumeFromOverComplete ? [] : (live.currentOverBalls || []));
     setIsFreeHit(!!live.isFreeHit);
+    // Initialise the scorecard from the fold's projection (fall-of-wickets etc.)
+    // so a restored v2 match shows its own scorecard instead of an empty one or
+    // whatever the previous match left behind.
+    setScorecard({ ...INITIAL_SCORECARD, ...(live.scorecard || {}) });
     // If we restored an already-chosen next-over bowler, resume play rather than
     // leaving the (now-satisfied) OVER_COMPLETE "select next bowler" prompt up.
     setMatchStatus(resumeFromOverComplete ? MATCH_STATES.IN_PROGRESS : (live.matchStatus || MATCH_STATES.IN_PROGRESS));
@@ -989,6 +1016,24 @@ export function useMatchScoring({
       setCurrentBattingTeamId(null);
       setCurrentBowlingTeamId(null);
       inningsSeqRef.current = {};
+      // Clear the full live scoring view too, so a newly-opened match can never
+      // inherit the previous match's runs/balls/players/scorecard. This is also
+      // what makes the hydration guard (balls===0) honest: without it the guard
+      // reads the PREVIOUS match's balls and skips loading the new match.
+      setRuns(0);
+      setWickets(0);
+      setBalls(0);
+      setCurrentOverBalls([]);
+      setExtras({ wides: 0, noBalls: 0, legByes: 0, byes: 0, penalty: 0 });
+      setStriker(null);
+      setNonStriker(null);
+      setCurrentBowler(null);
+      setDeliveryLog([]);
+      setBallHistory([]);
+      setLastOverBowlerId(null);
+      setIsFreeHit(false);
+      setScorecard(INITIAL_SCORECARD);
+      setMatchStatus('IN_PROGRESS');
     }
   }, [activeMatchId]);
 
@@ -997,6 +1042,14 @@ export function useMatchScoring({
   const [isHydrating, setIsHydrating] = useState(false);
   const [hydrationError, setHydrationError] = useState(null);
   const hydrationRanForMatch = useRef(null);
+
+  // Mirror of activeMatchId readable synchronously inside async hydration. An
+  // async hydrate for a match that is no longer open (the scorer switched
+  // matches while a fetch/pull/fold was in flight) must NOT commit its state —
+  // otherwise a late response clobbers the newly-opened match. Every state
+  // commit inside hydrateMatchState / hydrateFromEventLog checks this first.
+  const activeMatchIdRef = useRef(activeMatchId);
+  useEffect(() => { activeMatchIdRef.current = activeMatchId; }, [activeMatchId]);
 
   // Unified hydration: local snapshot first (instant), then API (authoritative).
   // Runs once per activeMatchId when scoring state is at defaults (page refresh /
@@ -1009,7 +1062,13 @@ export function useMatchScoring({
       setHydrationError(null);
       return;
     }
-    if (innings !== 1 || balls !== 0) return;
+    // Skip only when the already-populated state actually BELONGS to this match
+    // (true SPA navigation back into the live match). On a match SWITCH the
+    // previous match's innings/balls are still in this effect's captured state
+    // (the reset effect's setters have not committed yet), so keying the skip
+    // purely off innings/balls would wrongly skip loading the new match.
+    const stateIsForThisMatch = matchSetup?.matchId === activeMatchId;
+    if (stateIsForThisMatch && (innings !== 1 || balls !== 0)) return;
     if (hydrationRanForMatch.current === activeMatchId) return;
     hydrationRanForMatch.current = activeMatchId;
 
@@ -2081,30 +2140,69 @@ export function useMatchScoring({
     }
   };
 
-  const continueAfterOver = (bowler) => {
+  const continueAfterOver = async (bowler) => {
     if (!bowler) return;
     const bName = bowler.full_name || bowler.name || 'Bowler';
+
+    // Seed the selected bowler with their CUMULATIVE figures from the
+    // authoritative event-log projection — NOT a fresh zero. This is the fix for
+    // "returning bowler's figures reset": a bowler who bowled an earlier over and
+    // now comes back for another spell must resume their running overs/runs/
+    // wickets, and the projection (buildMatchState) is the single source of truth
+    // for those figures (it accumulates bowling by playerId across spells). The
+    // old code only preserved figures when prev.id === bowler.id, which is the
+    // illegal consecutive-over case — a genuine returning bowler fell through to
+    // "start fresh" and lost their figures. We do NOT copy legacy totals: the
+    // numbers come from folding this match's own durable events.
+    let seeded = null;
+    try {
+      if (isEventMatch(activeMatchId)) {
+        const events = await getMatchEvents(activeMatchId);
+        const live = buildLiveState(events, { format: resolveFormat(matchSetup?.format || matchFormat) });
+        const proj = live.projection;
+        const curNo = proj?.currentInnings;
+        const cur = curNo ? proj.innings.find((i) => i.inningsNumber === curNo) : null;
+        const b = cur?.bowling?.[bowler.id];
+        if (b) {
+          const bb = b.balls || 0;
+          seeded = {
+            id: bowler.id,
+            name: bName,
+            overs: Number(`${Math.floor(bb / 6)}.${bb % 6}`),
+            ballsBowled: bb,
+            maidens: 0, // maidens are derived for the full scorecard, not tracked live
+            runs: b.runs || 0,
+            wickets: b.wickets || 0,
+            economy: bb > 0 ? ((b.runs || 0) / (bb / 6)).toFixed(2) : '0.00',
+            wk: '',
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[useMatchScoring] returning-bowler figure seed from projection failed:', e);
+    }
+
     setCurrentBowler((prev) => {
-      // If the same bowler is selected again (returning for another spell), preserve their cumulative stats
-      if (prev && prev.id === bowler.id) {
-        return { ...prev };
-      }
-      // New bowler - start fresh
-      const newBowlerState = {
-        id: bowler.id,
-        name: bName,
-        overs: 0,
-        ballsBowled: 0,
-        maidens: 0,
-        runs: 0,
-        wickets: 0,
-        economy: '0.00',
-        wk: '',
-      };
+      // A returning bowler resumes their cumulative figures from the projection.
+      const next = seeded
+        ? seeded
+        : (prev && prev.id === bowler.id)
+          ? { ...prev }
+          : {
+              id: bowler.id,
+              name: bName,
+              overs: 0,
+              ballsBowled: 0,
+              maidens: 0,
+              runs: 0,
+              wickets: 0,
+              economy: '0.00',
+              wk: '',
+            };
       if (activeMatchId) {
-        try { localStorage.setItem(`jdca-bowler-${activeMatchId}`, JSON.stringify(newBowlerState)); } catch {}
+        try { localStorage.setItem(`jdca-bowler-${activeMatchId}`, JSON.stringify(next)); } catch {}
       }
-      return newBowlerState;
+      return next;
     });
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
     setCurrentOverBalls([]);

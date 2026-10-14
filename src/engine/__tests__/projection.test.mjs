@@ -81,11 +81,11 @@ test('T20 innings: totals, batter & bowler cards aggregate correctly', () => {
   assert.equal(i1.legalBalls, 6);
   assert.equal(oversFromBalls(i1.legalBalls), '1.0');
   assert.deepEqual(i1.extras, { wides: 0, noBalls: 0, byes: 0, legByes: 0, penalty: 0 });
-  assert.deepEqual(i1.batting.b1, { playerId: 'b1', runs: 11, balls: 4, fours: 1, sixes: 1, out: false, dismissal: null });
+  assert.deepEqual(i1.batting.b1, { playerId: 'b1', name: null, runs: 11, balls: 4, fours: 1, sixes: 1, out: false, dismissal: null });
   assert.equal(i1.batting.b2.runs, 2);
   assert.equal(i1.batting.b2.balls, 2);
   assert.equal(i1.batting.b2.out, true);
-  assert.deepEqual(i1.bowling.bwl1, { playerId: 'bwl1', balls: 6, runs: 13, wickets: 1 });
+  assert.deepEqual(i1.bowling.bwl1, { playerId: 'bwl1', name: null, balls: 6, runs: 13, wickets: 1, maidens: 0, wides: 0, noBalls: 0 });
   assert.equal(st.errors.length, 0);
 });
 

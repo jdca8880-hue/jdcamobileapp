@@ -49,21 +49,48 @@ function emptyInnings(inningsNumber, battingTeamId, bowlingTeamId) {
   };
 }
 
-function ensureBatter(inn, id) {
+function ensureBatter(inn, id, name = null) {
   if (!id) return null;
   if (!inn.batting[id]) {
-    inn.batting[id] = { playerId: id, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, dismissal: null };
+    inn.batting[id] = { playerId: id, name: name || null, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, dismissal: null };
     inn.battingOrder.push(id);
+  } else if (name && !inn.batting[id].name) {
+    inn.batting[id].name = name;
   }
   return inn.batting[id];
 }
-function ensureBowler(inn, id) {
+function ensureBowler(inn, id, name = null) {
   if (!id) return null;
   if (!inn.bowling[id]) {
-    inn.bowling[id] = { playerId: id, balls: 0, runs: 0, wickets: 0 };
+    // maidens/wides/noBalls are carried here so the SCORECARD is driven by this
+    // one projection rather than a second aggregation. maidens is filled by a
+    // post-fold pass (finalizeMaidens) that buckets legal balls per over.
+    inn.bowling[id] = { playerId: id, name: name || null, balls: 0, runs: 0, wickets: 0, maidens: 0, wides: 0, noBalls: 0 };
     inn.bowlingOrder.push(id);
+  } else if (name && !inn.bowling[id].name) {
+    inn.bowling[id].name = name;
   }
   return inn.bowling[id];
+}
+
+/**
+ * Maidens, computed from the SAME accepted deliveries the rest of the projection
+ * folds (buckets each over by bowler): an over of 6 legal balls with no wide/
+ * no-ball and nothing charged to the bowler (byes/leg-byes don't count against
+ * them). Runs off a transient `_overBuckets` seeded during applyDelivery, then
+ * the transient is discarded so the returned state stays clean.
+ */
+function finalizeMaidens(inn) {
+  const buckets = inn._overBuckets;
+  if (buckets) {
+    for (const [key, b] of buckets) {
+      if (b.legalBalls === 6 && !b.hadWideOrNb && b.chargedRuns === 0) {
+        const bowlerId = key.slice(0, key.lastIndexOf('::'));
+        if (inn.bowling[bowlerId]) inn.bowling[bowlerId].maidens += 1;
+      }
+    }
+  }
+  delete inn._overBuckets;
 }
 
 function effectiveMaxBalls(format, inn) {
@@ -230,11 +257,24 @@ function applyDelivery(state, inn, p, pushError) {
   else if (extraType === 'BYE') inn.extras.byes += runsExtras;
   else if (extraType === 'LEG_BYE') inn.extras.legByes += runsExtras;
 
+  // Over bucket for maiden detection, keyed by bowler + over index (based on
+  // legal balls BEFORE this ball, matching scorer/over_number semantics).
+  const overIdx = Math.floor(inn.legalBalls / 6);
+  if (p.bowlerId) {
+    if (!inn._overBuckets) inn._overBuckets = new Map();
+    const key = `${p.bowlerId}::${overIdx}`;
+    if (!inn._overBuckets.has(key)) inn._overBuckets.set(key, { legalBalls: 0, chargedRuns: 0, hadWideOrNb: false });
+    const bucket = inn._overBuckets.get(key);
+    if (isLegal) bucket.legalBalls += 1;
+    if (extraType === 'WIDE' || extraType === 'NO_BALL') bucket.hadWideOrNb = true;
+    if (!NOT_BOWLER_CONCEDED.has(extraType)) bucket.chargedRuns += runsTotal;
+  }
+
   if (isLegal) inn.legalBalls += 1;
 
   // Batter card (striker faces the ball). Balls faced count for legal + no-balls.
-  const striker = ensureBatter(inn, p.strikerId);
-  ensureBatter(inn, p.nonStrikerId); // keep non-striker in the order/card
+  const striker = ensureBatter(inn, p.strikerId, p.striker);
+  ensureBatter(inn, p.nonStrikerId, p.nonStriker); // keep non-striker in the order/card
   if (striker) {
     striker.runs += runsBatter;
     if (isLegal || extraType === 'NO_BALL') striker.balls += 1;
@@ -243,22 +283,26 @@ function applyDelivery(state, inn, p, pushError) {
   }
 
   // Bowler card. Byes/leg-byes are not charged to the bowler.
-  const bowler = ensureBowler(inn, p.bowlerId);
+  const bowler = ensureBowler(inn, p.bowlerId, p.bowler);
   if (bowler) {
     if (isLegal) bowler.balls += 1;
     bowler.runs += NOT_BOWLER_CONCEDED.has(extraType) ? 0 : runsTotal;
+    if (extraType === 'WIDE') bowler.wides += runsExtras;
+    else if (extraType === 'NO_BALL') bowler.noBalls += runsExtras;
   }
 
   // Wicket
   if (wicketType !== 'NONE') {
     inn.wickets += 1;
     const dismissedId = p.dismissedPlayerId || p.strikerId || null;
-    const dismissed = ensureBatter(inn, dismissedId);
+    const dismissedName = p.dismissedPlayerName
+      || (dismissedId === p.strikerId ? p.striker : dismissedId === p.nonStrikerId ? p.nonStriker : null);
+    const dismissed = ensureBatter(inn, dismissedId, dismissedName);
     if (dismissed) {
       dismissed.out = true;
       dismissed.dismissal = { type: wicketType, bowlerId: p.bowlerId || null, fielderId: p.fielderId || null };
     }
-    inn.fallOfWickets.push({ wicketNumber: inn.wickets, runs: inn.runs, playerId: dismissedId, overBall: `${Math.floor(inn.legalBalls / 6)}.${inn.legalBalls % 6}` });
+    inn.fallOfWickets.push({ wicketNumber: inn.wickets, runs: inn.runs, playerId: dismissedId, playerName: dismissedName || null, overBall: `${Math.floor(inn.legalBalls / 6)}.${inn.legalBalls % 6}` });
     if (bowler && BOWLER_CREDITED.has(wicketType)) bowler.wickets += 1;
   }
 
@@ -422,6 +466,10 @@ export function buildMatchState(rawEvents, opts = {}) {
       }
     }
   }
+
+  // Fill maidens per innings from the accepted-delivery over buckets, then drop
+  // the transient bucket map so the returned state is clean and serialisable.
+  for (const inn of state.innings) finalizeMaidens(inn);
 
   return state;
 }
