@@ -142,57 +142,42 @@ export default function ScoringScreen() {
   const teamBXI = _cleanXI(matchSetup?.teamBXI, matchSetup?.teamBId, matchSetup?.teamAId);
   const tossWinnerTeamId = matchSetup?.tossWinnerTeamId;
   const electedTo = matchSetup?.electedTo;
+  const teamAId = matchSetup?.teamAId;
+  const teamBId = matchSetup?.teamBId;
 
-  let battingTeamId = matchSetup?.teamAId;
-  let bowlingTeamId = matchSetup?.teamBId;
-
-  const authBattingTeamId = currentBattingTeamId;
-  const authBowlingTeamId = currentBowlingTeamId;
-
-  if (authBattingTeamId && authBowlingTeamId &&
-    (authBattingTeamId === matchSetup?.teamAId || authBattingTeamId === matchSetup?.teamBId)) {
-    // Authoritative: use the innings record so the correct team bats (esp. 2nd innings).
-    battingTeamId = authBattingTeamId;
-    bowlingTeamId = authBowlingTeamId;
-  } else {
+  // Decide which of the TWO match teams is batting this innings as ONE boolean,
+  // then make the bowling side ALWAYS the other team. Deriving the two sides
+  // independently (the old code) let a stale/foreign bowling-team id fall through
+  // to the same XI as batting — so striker, non-striker AND bowler were offered
+  // from one team and the engine then rejected the bowler as "not in the bowling
+  // playing XI". Keying everything off a single batIsA makes that collapse
+  // impossible: bowling is the complement of batting, by construction.
+  let batIsA;
+  if (currentBattingTeamId === teamAId) batIsA = true;
+  else if (currentBattingTeamId === teamBId) batIsA = false;
+  else if (currentBowlingTeamId === teamAId) batIsA = false; // bowling A => batting B
+  else if (currentBowlingTeamId === teamBId) batIsA = true;
+  else {
+    // No authoritative innings record yet — derive from the toss + innings number.
+    let tossFirstBatsA = true;
     if (tossWinnerTeamId) {
       const isBat = String(electedTo || '').toUpperCase() === 'BAT';
-      if (tossWinnerTeamId === matchSetup?.teamAId) {
-        battingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
-        bowlingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
-      } else {
-        battingTeamId = isBat ? matchSetup?.teamBId : matchSetup?.teamAId;
-        bowlingTeamId = isBat ? matchSetup?.teamAId : matchSetup?.teamBId;
-      }
+      const winnerIsA = tossWinnerTeamId === teamAId;
+      tossFirstBatsA = isBat ? winnerIsA : !winnerIsA;
     }
-
-    // Which innings flip the batting side (relative to the toss-first side):
+    // Which innings flip the batting side relative to the toss-first side:
     //   - Limited overs / super over: innings 2 & 3.
     //   - Test (fixed order A,B,A,B): innings 2 & 4.
-    // (Only used when the authoritative innings record isn't resolved yet.)
     const swap = isTestMatch ? (innings === 2 || innings === 4) : (innings === 2 || innings === 3);
-    if (swap) {
-      const temp = battingTeamId;
-      battingTeamId = bowlingTeamId;
-      bowlingTeamId = temp;
-    }
+    batIsA = swap ? !tossFirstBatsA : tossFirstBatsA;
   }
 
-  // Safety: the batting and bowling sides must be the two DIFFERENT match teams.
-  // If the authoritative/toss derivation (or a stale hydration) ever leaves the
-  // bowling side unset or equal to the batting side, force it to the opposite
-  // team. Without this, battingXI and bowlingXI below collapse to the SAME array
-  // — which shows one team's players for striker, non-striker AND bowler, and
-  // leaves the other side's pickers empty (the "same players / change option not
-  // coming" bug).
-  if (battingTeamId && (!bowlingTeamId || bowlingTeamId === battingTeamId)) {
-    bowlingTeamId = battingTeamId === matchSetup?.teamAId ? matchSetup?.teamBId : matchSetup?.teamAId;
-  }
-
-  const battingXI = battingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
-  const bowlingXI = bowlingTeamId === matchSetup?.teamAId ? teamAXI : teamBXI;
-  const currentBattingTeamName = battingTeamId === matchSetup?.teamAId ? teamAName : teamBName;
-  const currentBowlingTeamName = bowlingTeamId === matchSetup?.teamAId ? teamAName : teamBName;
+  const battingTeamId = batIsA ? teamAId : teamBId;
+  const bowlingTeamId = batIsA ? teamBId : teamAId;
+  const battingXI = batIsA ? teamAXI : teamBXI;
+  const bowlingXI = batIsA ? teamBXI : teamAXI; // ALWAYS the opposite side — cannot collapse
+  const currentBattingTeamName = batIsA ? teamAName : teamBName;
+  const currentBowlingTeamName = batIsA ? teamBName : teamAName;
 
   // Only force full InningsInitScreen at the very beginning of the innings
   const needsInitialization = balls === 0 && (!striker?.id || !nonStriker?.id || !currentBowler?.id);
