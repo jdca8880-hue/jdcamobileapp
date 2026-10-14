@@ -286,6 +286,15 @@ export function useMatchScoring({
           try { await pullMatch(matchId); } catch (pullErr) {
             console.warn('[useMatchScoring] remote event catch-up failed; folding local log only:', pullErr);
           }
+          // SELF-HEAL a wrong INNINGS_STARTED: the durable event is immutable, so
+          // an innings whose batting side was baked from a stale toss stays wrong
+          // forever and the fold shows the wrong team batting. The server innings
+          // record (currentInning) is reconciled/repaired, so when it clearly
+          // disagrees, correct the event's teams IN PLACE (keeps its logSeq/order
+          // — a re-append would sort after the deliveries and break the fold).
+          try { await healV2InningsStartedTeams(matchId, currentInning, match); } catch (healErr) {
+            console.warn('[useMatchScoring] v2 innings-start self-heal skipped:', healErr);
+          }
           if (stale()) return { success: true, stale: true };
           const ok = await hydrateFromEventLog(matchId);
           if (ok) return { success: true, v2: true };
@@ -722,6 +731,9 @@ export function useMatchScoring({
           setCurrentInningsId(cached.id);
           if (cached.batting_team_id) setCurrentBattingTeamId(cached.batting_team_id);
           if (cached.bowling_team_id) setCurrentBowlingTeamId(cached.bowling_team_id);
+          if (cached.batting_team_id && cached.bowling_team_id) {
+            resolvedInningsTeamsRef.current = { matchId, inningsNumber: num, battingTeamId: cached.batting_team_id, bowlingTeamId: cached.bowling_team_id };
+          }
           return cached.id;
         }
       }
@@ -736,6 +748,9 @@ export function useMatchScoring({
         setCurrentInningsId(inn.id);
         if (inn.batting_team_id) setCurrentBattingTeamId(inn.batting_team_id);
         if (inn.bowling_team_id) setCurrentBowlingTeamId(inn.bowling_team_id);
+        if (inn.batting_team_id && inn.bowling_team_id) {
+          resolvedInningsTeamsRef.current = { matchId, inningsNumber: num, battingTeamId: inn.batting_team_id, bowlingTeamId: inn.bowling_team_id };
+        }
         // Cache to local Dexie
         try {
           const { db } = await import('../lib/db.js');
@@ -770,6 +785,35 @@ export function useMatchScoring({
   // restart) and reseeds `ballHistory` length so the shared Undo guard stays
   // enabled. Declared as a hoisted function so the earlier hydration closures can
   // call it; it only runs during hydration/undo, after all setters exist.
+  // Correct a durable INNINGS_STARTED whose batting/bowling teams disagree with
+  // the reconciled server innings record. Done in place so the event keeps its
+  // append order (logSeq); a re-appended correction would sort AFTER the innings'
+  // deliveries and the projection would reject them ("innings never started").
+  // Guarded: only when the record's two teams are exactly the match's two teams
+  // and they actually differ from what the event holds. Device-local (the server
+  // event row is immutable); for a brand-new match the PREVENT path already emits
+  // correct teams, so this only repairs matches recorded before the fix.
+  async function healV2InningsStartedTeams(matchId, serverInning, match) {
+    if (!serverInning || !match) return;
+    const bat = serverInning.batting_team_id;
+    const bowl = serverInning.bowling_team_id;
+    const num = serverInning.innings_number;
+    if (!bat || !bowl || !num) return;
+    const teams = [match.home_team_id, match.away_team_id];
+    if (!teams.includes(bat) || !teams.includes(bowl) || bat === bowl) return; // record itself not trustworthy
+    const { db } = await import('../lib/db.js');
+    const evId = `evt-inningsstart-${matchId}-${num}`;
+    const ev = await db.match_events.where('id').equals(evId).first();
+    if (!ev) return;
+    const p = ev.payload || {};
+    if (p.battingTeamId === bat && p.bowlingTeamId === bowl) return; // already correct
+    // Only heal a genuine swap: the event must currently name the OTHER team as
+    // batting (both values are the match's two teams, just reversed).
+    if (!(p.battingTeamId === bowl && p.bowlingTeamId === bat)) return;
+    await db.match_events.update(ev.logSeq, { payload: { ...p, battingTeamId: bat, bowlingTeamId: bowl } });
+    console.warn(`[useMatchScoring] healed INNINGS_STARTED innings ${num}: batting ${p.battingTeamId} -> ${bat} (matched reconciled innings record)`);
+  }
+
   async function hydrateFromEventLog(matchId) {
     const events = await getMatchEvents(matchId);
     if (!events || events.length === 0) return false;
@@ -1050,6 +1094,12 @@ export function useMatchScoring({
   // commit inside hydrateMatchState / hydrateFromEventLog checks this first.
   const activeMatchIdRef = useRef(activeMatchId);
   useEffect(() => { activeMatchIdRef.current = activeMatchId; }, [activeMatchId]);
+
+  // The batting/bowling teams resolveInningsId last reconciled, so startInnings
+  // can emit INNINGS_STARTED with the SAME authoritative teams the innings record
+  // got — otherwise the durable event (immutable) can bake a stale toss and the
+  // fold then shows the wrong side batting (bowler picker lists the batting XI).
+  const resolvedInningsTeamsRef = useRef(null);
 
   // Unified hydration: local snapshot first (instant), then API (authoritative).
   // Runs once per activeMatchId when scoring state is at defaults (page refresh /
@@ -1942,8 +1992,27 @@ export function useMatchScoring({
     }
   };
 
-  const startInnings = () => {
-    emitV2InningsStart(innings);
+  const startInnings = async () => {
+    // Resolve the authoritative (toss-reconciled) innings FIRST, then record
+    // INNINGS_STARTED with exactly those teams. The durable event is immutable,
+    // so if we emitted it from a possibly-stale matchSetup.electedTo the fold
+    // could forever show the wrong side batting (the bowler picker then lists the
+    // batting XI). Deriving the event from the innings record the server
+    // reconciled keeps the event log and the innings record in agreement.
+    let explicitTeams = null;
+    if (activeMatchId) {
+      try {
+        await resolveInningsId(activeMatchId, innings);
+        const r = resolvedInningsTeamsRef.current;
+        if (r && r.matchId === activeMatchId && r.inningsNumber === innings && r.battingTeamId && r.bowlingTeamId) {
+          explicitTeams = { battingTeamId: r.battingTeamId, bowlingTeamId: r.bowlingTeamId };
+        }
+      } catch (err) {
+        console.warn('[useMatchScoring] Innings resolution before start non-fatal warning:', err);
+      }
+    }
+
+    await emitV2InningsStart(innings, null, explicitTeams);
     recordDeliveryEvent({
       type: 'innings_start',
       runs: 0,
@@ -1952,13 +2021,6 @@ export function useMatchScoring({
     });
     setMatchStatus(MATCH_STATES.IN_PROGRESS);
     broadcastLiveScore({ runs: 0, wickets: 0, balls: 0, status: 'IN_PROGRESS' });
-
-    // Eagerly resolve & cache innings in Supabase and Dexie
-    if (activeMatchId) {
-      resolveInningsId(activeMatchId, innings).catch(err => {
-        console.warn('[useMatchScoring] Eager innings resolution non-fatal warning:', err);
-      });
-    }
 
     // Update match status in database so all other viewers see the match LIVE
     if (activeMatchId && supabase) {
