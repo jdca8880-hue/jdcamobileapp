@@ -324,6 +324,35 @@ export default function ScoringScreen() {
 
   if (needsInitialization) {
     if (battingXI.length === 0 || bowlingXI.length === 0) {
+      // A live / resumed / 2nd-innings match whose Playing XI is momentarily
+      // empty is mid-hydration (the rosters haven't loaded into matchSetup yet),
+      // NOT a match that needs setting up. Showing the "Set Up Playing XI" card
+      // here is what wrongly bounced a resumed match — and the start of the 2nd
+      // innings — into the full match-setup wizard. Show a loader + Retry instead
+      // so the correct screen appears once the rosters arrive. Only a genuinely
+      // un-started match (no live status, 1st innings, no balls) still prompts setup.
+      const activeMatchRecord = matches?.find(m => String(m.id) === String(activeMatchId));
+      const looksLive =
+        (activeMatchRecord && ['IN_PROGRESS', 'INNINGS_BREAK'].includes(activeMatchRecord.status)) ||
+        innings > 1 ||
+        (deliveryLog?.length > 0);
+      if (looksLive) {
+        return (
+          <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh] px-5 py-10 text-center">
+            <RefreshCw className="h-8 w-8 text-[#2457D6] animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Loading the Playing XI…</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 max-w-xs">
+              Getting this match&rsquo;s squads ready. This takes a moment on a slow connection.
+            </p>
+            <button
+              onClick={() => retryHydration?.()}
+              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-[#2457D6] text-white rounded-xl font-bold text-sm active:scale-[0.98] transition-all"
+            >
+              <RefreshCw className="h-4 w-4" /> Retry
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh] px-5 py-10 bg-gradient-to-b from-slate-50 to-[#EEF2FB] dark:from-[#0B1220] dark:to-[#0B1628]">
           <motion.div
