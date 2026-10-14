@@ -1503,7 +1503,10 @@ export default function ScoringScreen() {
                 <div className="text-[11px] text-slate-500 mb-3 font-medium">
                   Review Top Performers, award Player of the Match, and permanently lock official records.
                 </div>
-                {runs === target - 1 && (
+                {/* Super Over is a limited-overs tie-breaker only. It must appear on
+                    every non-Test format when scores are level (T20/ODI/T10/custom),
+                    and never on Test/multi-day — those are decided by draw/declare. */}
+                {runs === target - 1 && !isTestMatch && (
                   <button
                     onClick={() => {
                       startSuperOver();

@@ -1592,7 +1592,7 @@ export function useMatchScoring({
   // Write a finished match's winner/margin/result text and route to the result
   // screen. Shared by the limited-overs chase finaliser and the Test aggregate
   // finaliser so cleanup (snapshot delete, matches cache patch) stays identical.
-  const commitMatchResult = ({ winnerId, margin, text }) => {
+  const commitMatchResult = ({ winnerId, margin, text, pauseForChoice = false }) => {
     api.updateMatchDetails(activeMatchId, {
       winner_team_id: winnerId,
       result_margin: margin,
@@ -1602,6 +1602,11 @@ export function useMatchScoring({
         ...m, winner_team_id: winnerId, result_margin: margin, result_text: text,
       } : m));
     }).catch(console.error);
+    // A tie in a super-over-capable format must NOT auto-finish: keep the user on
+    // the scoring screen's match-finished modal so they can choose "Play Super
+    // Over" or finalise, and keep the resumable snapshot so the super over can
+    // actually start (and the match can be resumed if they close the app).
+    if (pauseForChoice) return;
     setTimeout(() => navigateTo('match-result'), 600);
     if (activeMatchId) {
       import('../lib/db.js').then(({ db }) => db.match_state.delete(activeMatchId)).catch(() => {});
@@ -1667,7 +1672,10 @@ export function useMatchScoring({
       }
       if (isSuperOverFinal && text && !text.includes('Super Over')) text += superOverSuffix;
 
-      commitMatchResult({ winnerId, margin, text });
+      // A tie in a limited-overs / super-over match leaves the result open so the
+      // user can pick a Super Over; every other result (win/loss) finalises now.
+      const isTie = winnerId === null && margin === 'Tie';
+      commitMatchResult({ winnerId, margin, text, pauseForChoice: isTie && !isTestMatch });
     } catch (e) {
       console.error('[useMatchScoring] Match finalization error:', e);
       setTimeout(() => navigateTo('match-result'), 600);
